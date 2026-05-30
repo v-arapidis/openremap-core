@@ -41,8 +41,9 @@ dependencies = [
 ]
 
 [project.scripts]
-openremap     = "openremap.cli.main:main"
-openremap-tui = "openremap.tui.main:run"
+openremap        = "openremap.cli.main:main"
+openremap-tui    = "openremap.tui.main:run"
+openremap-server = "openremap.server:main"
 
 [project.urls]
 Homepage = "https://www.openremap.com"

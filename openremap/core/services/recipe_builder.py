@@ -72,6 +72,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from openremap.core.services.identifier import identify_ecu
+from openremap.core.services.entropy import find_unique_context
 
 import hashlib
 import json
@@ -97,6 +98,10 @@ class Change:
     ctx: str  # context_before bytes — hex, uppercase
     context_after: str
     context_size: int
+    # Phase 1 entropy-gated context fields
+    ctx_entropy: float = 0.0  # Shannon entropy of ctx bytes
+    ctx_unique_in_original: int = 1  # 1 = unique, >1 = ambiguous in original binary
+    ctx_expanded: bool = False  # True when context was expanded beyond min_size
 
     @property
     def offset_hex(self) -> str:
@@ -112,6 +117,9 @@ class Change:
             "ctx": self.ctx,
             "context_after": self.context_after,
             "context_size": self.context_size,
+            "ctx_entropy": self.ctx_entropy,
+            "ctx_unique": self.ctx_unique_in_original == 1,
+            "ctx_expanded": self.ctx_expanded,
             "description": self._description(),
         }
 
@@ -215,6 +223,9 @@ class ECUDiffAnalyzer:
         original_filename: str,
         modified_filename: str,
         context_size: int = 32,
+        max_context_size: int = 512,
+        entropy_threshold: float = 2.5,
+        require_unique: bool = True,
         author: dict | None = None,
     ) -> None:
         self.original_data = original_data
@@ -222,6 +233,9 @@ class ECUDiffAnalyzer:
         self.original_filename = original_filename
         self.modified_filename = modified_filename
         self.context_size = context_size
+        self.max_context_size = max_context_size
+        self.entropy_threshold = entropy_threshold
+        self.require_unique = require_unique
         self.changes: List[Change] = []
         self._cook_warnings: List[str] = []
         self.author = author
@@ -315,13 +329,39 @@ class ECUDiffAnalyzer:
     # Diff engine
     # -----------------------------------------------------------------------
 
-    def _get_context(self, offset: int, size: int) -> Tuple[bytes, bytes]:
-        """Return (context_before, context_after) bytes for a change block."""
-        ctx_start = max(0, offset - self.context_size)
-        ctx_end = min(len(self.original_data), offset + size + self.context_size)
-        before = self.original_data[ctx_start:offset]
-        after = self.original_data[offset + size : ctx_end]
-        return before, after
+    def _get_verified_context(
+        self, offset: int, size: int, ob: bytes
+    ) -> Tuple[bytes, bytes, float, int, bool]:
+        """
+        Capture context before ``offset`` and verify it produces a unique
+        anchor in the original binary.
+
+        Delegates to ``find_unique_context()`` which expands the context
+        window geometrically until the anchor is both high-entropy and
+        unique (or ``max_context_size`` is reached).
+
+        Returns:
+            ``(context_before, context_after, entropy, match_count, expanded)``
+
+            ``match_count`` is the number of times ``ctx + ob`` appears in
+            the original binary — 1 is unique.  ``expanded`` is True when
+            the context was expanded beyond the configured ``context_size``
+            minimum.
+        """
+        ctx, actual_size, entropy, match_count = find_unique_context(
+            data=self.original_data,
+            change_offset=offset,
+            change_size=size,
+            ob=ob,
+            min_size=self.context_size,
+            max_size=self.max_context_size,
+            entropy_threshold=self.entropy_threshold,
+        )
+        after_start = offset + size
+        after_end = min(len(self.original_data), after_start + self.context_size)
+        ctx_after = self.original_data[after_start:after_end]
+        expanded = actual_size > self.context_size
+        return ctx, ctx_after, entropy, match_count, expanded
 
     def find_changes(self, merge_threshold: int = 16) -> None:
         """
@@ -359,9 +399,12 @@ class ECUDiffAnalyzer:
 
         for blk_start, blk_end in blocks:
             size = blk_end - blk_start + 1
-            ob = self.original_data[blk_start : blk_end + 1].hex().upper()
+            ob_raw = self.original_data[blk_start : blk_end + 1]
+            ob = ob_raw.hex().upper()
             mb = self.modified_data[blk_start : blk_end + 1].hex().upper()
-            ctx_before, ctx_after = self._get_context(blk_start, size)
+            ctx_before, ctx_after, entropy, match_count, expanded = (
+                self._get_verified_context(blk_start, size, ob_raw)
+            )
 
             self.changes.append(
                 Change(
@@ -371,7 +414,10 @@ class ECUDiffAnalyzer:
                     mb=mb,
                     ctx=ctx_before.hex().upper(),
                     context_after=ctx_after.hex().upper(),
-                    context_size=self.context_size,
+                    context_size=len(ctx_before),
+                    ctx_entropy=entropy,
+                    ctx_unique_in_original=match_count,
+                    ctx_expanded=expanded,
                 )
             )
 
@@ -397,6 +443,7 @@ class ECUDiffAnalyzer:
             "largest_change_size": max(c.size for c in self.changes),
             "smallest_change_size": min(c.size for c in self.changes),
             "context_size": self.context_size,
+            "max_context_size": self.max_context_size,
         }
 
     # -----------------------------------------------------------------------
@@ -417,7 +464,7 @@ class ECUDiffAnalyzer:
     # Recipe builder
     # -----------------------------------------------------------------------
 
-    def build_recipe(self) -> Dict:
+    def build_recipe(self, description: str | None = None) -> Dict:
         """
         Build the full .openremap recipe dict.
 
@@ -482,6 +529,33 @@ class ECUDiffAnalyzer:
             self._cook_warnings.append(identity_warning)
 
         self.find_changes()
+
+        # --- Guard 3: non-unique context anchors ---
+        non_unique = [c for c in self.changes if c.ctx_unique_in_original > 1]
+        if non_unique:
+            if self.require_unique:
+                detail = "\n".join(
+                    f"  0x{c.offset:08X}: ctx+ob matches {c.ctx_unique_in_original} "
+                    f"times in original binary (entropy={c.ctx_entropy:.1f}, "
+                    f"context_size={c.context_size})"
+                    for c in non_unique
+                )
+                raise ValueError(
+                    f"{len(non_unique)} instruction(s) have non-unique context "
+                    f"anchors after expansion to {self.max_context_size} bytes. "
+                    f"The original binary contains padding or repetitive regions "
+                    f"that make these maps unmatchable with the current context "
+                    f"size limit.\n{detail}"
+                )
+            else:
+                for c in non_unique:
+                    self._cook_warnings.append(
+                        f"Instruction at 0x{c.offset:08X}: ctx+ob anchor is "
+                        f"non-unique (matches {c.ctx_unique_in_original} times "
+                        f"in original, entropy={c.ctx_entropy:.1f}). "
+                        "Apply will be unreliable."
+                    )
+
         ecu_id = self.extract_ecu_identifiers()
 
         # Build the ecu block — maps to what the patcher services expect
@@ -505,7 +579,7 @@ class ECUDiffAnalyzer:
         recipe = {
             "openremap": {
                 "type": "recipe",
-                "schema_version": "4.1",
+                "schema_version": "4.2",
             },
             "creator": build_creator_block(self.author),
             "fingerprint": compute_fingerprint(instructions),
@@ -515,8 +589,9 @@ class ECUDiffAnalyzer:
                 "original_size": len(self.original_data),
                 "modified_size": len(self.modified_data),
                 "context_size": self.context_size,
-                "format_version": "4.1",
-                "description": "OpenRemap ECU patch recipe with exact-offset and context-anchor instructions",
+                "max_context_size": self.max_context_size,
+                "format_version": "4.2",
+                "description": description or "OpenRemap ECU patch recipe with exact-offset and context-anchor instructions",
             },
             "ecu": ecu_block,
             "statistics": self.compute_stats(),

@@ -33,7 +33,23 @@ class InstructionSchema(BaseModel):
         description="Context bytes before the change — used as anchor (hex, uppercase)",
     )
     context_after: str
-    context_size: int
+    context_size: int = Field(
+        ...,
+        description="Actual context anchor size in bytes (may exceed the configured minimum when auto-expanded)",
+    )
+    # Phase 1 entropy-gated context fields (present for schema >= 4.2)
+    ctx_entropy: Optional[float] = Field(
+        None,
+        description="Shannon entropy of the context anchor in bits/byte. Present for schema >= 4.2.",
+    )
+    ctx_unique: Optional[bool] = Field(
+        None,
+        description="True when the ctx+ob anchor pattern is unique in the original binary. Present for schema >= 4.2.",
+    )
+    ctx_expanded: Optional[bool] = Field(
+        None,
+        description="True when the context was auto-expanded beyond the configured minimum size. Present for schema >= 4.2.",
+    )
     description: str
     flags: List[InstructionFlagSchema] = Field(
         default_factory=list,
@@ -114,7 +130,14 @@ class AnalysisStatisticsSchema(BaseModel):
     multi_byte_changes: int
     largest_change_size: int
     smallest_change_size: int
-    context_size: int
+    context_size: int = Field(
+        ...,
+        description="Minimum context anchor size configured for this analysis",
+    )
+    max_context_size: Optional[int] = Field(
+        None,
+        description="Maximum context anchor size allowed during auto-expansion. Present for schema >= 4.2.",
+    )
 
 
 class AnalyzerResponseSchema(BaseModel):

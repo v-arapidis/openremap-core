@@ -24,6 +24,7 @@ coverage.xml
 .env.*
 plugins/
 changes/
+docs/offset-matching-audit.md
 todo/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────

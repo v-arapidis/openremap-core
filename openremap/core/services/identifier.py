@@ -97,6 +97,12 @@ def _to_identity(
         "detection_evidence": detection_evidence,
         "file_size": file_size,
         "sha256": sha256,
+        "md5": rich.get("md5", ""),
+        "calibration_version": rich.get("calibration_version"),
+        "sw_base_version": rich.get("sw_base_version"),
+        "serial_number": rich.get("serial_number"),
+        "dataset_number": rich.get("dataset_number"),
+        "raw_strings": list(rich.get("raw_strings") or []),
     }
 
 
@@ -118,4 +124,10 @@ def _unknown_identity(file_size: int, sha256: str) -> Dict:
         "detection_evidence": (),
         "file_size": file_size,
         "sha256": sha256,
+        "md5": "",
+        "calibration_version": None,
+        "sw_base_version": None,
+        "serial_number": None,
+        "dataset_number": None,
+        "raw_strings": [],
     }

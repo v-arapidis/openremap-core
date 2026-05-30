@@ -26,8 +26,9 @@ def make_analyzer(
     orig_name: str = "orig.bin",
     mod_name: str = "mod.bin",
     context_size: int = 8,
+    **kwargs,
 ) -> ECUDiffAnalyzer:
-    return ECUDiffAnalyzer(orig, mod, orig_name, mod_name, context_size=context_size)
+    return ECUDiffAnalyzer(orig, mod, orig_name, mod_name, context_size=context_size, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +277,10 @@ class TestFindChangesContext:
         mod = make_bin_with(256, {128: 0xFF})
         a = make_analyzer(orig, mod, context_size=16)
         a.find_changes()
-        assert a.changes[0].context_size == 16
+        # With all-zeros data, the 16-byte context will be non-unique
+        # and auto-expanded.  context_size reflects the actual anchor size.
+        assert a.changes[0].context_size >= 16
+        assert a.changes[0].ctx_expanded is True
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +402,9 @@ class TestChangeDataclass:
             "ctx",
             "context_after",
             "context_size",
+            "ctx_entropy",
+            "ctx_unique",
+            "ctx_expanded",
             "description",
         ):
             assert key in d, f"Missing key: {key}"
@@ -432,7 +439,7 @@ class TestBuildRecipe:
     def test_recipe_top_level_keys(self):
         orig = make_bin(512)
         mod = make_bin_with(512, {100: 0xFF})
-        a = make_analyzer(orig, mod)
+        a = make_analyzer(orig, mod, require_unique=False)
         recipe = a.build_recipe()
         assert "metadata" in recipe
         assert "ecu" in recipe
@@ -441,22 +448,22 @@ class TestBuildRecipe:
         assert "creator" in recipe
         assert "fingerprint" in recipe
 
-    def test_format_version_is_4_1(self):
+    def test_format_version_is_4_2(self):
         a = make_analyzer(make_bin(256), make_bin(256))
         recipe = a.build_recipe()
-        assert recipe["metadata"]["format_version"] == "4.1"
+        assert recipe["metadata"]["format_version"] == "4.2"
 
     def test_openremap_envelope_present(self):
         a = make_analyzer(make_bin(256), make_bin(256))
         recipe = a.build_recipe()
         assert "openremap" in recipe
         assert recipe["openremap"]["type"] == "recipe"
-        assert recipe["openremap"]["schema_version"] == "4.1"
+        assert recipe["openremap"]["schema_version"] == "4.2"
 
     def test_original_and_modified_filenames_in_metadata(self):
         orig = make_bin(256)
         mod = make_bin_with(256, {10: 0xFF})
-        a = make_analyzer(orig, mod, orig_name="stock.bin", mod_name="stage1.bin")
+        a = make_analyzer(orig, mod, orig_name="stock.bin", mod_name="stage1.bin", require_unique=False)
         recipe = a.build_recipe()
         assert recipe["metadata"]["original_file"] == "stock.bin"
         assert recipe["metadata"]["modified_file"] == "stage1.bin"
@@ -464,7 +471,7 @@ class TestBuildRecipe:
     def test_instruction_has_required_fields(self):
         orig = make_bin(512)
         mod = make_bin_with(512, {200: 0xAA, 201: 0xBB})
-        a = make_analyzer(orig, mod)
+        a = make_analyzer(orig, mod, require_unique=False)
         recipe = a.build_recipe()
         assert len(recipe["instructions"]) == 1
         inst = recipe["instructions"][0]
@@ -485,7 +492,7 @@ class TestBuildRecipe:
     def test_instruction_offset_is_correct(self):
         orig = make_bin(512)
         mod = make_bin_with(512, {300: 0xFF})
-        a = make_analyzer(orig, mod)
+        a = make_analyzer(orig, mod, require_unique=False)
         recipe = a.build_recipe()
         assert recipe["instructions"][0]["offset"] == 300
 
@@ -510,14 +517,14 @@ class TestBuildRecipe:
     def test_ecu_block_has_file_size(self):
         orig = make_bin(1024)
         mod = make_bin_with(1024, {50: 0xFF})
-        a = make_analyzer(orig, mod)
+        a = make_analyzer(orig, mod, require_unique=False)
         recipe = a.build_recipe()
         assert recipe["ecu"]["file_size"] == 1024
 
     def test_multiple_instructions_ordered_by_offset(self):
         orig = make_bin(1024)
         mod = make_bin_with(1024, {100: 0xAA, 800: 0xBB})
-        a = make_analyzer(orig, mod)
+        a = make_analyzer(orig, mod, require_unique=False)
         recipe = a.build_recipe()
         offsets = [i["offset"] for i in recipe["instructions"]]
         assert offsets == sorted(offsets)
@@ -525,7 +532,7 @@ class TestBuildRecipe:
     def test_statistics_block_is_populated_when_changes_exist(self):
         orig = make_bin(512)
         mod = make_bin_with(512, {10: 0xFF})
-        a = make_analyzer(orig, mod)
+        a = make_analyzer(orig, mod, require_unique=False)
         recipe = a.build_recipe()
         stats = recipe["statistics"]
         assert stats.get("total_changes", 0) >= 1
@@ -535,7 +542,7 @@ class TestBuildRecipe:
         # build_recipe should work even if find_changes was never called directly
         orig = make_bin(256)
         mod = make_bin_with(256, {50: 0xCC})
-        a = ECUDiffAnalyzer(orig, mod, "a.bin", "b.bin")
+        a = ECUDiffAnalyzer(orig, mod, "a.bin", "b.bin", require_unique=False)
         # Do NOT call find_changes manually
         recipe = a.build_recipe()
         assert len(recipe["instructions"]) == 1

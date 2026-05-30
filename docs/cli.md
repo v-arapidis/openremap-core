@@ -53,6 +53,7 @@ Every command supports `--help` for a quick reminder of its arguments and option
 | `validate before` | Pre-flight check — run before tuning (or use `tune`) | [→ validate.md#before](commands/validate.md#before) |
 | `validate check` | Diagnostic — run when `validate before` fails | [→ validate.md#check](commands/validate.md#check) |
 | `validate after` | Post-tune confirmation — run after tuning (or use `tune`) | [→ validate.md#after](commands/validate.md#after) |
+| `openremap-server` | Start a long-running JSON-RPC server for non-Python integrations | [→ integration.md#11-server-mode](integration.md#11-server-mode---long-running-json-rpc-process) |
 
 > **`validate strict` / `validate exists` / `validate tuned`** are deprecated aliases
 > for `validate before` / `validate check` / `validate after`. They still work but
@@ -92,6 +93,34 @@ openremap validate check target.bin recipe.remap
 # 4. MANDATORY — correct checksums with ECM Titanium, WinOLS, or equivalent
 #    before flashing the tuned binary to any vehicle
 ```
+
+---
+
+## Server mode
+
+`openremap-server` starts a long-running JSON-RPC daemon that non-Python
+applications (desktop editors, IDE plugins, automation tools written in Rust,
+Go, C++, Electron, etc.) can use to call the full openremap pipeline without
+cold-starting a Python interpreter on every request.
+
+```bash
+# Start the server — reads requests from stdin, writes responses to stdout
+openremap-server
+
+# Equivalent
+python -m openremap.server
+
+# Quick smoke-test
+echo '{"id":1,"method":"ping","params":{}}' | openremap-server
+# → {"id": 1, "result": {"ok": true}}
+```
+
+The server stays alive until stdin is closed or the process is terminated.
+All eight pipeline operations are available: `ping`, `version`, `identify`,
+`cook`, `tune`, `validate`, `scan_maps`, and `scan`.
+
+For the full protocol reference, request/response schemas, and a minimal
+client example see **[`docs/integration.md` — Section 11](integration.md#11-server-mode---long-running-json-rpc-process)**.
 
 ---
 

@@ -201,6 +201,7 @@ def cook(
             original_filename=original.name,
             modified_filename=modified.name,
             context_size=context_size,
+            require_unique=False,
         )
         recipe = analyzer.build_recipe()
     except ValueError as exc:

@@ -78,6 +78,7 @@ def _make_recipe(
         modified_data=modified,
         original_filename=original_name,
         modified_filename=modified_name,
+        require_unique=False,
     )
     return analyzer.build_recipe()
 

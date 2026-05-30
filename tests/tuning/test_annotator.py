@@ -204,7 +204,7 @@ class TestRecipeAnnotator:
         mod[400] = 0xAA
         mod = bytes(mod)
 
-        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
@@ -220,7 +220,7 @@ class TestRecipeAnnotator:
         mod[100] = 0xFF
         mod = bytes(mod)
 
-        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
@@ -236,7 +236,7 @@ class TestRecipeAnnotator:
             mod[vin_offset + i] = 0xAA
         mod = bytes(mod)
 
-        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
@@ -251,7 +251,7 @@ class TestRecipeAnnotator:
             mod[vin_offset + i] = 0xAA
         mod = bytes(mod)
 
-        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
@@ -262,7 +262,7 @@ class TestRecipeAnnotator:
 
     def test_empty_instructions_list(self):
         orig = make_bin(256)
-        analyzer = ECUDiffAnalyzer(orig, orig, "a.bin", "b.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, orig, "a.bin", "b.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
@@ -287,7 +287,7 @@ class TestRecipeAnnotator:
         mod[50] = 0xFF
         mod = bytes(mod)
 
-        analyzer = ECUDiffAnalyzer(orig, mod, "a.bin", "b.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, mod, "a.bin", "b.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
@@ -303,7 +303,7 @@ class TestRecipeAnnotator:
         mod[10] = 0xFF
         mod = bytes(mod)
 
-        analyzer = ECUDiffAnalyzer(orig, mod, "a.bin", "b.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, mod, "a.bin", "b.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
@@ -318,7 +318,7 @@ class TestRecipeAnnotator:
             mod[vin_offset + i] = 0xAA
         mod = bytes(mod)
 
-        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8)
+        analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
 
         annotator = RecipeAnnotator()
