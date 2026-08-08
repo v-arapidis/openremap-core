@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] — 2026-08-08
+
+Recipe format 4.3 — schema restructure, creator simplification, and metadata
+expansion. Breaking changes from 4.2 are limited to the recipe format itself;
+the patcher, validator, and annotator pipelines are unaffected.
+
+### Changed — Recipe Format 4.3
+
+- **`openremap` envelope dropped.** `type` and `schema_version` are now top-level
+  fields instead of being nested inside an `openremap` object.
+- **`source` and `application` added.** `source` distinguishes `"full_cook"`
+  (binary diff) from `"tune_export"` (exported from a saved tune). `application`
+  identifies the tool that produced the file (`"openremap-core"` or
+  `"openremap-studio"`).
+- **`creator` flattened.** The nested `author` sub-object is removed; `name`,
+  `handle`, and `id` are now top-level fields in `creator`. The `tool` and
+  `tool_version` fields are removed — tool provenance is carried by
+  `application` and `schema_version`.
+- **`metadata` restructured.** Dropped: `context_size`, `max_context_size`,
+  `format_version`. Added: `name`, `tags`, `instruction_count`, `tune_id`.
+- **`statistics.context_size` renamed to `min_context_size`.**
+- **`ecu` block extended.** Added: `oem_part_number`, `platform`,
+  `calibration_version`, `serial_number`, `dataset_number`.
+- **`flags.confidence` normalized to float (0.0–1.0).** Was string
+  `"HIGH"`/`"MEDIUM"`/`"LOW"` in 4.2. `InstructionFlag.confidence` type changed
+  from `str` to `float` (0.9 = high, 0.5 = medium, 0.3 = low).
+- **Extensibility rule.** Parsers MUST ignore unknown fields, allowing
+  forward-compatible additions in minor versions.
+- **Schema version gate.** All recipe consumers (patcher, validators) now
+  validate `schema_version` at construction time. Recipes older than 4.3
+  (pre-0.5.0) are rejected with a descriptive error. Future minor versions
+  (4.4+) pass through — the extensibility rule guarantees forward compatibility.
+
+### Added
+
+- **Endian auto-detection (`identifier.py`).** `_detect_endian()` uses the
+  high-byte-zero heuristic (ported 1:1 from the Rust editor's
+  `analysis/endian.rs`) to detect the ECU's byte order from calibration data.
+  `identify_ecu()` now returns `ecu_endian` and `ecu_cell_bytes` fields for all
+  results, including unknown/unrecognised binaries.
+
+- **Low-entropy context scanner (`annotator.py`).** `LowEntropyScanner` detects
+  instructions whose context anchor is weak — non-unique patterns (`WEAK_ANCHOR`,
+  confidence 0.9) or low-entropy regions (`LOW_ENTROPY_CTX`, confidence 0.3).
+  Registered by default in `RecipeAnnotator` alongside the existing `VINScanner`.
+
+- **`.orst` 2.0 saved tune format.** New `build_orst()` method on
+  `ECUDiffAnalyzer` produces a minimal `.orst` workspace file carrying only
+  instructions, source binary identity, and history metadata — just enough for
+  the editor to reopen, display history, and export as a portable recipe.
+  - New Pydantic schema: `openremap/core/schemas/orst.py` (`OrstRootSchema`,
+    `OrstSourceBinarySchema`)
+  - New format spec: `docs/orst-format.md`
+  - `server.py` cook endpoint returns `.orst` payload when `tune_id` is provided
+
+- **Force Save via `require_unique` parameter.** When `require_unique=False`,
+  non-unique context anchors become `cook_warnings` instead of a hard error,
+  allowing the recipe to be saved for same-binary use. Exposed through the
+  `server.py` cook endpoint and `ECUDiffAnalyzer` constructor.
+
+### Improved
+
+- **`context_after` anchor in patcher.** The patcher now searches for
+  `ctx + ob + context_after` (not just `ctx + ob`), doubling the effective
+  anchor length at zero cost. Failure diagnostics now report the full anchor
+  description, check whether `ob` bytes exist elsewhere in the binary, and
+  give a clear hint about SW revision mismatch.
+
+### Changed — Internal
+
+- **Pydantic schema split.** `openremap/core/schemas/analyzer.py` (161 lines,
+  format 4.0–4.2) deleted. Replaced by:
+  - `remap.py` (168 lines) — recipe 4.3 schemas with defaults for forward
+    compatibility (all fields optional/defaulted, no hard-required fields)
+  - `orst.py` (89 lines) — `.orst` 2.0 schemas
+
+### Removed
+
+- **Trust level display.** `trust_level` is no longer displayed in CLI or TUI
+  output until cryptographic signing is implemented and enforced by the pipeline.
+
+---
+
 ## [0.4.4] — 2026-05-14
 
 Recipe safety guards, instruction annotation (VIN detection), patcher collision

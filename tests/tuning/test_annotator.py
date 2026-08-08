@@ -17,6 +17,7 @@ import pytest
 from tests.conftest import make_bin, make_bin_with
 from openremap.core.services.annotator import (
     InstructionFlag,
+    LowEntropyScanner,
     RecipeAnnotator,
     VINScanner,
 )
@@ -69,19 +70,24 @@ def _build_binary_with_vin(
 
 class TestInstructionFlag:
     def test_to_dict_has_all_keys(self):
-        f = InstructionFlag(kind="VIN_SUSPECT", reason="test reason", confidence="HIGH")
+        f = InstructionFlag(kind="VIN_SUSPECT", reason="test reason", confidence=0.9)
         d = f.to_dict()
         assert d["kind"] == "VIN_SUSPECT"
         assert d["reason"] == "test reason"
-        assert d["confidence"] == "HIGH"
+        assert d["confidence"] == 0.9
         assert d["action"] == "REVIEW"
 
+    def test_confidence_is_float(self):
+        f = InstructionFlag(kind="X", reason="y", confidence=0.5)
+        assert isinstance(f.confidence, float)
+        assert f.confidence == 0.5
+
     def test_default_action_is_review(self):
-        f = InstructionFlag(kind="X", reason="y", confidence="LOW")
+        f = InstructionFlag(kind="X", reason="y", confidence=0.3)
         assert f.action == "REVIEW"
 
     def test_frozen(self):
-        f = InstructionFlag(kind="X", reason="y", confidence="LOW")
+        f = InstructionFlag(kind="X", reason="y", confidence=0.3)
         with pytest.raises(AttributeError):
             f.kind = "changed"
 
@@ -105,7 +111,7 @@ class TestVINScanner:
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert len(flags) == 1
         assert flags[0].kind == "VIN_SUSPECT"
-        assert flags[0].confidence == "HIGH"
+        assert flags[0].confidence == 0.9
         assert "WVWZZZ3CZWE123456" in flags[0].reason
 
     def test_no_flag_on_non_vin_data(self):
@@ -215,10 +221,14 @@ class TestRecipeAnnotator:
             assert isinstance(inst["flags"], list)
 
     def test_flagged_count_zero_when_clean(self):
-        orig = make_bin(512)
+        # Use high-entropy random data so the context anchor is genuinely
+        # strong — the LowEntropyScanner should not flag it.
+        import os
+        orig = bytearray(os.urandom(512))
         mod = bytearray(orig)
-        mod[100] = 0xFF
+        mod[100] = (mod[100] + 1) & 0xFF  # flip one byte
         mod = bytes(mod)
+        orig = bytes(orig)
 
         analyzer = ECUDiffAnalyzer(orig, mod, "orig.bin", "mod.bin", context_size=8, require_unique=False)
         recipe = analyzer.build_recipe()
@@ -278,7 +288,7 @@ class TestRecipeAnnotator:
                     InstructionFlag(
                         kind="TEST_FLAG",
                         reason="always flag",
-                        confidence="LOW",
+                        confidence=0.3,
                     )
                 ]
 

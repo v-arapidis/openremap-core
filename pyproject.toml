@@ -10,7 +10,7 @@ package = true
 
 [project]
 name = "openremap"
-version = "0.4.4"
+version = "0.5.0"
 description = "ECU binary analysis and patching toolkit — diff, validate, and apply tuning recipes to automotive ECU binaries."
 readme = "README.md"
 license = { file = "LICENSE" }

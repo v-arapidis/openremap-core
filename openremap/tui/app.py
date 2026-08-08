@@ -1449,25 +1449,16 @@ class CookPanel(Vertical):
         ecu = recipe.get("ecu", {})
         stats = recipe.get("statistics", {})
         meta = recipe.get("metadata", {})
-        creator = recipe.get("creator", {})
         fingerprint = recipe.get("fingerprint", "")
         W = 22
 
         t = Text()
         t.append("\n  ✅  Recipe built successfully\n\n", style="bold green")
 
-        trust = creator.get("trust_level", "UNSIGNED")
-        trust_style = {
-            "UNSIGNED": "yellow",
-            "COMMUNITY": "#0ea5e9",
-            "SIGNED": "green",
-            "VERIFIED": "bold green",
-        }.get(trust, "dim")
-
         rows = [
             ("ECU", f"{ecu.get('manufacturer', '?')}  ·  {ecu.get('ecu_family', '?')}"),
             ("Match Key", ecu.get("match_key", "n/a")),
-            ("Format Version", meta.get("format_version", "?")),
+            ("Format Version", recipe.get("schema_version", "?")),
             ("Instructions", f"{stats.get('total_changes', 0):,}"),
             ("Bytes Changed", f"{stats.get('total_bytes_changed', 0):,}"),
             ("Original", meta.get("original_file", "?")),
@@ -1476,10 +1467,6 @@ class CookPanel(Vertical):
         for label, value in rows:
             t.append(f"  {label:<{W}}", style="dim")
             t.append(f"{value}\n", style="#c8d1e0")
-
-        # Trust level (colour-coded)
-        t.append(f"  {'Trust Level':<{W}}", style="dim")
-        t.append(f"{trust}\n", style=trust_style)
 
         # Flagged count (if any)
         if flagged:

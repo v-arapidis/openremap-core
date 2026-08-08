@@ -63,7 +63,7 @@ def _write_recipe(
     instructions: list | None = None,
     file_size: int = 1024,
 ) -> None:
-    """Write a minimal but fully-valid format-4.0 recipe to *path*.
+    """Write a minimal but fully-valid format-4.3 recipe to *path*.
 
     Args:
         path:         Destination path (must have a .openremap extension).
@@ -75,14 +75,20 @@ def _write_recipe(
     if instructions is None:
         instructions = [_instruction()]
     recipe = {
+        "type": "recipe",
+        "schema_version": "4.3",
+        "source": "tune_export",
+        "application": "openremap-studio",
         "metadata": {
-            "format_version": "4.0",
+            "name": "test recipe",
+            "description": "test recipe",
+            "tags": [],
+            "instruction_count": len(instructions),
             "original_file": "stock.bin",
             "modified_file": "tuned.bin",
             "original_size": file_size,
             "modified_size": file_size,
-            "context_size": 32,
-            "description": "test recipe",
+            "tune_id": None,
         },
         "ecu": {
             "manufacturer": None,
@@ -92,10 +98,20 @@ def _write_recipe(
             "software_version": None,
             "hardware_number": None,
             "calibration_id": None,
+            "oem_part_number": None,
+            "platform": None,
+            "calibration_version": None,
+            "serial_number": None,
+            "dataset_number": None,
             "file_size": file_size,
             "sha256": "abc",
+            "cook_warnings": [],
         },
-        "statistics": {"total_changes": len(instructions)},
+        "statistics": {
+            "total_changes": len(instructions),
+            "min_context_size": 32,
+            "max_context_size": 512,
+        },
         "instructions": instructions,
     }
     path.write_text(json.dumps(recipe, indent=2), encoding="utf-8")
@@ -597,14 +613,20 @@ def _write_recipe_with_file_size(path, file_size: int, instructions=None) -> Non
     if instructions is None:
         instructions = [_instruction()]
     recipe = {
+        "type": "recipe",
+        "schema_version": "4.3",
+        "source": "tune_export",
+        "application": "openremap-studio",
         "metadata": {
-            "format_version": "4.0",
+            "name": "test",
+            "description": "test",
+            "tags": [],
+            "instruction_count": len(instructions),
             "original_file": "stock.bin",
             "modified_file": "tuned.bin",
             "original_size": 1024,
             "modified_size": 1024,
-            "context_size": 32,
-            "description": "test",
+            "tune_id": None,
         },
         "ecu": {
             "manufacturer": None,
@@ -614,10 +636,20 @@ def _write_recipe_with_file_size(path, file_size: int, instructions=None) -> Non
             "software_version": None,
             "hardware_number": None,
             "calibration_id": None,
+            "oem_part_number": None,
+            "platform": None,
+            "calibration_version": None,
+            "serial_number": None,
+            "dataset_number": None,
             "file_size": file_size,
             "sha256": "abc",
+            "cook_warnings": [],
         },
-        "statistics": {"total_changes": len(instructions)},
+        "statistics": {
+            "total_changes": len(instructions),
+            "min_context_size": 32,
+            "max_context_size": 512,
+        },
         "instructions": instructions,
     }
     path.write_text(_json.dumps(recipe, indent=2), encoding="utf-8")

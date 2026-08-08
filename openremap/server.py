@@ -148,6 +148,8 @@ def _identify(params: dict) -> dict:
         "dataset_number": identity.get("dataset_number"),
         "raw_strings": list(identity.get("raw_strings") or [])[:50],
         "platform": _infer_platform(identity.get("ecu_family")),
+        "ecu_endian": identity.get("ecu_endian", "little"),
+        "ecu_cell_bytes": identity.get("ecu_cell_bytes", 2),
     }
 
 
@@ -158,6 +160,7 @@ def _cook(params: dict) -> dict:
     modified_path = params["modified_path"]
     context_size = int(params.get("context_size", 32))
     description = params.get("description")
+    require_unique = params.get("require_unique", True)
 
     original_data = Path(original_path).read_bytes()
     modified_data = Path(modified_path).read_bytes()
@@ -168,17 +171,37 @@ def _cook(params: dict) -> dict:
         Path(original_path).name,
         Path(modified_path).name,
         context_size=context_size,
+        require_unique=require_unique,
     )
 
     size_warn = analyzer.check_size_match()
     if size_warn:
         raise ValueError(f"Size mismatch: {size_warn}")
 
-    warnings = analyzer.cook_warnings()
-    analyzer.find_changes()
+    # Run the full diff + guard checks via build_recipe().
+    # This populates warnings (identity mismatch, non-unique anchors) and
+    # runs the annotator on the recipe instructions.
     recipe = analyzer.build_recipe(description=description)
     stats = analyzer.compute_stats()
+    warnings = analyzer.cook_warnings()
 
+    # When tune metadata is provided, also build the .orst 2.0 payload
+    # for the save pipeline (GPUI Ctrl+S / editor close).
+    tune_id = params.get("tune_id")
+    if tune_id:
+        orst = analyzer.build_orst(
+            id=tune_id,
+            name=params.get("tune_name", ""),
+            message=params.get("tune_message"),
+            source_sha256=params.get("source_sha256", ""),
+            source_path_hint=params.get("source_path_hint", ""),
+            base_tune_id=params.get("base_tune_id"),
+            created_at=params.get("tune_created_at"),
+            modified_at=params.get("tune_modified_at"),
+        )
+        return {"orst": orst, "stats": stats, "warnings": warnings}
+
+    # Legacy path — full recipe for callers that don't pass tune metadata.
     return {"recipe": recipe, "stats": stats, "warnings": warnings}
 
 
@@ -515,8 +538,13 @@ def main() -> None:
             result = handler(params)
             response: dict = {"id": req_id, "result": result}
 
+        except ValueError as exc:
+            # Guard rejection (e.g. non-unique anchors) — expected, not a bug.
+            # The error message goes to the client via JSON-RPC; no traceback needed.
+            log.warning("%s method=%s: %s", method, req_id, exc)
+            response = {"id": req_id, "error": str(exc)}
         except Exception as exc:
-            log.exception("Error handling request id=%s method=%s", req_id, method)
+            log.exception("Unexpected error handling request id=%s method=%s", req_id, method)
             response = {"id": req_id, "error": str(exc)}
 
         try:

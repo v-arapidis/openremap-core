@@ -78,7 +78,6 @@ import hashlib
 import json
 from datetime import datetime, timezone
 
-from openremap import __version__
 from openremap.core.services.annotator import RecipeAnnotator
 
 
@@ -163,43 +162,106 @@ def derive_trust_level(creator: dict) -> str:
     """
     Derive the trust level from the creator block.
 
-    UNSIGNED   — no author info
-    COMMUNITY  — author info present, no signature
-    SIGNED     — author + valid signature (future)
+    UNSIGNED   — no name
+    COMMUNITY  — name present, no signature
+    SIGNED     — name + valid signature (future)
     VERIFIED   — signed + platform-verified identity (future)
     """
-    author = creator.get("author")
+    name = creator.get("name")
     signature = creator.get("signature")
+    verified = creator.get("id") is not None  # stable ID = platform-verified (future)
 
-    if signature and author and author.get("verified"):
+    if signature and name and verified:
         return "VERIFIED"
-    if signature and author:
+    if signature and name:
         return "SIGNED"
-    if author:
+    if name:
         return "COMMUNITY"
     return "UNSIGNED"
 
 
-def build_creator_block(author: dict | None = None) -> dict:
+def build_creator_block(
+    name: str | None = None,
+    handle: str | None = None,
+    id: str | None = None,
+) -> dict:
     """
     Build the creator metadata block.
 
     Args:
-        author: Optional author dict with keys like name, handle, id.
-                None = anonymous / UNSIGNED.
+        name: Display name. None = anonymous.
+        handle: Optional handle (GitHub, Discord, etc.).
+        id: Optional stable user ID for provenance.
 
     Returns:
         Creator dict ready to embed in the recipe.
     """
-    creator = {
-        "tool": "openremap-core",
-        "tool_version": __version__,
+    creator: dict = {
+        "name": name or "",
+        "handle": handle or "",
+        "id": id or "",
         "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "author": author,
         "signature": None,
     }
     creator["trust_level"] = derive_trust_level(creator)
     return creator
+
+
+# ---------------------------------------------------------------------------
+# Schema version gate
+# ---------------------------------------------------------------------------
+
+# Minimum recipe schema version accepted by the patcher, validators, and
+# all other consumers.  Recipes older than this are rejected with a clear
+# error — the format changed significantly at 4.3 (flattened envelope,
+# renamed fields, new required fields).
+#
+# Future minor versions (4.4, 4.5, …) pass through because the spec
+# requires all parsers to ignore unknown fields.  A major version bump
+# (5.0) will need its own gate.
+_MIN_RECIPE_SCHEMA = (4, 3)
+
+
+def check_schema_version(recipe: dict) -> None:
+    """
+    Validate that *recipe* carries a supported ``schema_version``.
+
+    Raises ``ValueError`` for recipes older than 4.3 (pre-0.5.0 format).
+    Recipes with ``schema_version >= 4.3`` pass through — future minor
+    versions are forward-compatible by the extensibility rule.
+
+    Call this once at the entry point of every service that consumes a
+    recipe dict (patcher, validators, API handlers).
+    """
+    raw = recipe.get("schema_version") or recipe.get("format_version")
+    if raw is None:
+        raise ValueError(
+            "Unsupported recipe format: no schema_version field. "
+            "Recipes produced by openremap < 0.5.0 (format 4.2 and earlier) "
+            "are not compatible with this version. "
+            "Please re-cook the recipe with openremap >= 0.5.0."
+        )
+
+    try:
+        parts = tuple(int(p) for p in str(raw).split("."))
+    except (ValueError, AttributeError):
+        raise ValueError(
+            f"Unsupported recipe schema_version: {raw!r}. "
+            f"Expected a semver-style version string (e.g. '4.3')."
+        )
+
+    if len(parts) < 2:
+        raise ValueError(
+            f"Unsupported recipe schema_version: {raw!r}. "
+            f"Expected major.minor format (e.g. '4.3')."
+        )
+
+    if parts < _MIN_RECIPE_SCHEMA:
+        raise ValueError(
+            f"Unsupported recipe schema_version: {raw}. "
+            f"Minimum supported version is {_MIN_RECIPE_SCHEMA[0]}.{_MIN_RECIPE_SCHEMA[1]}. "
+            f"Recipes in format {raw} must be re-cooked with openremap >= 0.5.0."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +504,7 @@ class ECUDiffAnalyzer:
             "multi_byte_changes": len(self.changes) - single,
             "largest_change_size": max(c.size for c in self.changes),
             "smallest_change_size": min(c.size for c in self.changes),
-            "context_size": self.context_size,
+            "min_context_size": self.context_size,
             "max_context_size": self.max_context_size,
         }
 
@@ -568,6 +630,11 @@ class ECUDiffAnalyzer:
             "software_version": ecu_id.get("software_version"),
             "hardware_number": ecu_id.get("hardware_number"),
             "calibration_id": ecu_id.get("calibration_id"),
+            "oem_part_number": ecu_id.get("oem_part_number"),
+            "platform": ecu_id.get("platform"),
+            "calibration_version": ecu_id.get("calibration_version"),
+            "serial_number": ecu_id.get("serial_number"),
+            "dataset_number": ecu_id.get("dataset_number"),
             "file_size": ecu_id.get("file_size"),
             "sha256": ecu_id.get("sha256"),
             "cook_warnings": list(self._cook_warnings),
@@ -575,23 +642,28 @@ class ECUDiffAnalyzer:
 
         instructions = [change.to_dict() for change in self.changes]
 
-        # --- Annotate instructions with flags ---
+        author = self.author or {}
         recipe = {
-            "openremap": {
-                "type": "recipe",
-                "schema_version": "4.2",
-            },
-            "creator": build_creator_block(self.author),
+            "type": "recipe",
+            "schema_version": "4.3",
+            "source": "full_cook",
+            "application": "openremap-core",
+            "creator": build_creator_block(
+                name=author.get("name"),
+                handle=author.get("handle"),
+                id=author.get("id"),
+            ),
             "fingerprint": compute_fingerprint(instructions),
             "metadata": {
+                "name": self.modified_filename,
+                "description": description or "",
+                "tags": [],
+                "instruction_count": len(instructions),
                 "original_file": self.original_filename,
                 "modified_file": self.modified_filename,
                 "original_size": len(self.original_data),
                 "modified_size": len(self.modified_data),
-                "context_size": self.context_size,
-                "max_context_size": self.max_context_size,
-                "format_version": "4.2",
-                "description": description or "OpenRemap ECU patch recipe with exact-offset and context-anchor instructions",
+                "tune_id": None,
             },
             "ecu": ecu_block,
             "statistics": self.compute_stats(),
@@ -603,3 +675,55 @@ class ECUDiffAnalyzer:
         annotator.annotate(recipe, self.original_data)
 
         return recipe
+
+    def build_orst(
+        self,
+        *,
+        id: str,
+        name: str,
+        message: str | None = None,
+        source_sha256: str = "",
+        source_path_hint: str = "",
+        base_tune_id: str | None = None,
+        created_at: str | None = None,
+        modified_at: str | None = None,
+    ) -> dict:
+        """
+        Build an .orst (saved tune) dict from the diff results.
+
+        Produces a schema-2.0 tune file with the same instruction shape
+        as a recipe, but with minimal metadata — just enough for the
+        editor to reopen and export.
+
+        Called after ``find_changes()``.  The annotator is NOT run;
+        instruction flags are recipe-level metadata, not stored in .orst.
+        ``status`` is always ``"Normal"`` — ``Unresolved`` only appears
+        after a binary rebase, which happens in the editor, not at cook
+        time.
+        """
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        original_size = len(self.original_data)
+
+        instructions = []
+        for change in self.changes:
+            inst = change.to_dict()
+            inst["flags"] = []
+            inst["status"] = "Normal"
+            instructions.append(inst)
+
+        return {
+            "orst": "2.0",
+            "id": id,
+            "name": name,
+            "message": message,
+            "source_binary": {
+                "sha256": source_sha256,
+                "file_size": original_size,
+                "path_hint": source_path_hint,
+            },
+            "base_tune_id": base_tune_id,
+            "created_at": created_at or now,
+            "modified_at": modified_at or now,
+            "archived_at": None,
+            "instructions": instructions,
+        }

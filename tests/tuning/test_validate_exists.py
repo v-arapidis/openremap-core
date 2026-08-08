@@ -640,7 +640,7 @@ class TestCheckFileSize:
     def test_no_ecu_block_in_recipe_returns_none(self):
         from openremap.core.services.validate_exists import ECUExistenceValidator
 
-        recipe = {"metadata": {}, "instructions": []}
+        recipe = {"schema_version": "4.3", "metadata": {}, "instructions": []}
         v = ECUExistenceValidator(make_bin(256), recipe)
         assert v.check_file_size() is None
 

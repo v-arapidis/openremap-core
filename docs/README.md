@@ -38,6 +38,7 @@ Welcome to the OpenRemap docs. Use the links below to navigate.
 | [Architecture overview](architecture.md) | How the pieces connect — entry points, service layer, extractor registry |
 | [Confidence scoring](confidence.md) | How identification confidence tiers, signals, and warnings work |
 | [Recipe format](recipe-format.md) | The `.remap` file spec — fields, structure, anchor search |
+| [Tune format](orst-format.md) | The `.orst` file spec — workspace-native saved tune |
 
 ---
 

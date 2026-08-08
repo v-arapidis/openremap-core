@@ -44,16 +44,20 @@ def make_bin_with(size: int, patches: dict) -> bytes:
 
 def make_recipe(instructions: list, ecu: dict | None = None) -> dict:
     """
-    Build a minimal format-4.0 recipe dict.
+    Build a minimal format-4.3 recipe dict.
 
     Args:
         instructions: List of instruction dicts (use make_instruction()).
         ecu:          Optional ecu block. Defaults to an empty dict.
     """
     return {
-        "metadata": {"format_version": "4.0"},
+        "type": "recipe",
+        "schema_version": "4.3",
+        "source": "tune_export",
+        "application": "openremap-studio",
+        "metadata": {},
         "ecu": ecu or {},
-        "statistics": {"total_changes": len(instructions)},
+        "statistics": {},
         "instructions": instructions,
     }
 

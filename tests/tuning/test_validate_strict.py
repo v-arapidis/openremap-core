@@ -418,7 +418,7 @@ class TestCheckFileSize:
 
     def test_no_ecu_block_in_recipe_returns_none(self):
         target = make_bin(256)
-        recipe = {"metadata": {}, "instructions": []}
+        recipe = {"schema_version": "4.3", "metadata": {}, "instructions": []}
         v = ECUStrictValidator(target, recipe)
         assert v.check_file_size() is None
 

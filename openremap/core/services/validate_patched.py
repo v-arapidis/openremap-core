@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from openremap.core.services.identifier import identify_ecu
+from openremap.core.services.recipe_builder import check_schema_version
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +79,8 @@ class ECUPatchedValidator:
         self.patched_name = patched_name
         self.recipe_name = recipe_name
         self.results: List[VerifyResult] = []
+
+        check_schema_version(recipe)
 
     # ------------------------------------------------------------------
     # Pre-flight

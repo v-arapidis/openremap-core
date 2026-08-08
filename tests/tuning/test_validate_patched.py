@@ -546,7 +546,7 @@ class TestCheckFileSize:
         assert v.check_file_size() is None
 
     def test_no_ecu_block_in_recipe_returns_none(self):
-        recipe = {"metadata": {}, "instructions": []}
+        recipe = {"schema_version": "4.3", "metadata": {}, "instructions": []}
         v = ECUPatchedValidator(make_bin(256), recipe)
         assert v.check_file_size() is None
 
@@ -583,7 +583,7 @@ class TestCheckMatchKey:
         assert v.check_match_key() is None
 
     def test_no_ecu_block_in_recipe_returns_none(self):
-        recipe = {"metadata": {}, "instructions": []}
+        recipe = {"schema_version": "4.3", "metadata": {}, "instructions": []}
         v = ECUPatchedValidator(make_bin(256), recipe)
         assert v.check_match_key() is None
 

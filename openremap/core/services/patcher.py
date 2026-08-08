@@ -28,6 +28,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from openremap.core.services.recipe_builder import check_schema_version
 from openremap.core.services.validate_strict import ECUStrictValidator
 
 
@@ -97,6 +98,11 @@ class ECUPatcher:
         self.recipe_name = recipe_name
         self.recipe = recipe
         self.skip_validation = skip_validation
+
+        # Reject recipes older than format 4.3 — the instruction shape
+        # changed (envelope dropped, fields renamed) and blind processing
+        # would produce silent misbehaviour.
+        check_schema_version(recipe)
 
         # Mutable working buffer — writes go here
         self._buffer: bytearray = bytearray(target_data)
@@ -171,17 +177,24 @@ class ECUPatcher:
     # Search — ctx+ob anchor within ±EXACT_WINDOW
     # ------------------------------------------------------------------
 
-    def _find(self, ctx: bytes, ob: bytes, expected: int) -> tuple[int, int]:
+    def _find(
+        self, ctx: bytes, ob: bytes, expected: int, ctx_after: bytes = b""
+    ) -> tuple[int, int]:
         """
-        Search for the atomic pattern ``ctx + ob`` inside a ±EXACT_WINDOW
-        slice of the frozen snapshot.
+        Search for the atomic pattern ``ctx + ob + ctx_after`` inside a
+        ±EXACT_WINDOW slice of the frozen snapshot.
+
+        Including ``ctx_after`` (the bytes immediately following the changed
+        region in the original binary) doubles the effective anchor length
+        at zero cost — the data is already captured at cook time and the
+        snapshot is frozen so the bytes are always valid for search.
 
         Returns ``(absolute_offset_of_ob_start, match_count)``.
         ``offset`` is -1 and ``match_count`` is 0 when nothing is found.
         When multiple hits exist the one closest to ``expected`` is returned;
         ``match_count > 1`` signals ambiguity to the caller.
         """
-        anchor = ctx + ob
+        anchor = ctx + ob + ctx_after
         ctx_len = len(ctx)
 
         win_start = max(0, expected - EXACT_WINDOW)
@@ -216,6 +229,12 @@ class ECUPatcher:
         ctx = bytes.fromhex(ctx_hex) if ctx_hex else b""
         size = len(ob)
 
+        # context_after — the bytes immediately following the changed region in
+        # the original binary.  Including it in the anchor doubles the effective
+        # search-pattern length without expanding the window.
+        ctx_after_hex: str = inst.get("context_after") or ""
+        ctx_after = bytes.fromhex(ctx_after_hex) if ctx_after_hex else b""
+
         # If there is no context, fall back to a direct snapshot read at the
         # expected offset — this mirrors strict-validator behaviour and is
         # safe because we have already confirmed ob is there.
@@ -224,9 +243,39 @@ class ECUPatcher:
             offset = expected if found_ob == ob else -1
             match_count = 1 if offset != -1 else 0
         else:
-            offset, match_count = self._find(ctx, ob, expected)
+            offset, match_count = self._find(ctx, ob, expected, ctx_after)
 
         if offset == -1:
+            # Build a diagnostic message with enough detail to debug the failure.
+            win_start = max(0, expected - EXACT_WINDOW)
+            win_end = min(
+                len(self._snapshot),
+                expected + EXACT_WINDOW + len(ctx) + size + len(ctx_after),
+            )
+            window_size = win_end - win_start
+
+            # Describe the anchor components clearly.
+            parts: List[str] = []
+            if ctx:
+                parts.append(f"{len(ctx)} ctx")
+            parts.append(f"{size} ob")
+            if ctx_after:
+                parts.append(f"{len(ctx_after)} ctx_after")
+            anchor_desc = " + ".join(parts)
+            pattern_desc = (
+                "ctx+ob" + ("+ctx_after" if ctx_after else "")
+                if ctx
+                else "ob" + ("+ctx_after" if ctx_after else "")
+            )
+
+            # Check if the ob bytes exist ANYWHERE in the file (diagnostic).
+            ob_present = self._snapshot.find(ob) != -1
+            ob_hint = (
+                " (ob bytes found elsewhere in binary — map likely shifted)"
+                if ob_present
+                else " (ob bytes not found anywhere — different ECU or already modified)"
+            )
+
             return PatchResult(
                 index=idx,
                 status=PatchStatus.FAILED,
@@ -235,8 +284,14 @@ class ECUPatcher:
                 size=size,
                 shift=None,
                 message=(
-                    f"ctx+ob pattern not found near 0x{expected:X} "
-                    f"(±{EXACT_WINDOW} bytes window)."
+                    f"{pattern_desc} pattern not found "
+                    f"near 0x{expected:X} "
+                    f"(±{EXACT_WINDOW} bytes window, "
+                    f"anchor={len(ctx) + size + len(ctx_after)} bytes "
+                    f"[{anchor_desc}]). "
+                    f"The target binary is likely a different SW revision "
+                    f"than the recipe source."
+                    + ob_hint
                 ),
             )
 

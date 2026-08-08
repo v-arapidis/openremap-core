@@ -24,6 +24,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from openremap.core.services.identifier import identify_ecu
+from openremap.core.services.recipe_builder import check_schema_version
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +88,8 @@ class ECUExistenceValidator:
         self.target_name = target_name
         self.recipe_name = recipe_name
         self.results: List[ExistenceResult] = []
+
+        check_schema_version(recipe)
 
     # ------------------------------------------------------------------
     # Pre-flight (informational — never fatal at the service layer)

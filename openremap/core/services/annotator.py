@@ -11,9 +11,9 @@ anything that looks suspicious.  Nothing is removed — the user decides.
 Flags
 -----
 Each flag is a dict with:
-    kind        — tag: VIN_SUSPECT, SHORT_BLOCK_BOUNDARY, …
+    kind        — tag: VIN_SUSPECT, WEAK_ANCHOR, LOW_ENTROPY_CTX, …
     reason      — human-readable explanation
-    confidence  — HIGH, MEDIUM, LOW
+    confidence  — float 0.0–1.0 (0.9 = high, 0.5 = medium, 0.3 = low)
     action      — always "REVIEW" (we never auto-remove)
 """
 
@@ -35,10 +35,10 @@ class InstructionFlag:
 
     kind: str
     reason: str
-    confidence: str  # HIGH | MEDIUM | LOW
+    confidence: float  # 0.0–1.0 (0.9 = high, 0.5 = medium, 0.3 = low)
     action: str = "REVIEW"
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> Dict[str, object]:
         return {
             "kind": self.kind,
             "reason": self.reason,
@@ -142,11 +142,98 @@ class VINScanner:
                             f"Instruction overlaps with VIN-shaped string "
                             f"'{vin_str}' at 0x{vin_abs_start:X}\u20130x{vin_abs_end:X}"
                         ),
-                        confidence="HIGH",
+                        confidence=0.9,
                     )
                 )
                 # One VIN flag per instruction is enough
                 break
+
+        return flags
+
+
+# ---------------------------------------------------------------------------
+# Low-entropy context scanner
+# ---------------------------------------------------------------------------
+
+# Default entropy threshold — same as find_unique_context().
+_LOW_ENTROPY_THRESHOLD = 2.5
+
+
+class LowEntropyScanner:
+    """
+    Detect instructions whose context anchor is weak — low entropy, non-unique,
+    or both.
+
+    The recipe builder already computes ctx_entropy and ctx_unique for every
+    instruction via find_unique_context().  This scanner simply reads those
+    fields and attaches a human-visible flag when the anchor is below threshold.
+
+    Two cases:
+      1. Non-unique anchor (ctx_unique == False) — the ctx+ob pattern appears
+         more than once even in the ORIGINAL binary.  This means Force Save
+         was used to bypass Guard 3, and the resulting tune may not apply
+         reliably to other binaries.  Flagged as WEAK_ANCHOR / HIGH.
+      2. Low-entropy but unique (ctx_entropy < threshold, ctx_unique == True) —
+         the anchor is in a repetitive/padding region.  It's unique in the
+         original, but fragile — a different SW revision with different padding
+         could break it.  Flagged as LOW_ENTROPY_CTX / LOW.
+    """
+
+    def __init__(self, entropy_threshold: float = _LOW_ENTROPY_THRESHOLD) -> None:
+        self.entropy_threshold = entropy_threshold
+
+    def scan(
+        self,
+        instruction: Dict,
+        original_data: bytes,
+    ) -> List[InstructionFlag]:
+        flags: List[InstructionFlag] = []
+
+        entropy = instruction.get("ctx_entropy", None)
+        is_unique = instruction.get("ctx_unique", None)
+        context_size = instruction.get("context_size", 0)
+
+        # Case 1: Non-unique — anchor matches multiple times in original binary.
+        #          This is the dangerous one; only possible via Force Save.
+        if is_unique is False:
+            match_count_hint = ""
+            # context_size of 0 or 1 means no usable anchor — degenerate case
+            if context_size <= 1:
+                match_count_hint = (
+                    f" (only {context_size} byte(s) of context available "
+                    f"before offset — anchor is degenerate)"
+                )
+            flags.append(
+                InstructionFlag(
+                    kind="WEAK_ANCHOR",
+                    reason=(
+                        f"ctx+ob pattern is non-unique in the original binary "
+                        f"(entropy={entropy:.1f}, context_size={context_size}). "
+                        f"This tune was force-saved and may not apply reliably "
+                        f"to a different ECU or SW revision."
+                        + match_count_hint
+                    ),
+                    confidence=0.9,
+                )
+            )
+            return flags  # Don't add a second flag for the same root cause.
+
+        # Case 2: Unique but low-entropy — anchor is in padding/repetitive region.
+        #          Fragile across SW revisions but fine for same-binary use.
+        if entropy is not None and entropy < self.entropy_threshold:
+            flags.append(
+                InstructionFlag(
+                    kind="LOW_ENTROPY_CTX",
+                    reason=(
+                        f"Context anchor entropy is {entropy:.1f} bits/byte "
+                        f"(below {self.entropy_threshold}). "
+                        f"The anchor is unique in the original binary but "
+                        f"sits in a repetitive region — a different SW revision "
+                        f"may break the match."
+                    ),
+                    confidence=0.3,
+                )
+            )
 
         return flags
 
@@ -172,6 +259,7 @@ class RecipeAnnotator:
     def __init__(self) -> None:
         self._scanners: List[InstructionScanner] = [
             VINScanner(),
+            LowEntropyScanner(),
         ]
 
     def add_scanner(self, scanner: InstructionScanner) -> None:

@@ -85,7 +85,7 @@ def _print_summary(recipe: dict, output: Optional[Path]) -> None:
     match_key = ecu.get("match_key") or "n/a"
     total_changes = stats.get("total_changes", 0)
     total_bytes = stats.get("total_bytes_changed", 0)
-    fmt_version = meta.get("format_version", "?")
+    fmt_version = recipe.get("schema_version", "?")
 
     typer.echo("")
     typer.echo(
@@ -108,11 +108,6 @@ def _print_summary(recipe: dict, output: Optional[Path]) -> None:
     flagged = sum(1 for inst in recipe.get("instructions", []) if inst.get("flags"))
     if flagged:
         rows.append(("⚠ Flagged", f"{flagged:,} instruction(s) need review"))
-
-    # --- Trust level ---
-    creator = recipe.get("creator", {})
-    trust = creator.get("trust_level", "UNSIGNED")
-    rows.append(("Trust Level", trust))
 
     for label, value in rows:
         typer.echo(f"  {label:<{col}} {value}")

@@ -46,9 +46,30 @@ Binary A + Binary B
         │
         ▼
   ┌─────────────────┐
-  │  recipe_builder  │  → .remap recipe (JSON)
-  │  .py             │
-  └──────────────────┘
+  │  recipe_builder  │  find_changes() — byte-level diff
+  └────────┬────────┘
+           │
+           ▼
+  ┌─────────────────┐
+  │  entropy.py      │  find_unique_context() per instruction
+  │                   │  — geometric expansion (32→512 bytes)
+  │                   │  — Shannon entropy + whole-binary uniqueness
+  └────────┬────────┘
+           │
+           ▼
+  ┌─────────────────┐
+  │  Guard 3         │  require_unique check
+  │                   │  — hard error OR cook_warnings (Force Save)
+  └────────┬────────┘
+           │
+           ▼
+  ┌─────────────────┐
+  │  annotator.py    │  scan each instruction (VIN, low-entropy, …)
+  │                   │  → attach flags
+  └────────┬────────┘
+           │
+           ▼
+       .remap recipe (JSON, schema 4.2)
 
 Target binary + Recipe
         │
@@ -59,7 +80,7 @@ Target binary + Recipe
            │ all pass?
            ▼
   ┌──────────────┐
-  │   patcher     │  Phase 2: apply
+  │   patcher     │  Phase 2: apply (ctx+ob+ctx_after anchor, ±2 KB)
   └────────┬─────┘
            │
            ▼
@@ -78,8 +99,10 @@ All services live in `tuning/services/`.
 |---|---|
 | `identifier.py` | `identify_ecu()` — runs a binary through all registered extractors, returns the first match with a full identity dict |
 | `confidence.py` | `score_identity()` — scores the identity dict → tier, signals, warnings |
-| `recipe_builder.py` | `ECUDiffAnalyzer` — byte-level diff of two binaries → `.remap` recipe JSON |
-| `patcher.py` | `ECUPatcher` — applies a recipe to a target binary with anchor search (±2 KB) |
+| `recipe_builder.py` | `ECUDiffAnalyzer` — byte-level diff of two binaries → `.remap` recipe JSON with entropy-gated context anchors |
+| `entropy.py` | Shannon entropy scoring + `find_unique_context()` — geometric context expansion until anchors are unique |
+| `annotator.py` | Instruction flagging framework — `VINScanner`, `LowEntropyScanner` attach non-destructive flags to suspicious instructions |
+| `patcher.py` | `ECUPatcher` — applies a recipe to a target binary with `ctx + ob + context_after` anchor search (±2 KB) |
 | `validate_strict.py` | Pre-patch validation — checks every instruction's `ob` at its exact offset |
 | `validate_exists.py` | Diagnostic — searches for `ob` bytes anywhere in the binary (EXACT / SHIFTED / MISSING) |
 | `validate_patched.py` | Post-patch validation — confirms `mb` bytes are present at expected offsets |
@@ -137,14 +160,19 @@ Every extractor subclasses `BaseManufacturerExtractor` and must implement:
 ### Cook (`openremap cook`)
 
 1. Two binaries loaded (stock + tuned)
-2. `ECUDiffAnalyzer` diffs them byte-by-byte
-3. Produces a `.remap` recipe — JSON with `ob` / `mb` instruction pairs and metadata
+2. Size match guard — both must be identical size (hard error)
+3. Identity match guard — both identified independently, match_keys compared (warning)
+4. `ECUDiffAnalyzer.find_changes()` — byte-level diff with 16-byte merge threshold
+5. `entropy.find_unique_context()` — per-instruction geometric context expansion (32→512 bytes) until anchor is unique and high-entropy
+6. Guard 3: non-unique anchor check — `ValueError` (default) or `cook_warnings` (Force Save)
+7. `annotator.py` — runs `VINScanner` and `LowEntropyScanner` over every instruction, attaches flags
+8. Produces a `.remap` recipe — JSON schema 4.2 with `ctx_entropy`, `ctx_unique`, `ctx_expanded`, `flags`, `cook_warnings`
 
 ### Tune (`openremap tune`)
 
 1. Target binary + `.remap` recipe loaded
 2. **Phase 1 — pre-flight:** `validate_strict` checks every instruction's `ob` at exact offset
-3. **Phase 2 — apply:** `ECUPatcher` writes `mb` bytes, using anchor search (±2 KB) when offsets drift
+3. **Phase 2 — apply:** `ECUPatcher` writes `mb` bytes, using `ctx + ob + context_after` anchor search (±2 KB) when offsets drift
 4. **Phase 3 — verify:** `validate_patched` confirms all `mb` bytes landed correctly
 
 ### Data model

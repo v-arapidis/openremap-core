@@ -362,7 +362,7 @@ class TestComputeStats:
         a = make_analyzer(orig, mod, context_size=32)
         a.find_changes()
         stats = a.compute_stats()
-        assert stats["context_size"] == 32
+        assert stats["min_context_size"] == 32
 
 
 # ---------------------------------------------------------------------------
@@ -448,17 +448,18 @@ class TestBuildRecipe:
         assert "creator" in recipe
         assert "fingerprint" in recipe
 
-    def test_format_version_is_4_2(self):
+    def test_schema_version_is_4_3(self):
         a = make_analyzer(make_bin(256), make_bin(256))
         recipe = a.build_recipe()
-        assert recipe["metadata"]["format_version"] == "4.2"
+        assert recipe["schema_version"] == "4.3"
 
-    def test_openremap_envelope_present(self):
+    def test_top_level_type_and_source(self):
         a = make_analyzer(make_bin(256), make_bin(256))
         recipe = a.build_recipe()
-        assert "openremap" in recipe
-        assert recipe["openremap"]["type"] == "recipe"
-        assert recipe["openremap"]["schema_version"] == "4.2"
+        assert recipe["type"] == "recipe"
+        assert recipe["source"] == "full_cook"
+        assert recipe["application"] == "openremap-core"
+        assert "openremap" not in recipe
 
     def test_original_and_modified_filenames_in_metadata(self):
         orig = make_bin(256)
@@ -546,3 +547,54 @@ class TestBuildRecipe:
         # Do NOT call find_changes manually
         recipe = a.build_recipe()
         assert len(recipe["instructions"]) == 1
+
+
+class TestBuildOrst:
+    def test_build_orst_minimal(self):
+        orig = make_bin(256)
+        mod = make_bin_with(256, {10: 0xFF})
+        a = make_analyzer(orig, mod, require_unique=False)
+        a.find_changes()
+        tune = a.build_orst(
+            id="orst_abc123def456",
+            name="Test Tune",
+            message="Changed one byte",
+            source_sha256="abcdef",
+            source_path_hint="stock.bin",
+        )
+        assert tune["orst"] == "2.0"
+        assert tune["id"] == "orst_abc123def456"
+        assert tune["name"] == "Test Tune"
+        assert tune["message"] == "Changed one byte"
+        assert tune["base_tune_id"] is None
+        assert tune["archived_at"] is None
+        assert tune["source_binary"]["sha256"] == "abcdef"
+        assert tune["source_binary"]["file_size"] == 256
+        assert tune["source_binary"]["path_hint"] == "stock.bin"
+        assert len(tune["instructions"]) == 1
+        inst = tune["instructions"][0]
+        assert inst["offset"] == 10
+        assert inst["status"] == "Normal"
+        assert inst["flags"] == []
+
+    def test_build_orst_fork(self):
+        orig = make_bin(128)
+        mod = make_bin_with(128, {20: 0xBB})
+        a = make_analyzer(orig, mod, require_unique=False)
+        a.find_changes()
+        tune = a.build_orst(
+            id="orst_child",
+            name="Forked",
+            base_tune_id="orst_parent",
+        )
+        assert tune["base_tune_id"] == "orst_parent"
+        assert len(tune["instructions"]) == 1
+
+    def test_build_orst_no_message(self):
+        orig = make_bin(64)
+        mod = make_bin(64)
+        a = make_analyzer(orig, mod)
+        a.find_changes()
+        tune = a.build_orst(id="orst_x", name="Empty")
+        assert tune["message"] is None
+        assert tune["instructions"] == []

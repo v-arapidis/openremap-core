@@ -57,6 +57,11 @@ to wrap in an API endpoint, a background thread, or a test.
 from openremap.core.services.identifier    import identify_ecu
 from openremap.core.services.confidence    import score_identity, ConfidenceResult
 from openremap.core.services.recipe_builder import ECUDiffAnalyzer
+from openremap.core.services.entropy       import shannon_entropy, find_unique_context
+from openremap.core.services.annotator     import (
+    RecipeAnnotator, InstructionFlag,
+    VINScanner, LowEntropyScanner,
+)
 from openremap.core.services.validate_strict import ECUStrictValidator
 from openremap.core.services.validate_exists import ECUExistenceValidator, MatchStatus
 from openremap.core.services.validate_patched import ECUPatchedValidator
@@ -158,15 +163,29 @@ analyzer = ECUDiffAnalyzer(
     modified_data=modified,
     original_filename="stock.bin",
     modified_filename="modified.bin",
-    context_size=32,          # bytes of context captured around each change
+    context_size=32,          # minimum context bytes (default)
+    max_context_size=512,     # ceiling for auto-expansion (default)
+    entropy_threshold=2.5,    # minimum acceptable entropy in bits/byte
+    require_unique=True,      # hard error on non-unique anchors (False = Force Save)
 )
+
+# Pre-cook guards — call these before build_recipe()
+size_error = analyzer.check_size_match()       # None = ok
+identity_warning = analyzer.check_identity_match()  # None = ok
 
 recipe = analyzer.build_recipe()
 ```
 
-`build_recipe()` calls `find_changes()` and `identify_ecu()` internally. The
-returned `recipe` dict is ready to be serialised, stored, or passed directly
-to the validation and patching pipeline.
+`build_recipe()` runs the full pipeline internally:
+1. Size match guard (hard error — raises `ValueError`)
+2. Identity match guard (warning — stored in `cook_warnings`)
+3. `find_changes()` — byte-level diff with 16-byte merge threshold
+4. Entropy-gated context expansion per instruction (32→512 bytes)
+5. Guard 3: non-unique anchor check (hard error or `cook_warnings`)
+6. Annotator scan (VIN, low-entropy flags on each instruction)
+
+The returned `recipe` dict (schema 4.2) is ready to be serialised, stored, or
+passed directly to the validation and patching pipeline.
 
 **Saving the recipe:**
 
@@ -193,7 +212,7 @@ print(stats["largest_change_size"])  # 1024
 
 ```python
 {
-    "openremap": { "type": "recipe", "schema_version": "4.0" },
+    "openremap": { "type": "recipe", "schema_version": "4.2" },
     "metadata":  { "original_file": ..., "modified_file": ..., ... },
     "ecu":       { "manufacturer": ..., "match_key": ..., "ecu_family": ..., ... },
     "statistics": { ... },
@@ -495,6 +514,7 @@ import json
 from openremap.core.services.identifier      import identify_ecu
 from openremap.core.services.confidence      import score_identity
 from openremap.core.services.recipe_builder  import ECUDiffAnalyzer
+from openremap.core.services.annotator       import RecipeAnnotator
 from openremap.core.services.validate_strict import ECUStrictValidator
 from openremap.core.services.validate_exists import ECUExistenceValidator
 from openremap.core.services.patcher         import ECUPatcher
@@ -803,7 +823,9 @@ Diff a stock binary against a modified binary to produce a recipe.
   "params": {
     "original_path": "/abs/path/stock.bin",
     "modified_path": "/abs/path/modified.bin",
-    "context_size":  32
+    "context_size":  32,
+    "require_unique": true,
+    "description":    "Stage 1: torque limit increase"
   }
 }
 
@@ -812,14 +834,20 @@ Diff a stock binary against a modified binary to produce a recipe.
   "id": 4,
   "result": {
     "recipe":   { "...": "..." },
-    "stats":    {"total_changes": 12, "total_bytes_changed": 48},
+    "stats":    {"total_changes": 12, "total_bytes_changed": 48, "context_size": 32, "max_context_size": 512},
     "warnings": []
   }
 }
 ```
 
-`context_size` is optional (default `32`). Pass `recipe` directly to `tune` or
-save it as a `.remap` file with `json.dump`.
+Parameters:
+- `context_size` (optional, default `32`) — minimum context anchor bytes
+- `require_unique` (optional, default `true`) — when `false`, non-unique anchors become `cook_warnings` instead of a hard error (Force Save)
+- `description` (optional) — human-readable label embedded in the recipe metadata
+
+The recipe (schema 4.2) includes per-instruction `ctx_entropy`, `ctx_unique`,
+`ctx_expanded`, and `flags` fields. Pass `recipe` directly to `tune` or save
+it as a `.remap` file with `json.dump`.
 
 ---
 

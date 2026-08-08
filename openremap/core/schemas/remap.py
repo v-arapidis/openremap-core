@@ -3,12 +3,12 @@ from pydantic import BaseModel, Field
 
 
 class InstructionFlagSchema(BaseModel):
-    """Annotation flag on a single instruction."""
+    """Annotation flag on a single instruction (schema >= 4.3)."""
 
     kind: str = Field(..., description="Flag type: VIN_SUSPECT, CHECKSUM_SUSPECT, etc.")
     reason: str = Field(..., description="Human-readable explanation")
-    confidence: str = Field(..., description="HIGH, MEDIUM, or LOW")
-    action: str = Field("REVIEW", description="Recommended action — always REVIEW")
+    confidence: float = Field(..., description="0.0–1.0 confidence score")
+    action: str = Field("REVIEW", description="WARN | SKIP | REVIEW")
 
 
 class SupportedFamilySchema(BaseModel):
@@ -86,26 +86,26 @@ class ECUIdentitySchema(BaseModel):
             "For LH-Jetronic Format A it is the sole identifier and drives match_key."
         ),
     )
-    file_size: int
-    sha256: str = Field(..., description="SHA-256 of the full binary file")
-
-
-class AuthorSchema(BaseModel):
-    """Recipe author identity."""
-
-    name: Optional[str] = None
-    handle: Optional[str] = None
-    id: Optional[str] = Field(None, description="Platform-assigned UUID")
+    oem_part_number: Optional[str] = None
+    platform: Optional[str] = None
+    calibration_version: Optional[str] = None
+    serial_number: Optional[str] = None
+    dataset_number: Optional[str] = None
+    file_size: int = 0
+    sha256: str = Field(default="", description="SHA-256 of the full binary file")
+    cook_warnings: List[str] = Field(default_factory=list)
 
 
 class CreatorSchema(BaseModel):
-    """Recipe provenance metadata."""
+    """Recipe author identity (schema >= 4.3)."""
 
-    tool: str = Field(..., description="Tool that created the recipe")
-    tool_version: str = Field(..., description="Tool version")
-    created_at: str = Field(..., description="ISO 8601 UTC timestamp")
-    author: Optional[AuthorSchema] = None
-    signature: Optional[dict] = Field(None, description="Digital signature (future)")
+    model_config = {"extra": "ignore"}
+
+    name: str = ""
+    handle: str = ""
+    id: str = ""
+    created_at: str = Field("", description="ISO 8601 UTC timestamp")
+    signature: Optional[str] = Field(None, description="Digital signature (future)")
     trust_level: str = Field(
         "UNSIGNED",
         description="UNSIGNED | COMMUNITY | SIGNED | VERIFIED",
@@ -113,49 +113,56 @@ class CreatorSchema(BaseModel):
 
 
 class AnalysisMetadataSchema(BaseModel):
-    original_file: str
-    modified_file: str
-    original_size: int
-    modified_size: int
-    context_size: int
-    format_version: str = "4.0"
-    description: str
+    """Recipe metadata block (schema >= 4.3)."""
+
+    model_config = {"extra": "ignore"}
+
+    name: str = ""
+    description: str = ""
+    tags: List[str] = Field(default_factory=list)
+    instruction_count: int = 0
+    original_file: str = ""
+    modified_file: str = ""
+    original_size: int = 0
+    modified_size: int = 0
+    tune_id: Optional[str] = None
 
 
 class AnalysisStatisticsSchema(BaseModel):
-    total_changes: int
-    total_bytes_changed: int
-    percentage_changed: float
-    single_byte_changes: int
-    multi_byte_changes: int
-    largest_change_size: int
-    smallest_change_size: int
-    context_size: int = Field(
-        ...,
+    """Recipe statistics block (schema >= 4.3)."""
+
+    total_changes: int = 0
+    total_bytes_changed: int = 0
+    percentage_changed: float = 0.0
+    single_byte_changes: int = 0
+    multi_byte_changes: int = 0
+    largest_change_size: int = 0
+    smallest_change_size: int = 0
+    min_context_size: int = Field(
+        0,
         description="Minimum context anchor size configured for this analysis",
     )
-    max_context_size: Optional[int] = Field(
-        None,
-        description="Maximum context anchor size allowed during auto-expansion. Present for schema >= 4.2.",
+    max_context_size: int = Field(
+        0,
+        description="Maximum context anchor size allowed during auto-expansion",
     )
 
 
-class AnalyzerResponseSchema(BaseModel):
-    """
-    Full analysis response — format-4.0 recipe ready for serialisation
-    and direct consumption by the patcher pipeline.
-    """
-
-    openremap: Optional[dict] = Field(
-        None, description="Envelope with type and schema_version"
-    )
-    creator: Optional[CreatorSchema] = Field(
-        None, description="Recipe provenance metadata"
-    )
-    fingerprint: Optional[str] = Field(
-        None, description="SHA-256 fingerprint of instruction content"
-    )
-    metadata: AnalysisMetadataSchema
-    ecu: ECUIdentitySchema
-    statistics: AnalysisStatisticsSchema
-    instructions: List[InstructionSchema]
+# class AnalyzerResponseSchema(BaseModel):
+#     """
+#     Full analysis response — format-4.3 recipe ready for serialisation
+#     and direct consumption by the patcher pipeline.
+#     """
+#
+#     model_config = {"extra": "ignore"}
+#
+#     type: str = Field("recipe")
+#     schema_version: str = Field("4.3")
+#     source: str = Field(..., description="full_cook | tune_export")
+#     application: str = Field(..., description="openremap-core | openremap-studio")
+#     creator: CreatorSchema = Field(default_factory=CreatorSchema)
+#     fingerprint: str = ""
+#     metadata: AnalysisMetadataSchema = Field(default_factory=AnalysisMetadataSchema)
+#     ecu: ECUIdentitySchema = Field(default_factory=ECUIdentitySchema)
+#     statistics: AnalysisStatisticsSchema = Field(default_factory=AnalysisStatisticsSchema)
+#     instructions: List[InstructionSchema] = Field(default_factory=list)
