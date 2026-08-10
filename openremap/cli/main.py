@@ -37,6 +37,7 @@ from openremap.cli.commands.cook import cook
 from openremap.cli.commands.families import families
 from openremap.cli.commands.identify import identify
 from openremap.cli.commands.scan import scan
+from openremap.cli.commands.scan_maps import scan_maps
 from openremap.cli.commands.tune import tune
 from openremap.cli.commands.workflow import workflow
 
@@ -151,6 +152,18 @@ app.command(
         "scanned, sw_missing, contested, unknown, or trash."
     ),
 )(scan)
+
+app.command(
+    name="scan-maps",
+    help=(
+        "Scan an ECU binary for plausible calibration map axes and 2D tables.\n\n"
+        "Structural scan — no manufacturer identification needed. "
+        "Finds monotonically-increasing 16-bit sequences (RPM/load breakpoints) "
+        "and the rectangular data blocks that follow them. "
+        "Useful for health-checking binaries and discovering maps in unsupported ECUs."
+    ),
+    no_args_is_help=True,
+)(scan_maps)
 
 
 # ---------------------------------------------------------------------------

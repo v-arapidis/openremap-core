@@ -48,6 +48,7 @@ Every command supports `--help` for a quick reminder of its arguments and option
 | `families --family <NAME>` | Full detail for one ECU family | [→ families.md](commands/families.md) |
 | `scan` | Sort a folder of ECU files by manufacturer and family | [→ scan.md](commands/scan.md) |
 | `identify` | Read an ECU binary and print everything extracted from it | [→ identify.md](commands/identify.md) |
+| `scan-maps` | Structural scan — find calibration map axes and 2D tables without identification | [→ scan-maps.md](commands/scan-maps.md) |
 | `cook` | Compare a stock and a tuned binary and save the difference as a recipe | [→ cook.md](commands/cook.md) |
 | `tune` | **One-shot:** validate before → apply → validate after | [→ tune.md](commands/tune.md) |
 | `validate before` | Pre-flight check — run before tuning (or use `tune`) | [→ validate.md#before](commands/validate.md#before) |
@@ -77,6 +78,10 @@ openremap families --family EDC16
 # (Optional) Sort a folder of binaries into a tidy library
 openremap scan ./my_bins/                    # preview — nothing moves
 openremap scan ./my_bins/ --move --organize  # sort into Bosch/EDC17/ etc.
+
+# (Optional) Discover calibration maps in an unsupported or unknown ECU
+openremap scan-maps ecu.bin
+openremap scan-maps ecu.bin --region 0x10000-0x80000 --min-score 0.8 --json
 
 # 1. Read the stock binary — confirm it is a supported ECU
 openremap identify stock.bin

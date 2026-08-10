@@ -76,7 +76,69 @@ from openremap.core.services.entropy import find_unique_context
 
 import hashlib
 import json
+import os as _os
 from datetime import datetime, timezone
+from typing import List as _List, Tuple as _Tuple
+
+# ============================================================================
+# find_changed_blocks — Rust-accelerated byte-level diff
+# ============================================================================
+
+_FORCE_PYTHON_DIFF = _os.environ.get("OPENREMAP_FORCE_PYTHON", "").strip() in (
+    "1", "true", "yes",
+)
+
+
+def _py_find_changed_blocks(
+    original: bytes,
+    modified: bytes,
+    merge_threshold: int = 16,
+) -> _List[_Tuple[int, int, bytes, bytes]]:
+    """Pure-Python reference — find and merge changed byte regions.
+
+    Returns a list of ``(offset, size, ob_bytes, mb_bytes)`` tuples.
+    """
+    min_length = min(len(original), len(modified))
+
+    diff_positions = [
+        i
+        for i in range(min_length)
+        if original[i] != modified[i]
+    ]
+
+    if not diff_positions:
+        return []
+
+    blocks: _List[_Tuple[int, int]] = []
+    start = diff_positions[0]
+    end = diff_positions[0]
+
+    for pos in diff_positions[1:]:
+        if pos - end <= merge_threshold:
+            end = pos
+        else:
+            blocks.append((start, end))
+            start = pos
+            end = pos
+    blocks.append((start, end))
+
+    result: _List[_Tuple[int, int, bytes, bytes]] = []
+    for blk_start, blk_end in blocks:
+        size = blk_end - blk_start + 1
+        ob_raw = original[blk_start : blk_end + 1]
+        mb_raw = modified[blk_start : blk_end + 1]
+        result.append((blk_start, size, ob_raw, mb_raw))
+
+    return result
+
+
+if not _FORCE_PYTHON_DIFF:
+    try:
+        from openremap._rust import find_changed_blocks  # type: ignore[import-untyped]
+    except ImportError:
+        find_changed_blocks = _py_find_changed_blocks  # type: ignore[assignment]
+else:
+    find_changed_blocks = _py_find_changed_blocks  # type: ignore[assignment]
 
 from openremap.core.services.annotator import RecipeAnnotator
 
@@ -431,46 +493,27 @@ class ECUDiffAnalyzer:
 
         Nearby diff positions within merge_threshold bytes of each other
         are merged into a single instruction, reducing total instruction count.
+
+        The raw byte comparison and merge step dispatches to the Rust
+        backend when available; context verification and hex conversion
+        stay in Python.
         """
         self.changes.clear()
 
-        min_length = min(len(self.original_data), len(self.modified_data))
+        blocks = find_changed_blocks(
+            self.original_data, self.modified_data, merge_threshold,
+        )
 
-        diff_positions = [
-            i
-            for i in range(min_length)
-            if self.original_data[i] != self.modified_data[i]
-        ]
-
-        if not diff_positions:
-            return
-
-        # Group positions into contiguous blocks
-        blocks: List[Tuple[int, int]] = []
-        start = diff_positions[0]
-        end = diff_positions[0]
-
-        for pos in diff_positions[1:]:
-            if pos - end <= merge_threshold:
-                end = pos
-            else:
-                blocks.append((start, end))
-                start = pos
-                end = pos
-        blocks.append((start, end))
-
-        for blk_start, blk_end in blocks:
-            size = blk_end - blk_start + 1
-            ob_raw = self.original_data[blk_start : blk_end + 1]
+        for offset, size, ob_raw, mb_raw in blocks:
             ob = ob_raw.hex().upper()
-            mb = self.modified_data[blk_start : blk_end + 1].hex().upper()
+            mb = mb_raw.hex().upper()
             ctx_before, ctx_after, entropy, match_count, expanded = (
-                self._get_verified_context(blk_start, size, ob_raw)
+                self._get_verified_context(offset, size, ob_raw)
             )
 
             self.changes.append(
                 Change(
-                    offset=blk_start,
+                    offset=offset,
                     size=size,
                     ob=ob,
                     mb=mb,

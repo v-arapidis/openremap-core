@@ -123,7 +123,7 @@ def _py_find_unique_context(
         if actual_size == 0:
             return b"", 0, 0.0, 0
 
-        entropy = _py_shannon_entropy(ctx)
+        entropy = shannon_entropy(ctx)
         anchor = ctx + ob
         match_count = _py_count_unique_in_window(data, anchor, 0, len(data))
 
@@ -135,7 +135,7 @@ def _py_find_unique_context(
     # max_size reached — return best effort
     ctx_start = max(0, change_offset - max_size)
     ctx = data[ctx_start:change_offset]
-    entropy = _py_shannon_entropy(ctx)
+    entropy = shannon_entropy(ctx)
     anchor = ctx + ob
     match_count = _py_count_unique_in_window(data, anchor, 0, len(data))
     return ctx, len(ctx), entropy, match_count
@@ -143,6 +143,11 @@ def _py_find_unique_context(
 
 # ============================================================================
 # Public API — dispatch to Rust when available, fall back to pure Python.
+#
+# shannon_entropy / is_low_entropy: Rust (17.5× faster)
+# count_unique_in_window          : Python (CPython's bytes.find is faster)
+# find_unique_context             : Python (delegates to Rust entropy +
+#                                   Python search — best of both)
 # ============================================================================
 
 import os as _os
@@ -154,8 +159,6 @@ _FORCE_PYTHON = _os.environ.get("OPENREMAP_FORCE_PYTHON", "").strip() in (
 if not _FORCE_PYTHON:
     try:
         from openremap._rust import (       # type: ignore[import-untyped]
-            count_unique_in_window,
-            find_unique_context,
             is_low_entropy,
             shannon_entropy,
         )
@@ -172,8 +175,12 @@ def entropy_backend() -> str:
 
 
 if _ENTROPY_BACKEND == "python":
-    # No native extension — use the pure-Python reference above.
     shannon_entropy = _py_shannon_entropy            # type: ignore[assignment]
     is_low_entropy = _py_is_low_entropy              # type: ignore[assignment]
-    count_unique_in_window = _py_count_unique_in_window  # type: ignore[assignment]
-    find_unique_context = _py_find_unique_context    # type: ignore[assignment]
+
+# count_unique_in_window and find_unique_context always use Python — the
+# search loop (count_unique_in_window) benefits from CPython's C-level
+# bytes.find (Two-Way/FASTSEARCH), and find_unique_context benefits from
+# calling the Rust-backed shannon_entropy internally.
+count_unique_in_window = _py_count_unique_in_window  # type: ignore[assignment]
+find_unique_context = _py_find_unique_context        # type: ignore[assignment]

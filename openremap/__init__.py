@@ -4,7 +4,7 @@ openremap — ECU binary analysis and patching toolkit.
 Diff, validate, and apply tuning recipes to automotive ECU binaries.
 """
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 
 def _active_backend() -> str:

@@ -3,18 +3,18 @@ requires = ["maturin>=1.8,<2"]
 build-backend = "maturin"
 
 [tool.maturin]
-manifest-path = "openremap/_rust/Cargo.toml"
+manifest-path = "openremap/_rs/Cargo.toml"
 module-name = "openremap._rust"
 python-source = "."
 features = ["pyo3/abi3-py310", "pyo3/extension-module"]
-exclude = ["openremap/_rust/target/**"]
+exclude = ["openremap/_rs/target/**"]
 
 [tool.uv]
 package = true
 
 [project]
 name = "openremap"
-version = "0.6.1"
+version = "0.6.2"
 description = "ECU binary analysis and patching toolkit — diff, validate, and apply tuning recipes to automotive ECU binaries."
 readme = "README.md"
 license = { file = "LICENSE" }

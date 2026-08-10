@@ -34,6 +34,9 @@ No arguments. No options. Just the cheat-sheet.
   openremap scan <DIR> --report report.json       Write a full scan report (JSON or CSV) alongside the classification.
   openremap identify <FILE>                       Read an ECU binary and print manufacturer, family, SW, HW, confidence.
   openremap identify <FILE> --json                Same as above but output raw JSON — useful for scripting.
+  openremap scan-maps <FILE>                      Structural scan — find calibration map axes and 2D tables.
+  openremap scan-maps <FILE> --json               Same as above but output raw JSON.
+  openremap scan-maps <FILE> --region 0x10000-0x80000  Restrict scanning to a byte range.
   openremap cook <STOCK> <TUNED> --output recipe.remap  Diff two binaries and save every changed byte block as a recipe.
   openremap tune <TARGET> <RECIPE>                One-shot: validate → apply → verify. Writes <target>_tuned<ext>.
   openremap tune <TARGET> <RECIPE> --output <OUT> Same, with an explicit output path.

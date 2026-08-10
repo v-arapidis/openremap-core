@@ -1,6 +1,6 @@
 [package]
 name = "openremap"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 description = "Native acceleration for openremap-core CPU-bound algorithms"
 
@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.25", features = ["abi3-py310", "extension-module"] }
+memchr = "2"
 
 [profile.release]
 opt-level = 3

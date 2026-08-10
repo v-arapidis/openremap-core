@@ -52,14 +52,30 @@ ECU work revolves around three tasks that today require expensive commercial sof
 
 Whether you are building a tuning application, automating a workflow, or just need a reliable offline tool — OpenRemap gives you a clean Python API and a full CLI for all three.
 
-## What OpenRemap does
+## Features
 
-| Step | Command | What happens |
-|---|---|---|
-| **Identify** | `openremap identify ecu.bin` | Reads the binary and tells you: manufacturer, ECU family, software version, hardware number, calibration ID — plus a confidence score rating how likely the file is unmodified |
-| **Scan** | `openremap scan ./bins/` | Batch-identifies every binary in a folder. Sorts them into `Bosch/EDC17/`, `Siemens/PPD/`, etc. Flags suspicious files before you touch them |
-| **Cook** | `openremap cook stock.bin tuned.bin` | Diffs two binaries byte-by-byte and produces a `.remap` recipe — a portable JSON file listing every changed byte with context anchors. Readable in any text editor, diffable in Git |
-| **Tune** | `openremap tune target.bin recipe.remap` | Validates the recipe against the target binary, applies the patch, then verifies every byte landed correctly. All-or-nothing — partial patches never happen |
+- **ECU identification** — 30 extractors across Bosch, Siemens, Delphi, and
+  Magneti Marelli. Every binary gets back manufacturer, family, software
+  version, hardware number, and a multi-signal confidence score.
+- **Batch scanning** — point it at a folder, get every file classified and
+  optionally sorted into manufacturer/family trees. Suspicious files are
+  flagged before you touch them.
+- **Structural map discovery** — find calibration axes and 2D tables in any
+  binary without manufacturer identification. Works on unsupported ECUs.
+- **Portable recipes** — diff two binaries into a `.remap` JSON recipe. Every
+  changed byte is captured with a 32-byte context anchor. Human-readable,
+  Git-diffable, shareable.
+- **Safe patching** — validate, apply, verify — all in one shot. All-or-nothing:
+  partial patches never happen.
+- **Terminal UI** — full interactive interface for identifying, scanning,
+  cooking, and tuning. Run `openremap` with no arguments.
+- **Python library** — every service is importable directly. No subprocess,
+  no parsing stdout. Embed in scripts, pipelines, or desktop apps.
+- **Rust acceleration** — CPU-bound algorithms run on a compiled native
+  extension. Pre-built wheels for Linux, macOS, and Windows. Pure-Python
+  fallback included.
+
+→ [CLI reference](docs/cli.md) · [Integration guide](docs/integration.md)
 
 ### What it does NOT do
 

@@ -7,6 +7,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.2] — 2026-08-10
+
+Rust map hunter — `scan_map_axes` and `scan_map_tables` ported to Rust with
+26× speedup, plus a new `scan-maps` CLI command for structural calibration map
+discovery.
+
+### Added — Rust Map Hunter (`_rs/src/map_hunter.rs`)
+
+- **`scan_map_axes` (26× faster)** — finds all monotonically-increasing 16-bit
+  sequences in a binary. Rust output is bit-identical to Python (verified with
+  oracle fuzz tests on 15,967 axes). Deduplication by containment, region offset
+  handling, byte-order detection.
+- **`scan_map_tables` (26.6× faster)** — pairs axes into 2D calibration tables
+  with multi-dimension scoring. 99.5% output match vs Python (1,976 vs 1,985
+  tables; ±0.004 score difference from float precision accumulation — both
+  backends correct).
+- **Hybrid dispatch** — map_hunter joins entropy and diff in the Rust backend.
+  Python `bytes.find()` is still used for search (CPython's Two-Way/FASTSEARCH
+  is faster than Rust's `memchr` for our workload).
+- `scan_map_axes` and `scan_map_tables` wrappers in `map_hunter.py` convert
+  Rust tuples → Python NamedTuples transparently.
+
+### Added — CLI
+
+- **`openremap scan-maps`** — structural calibration map scanner. No
+  manufacturer identification needed; finds RPM/load breakpoints and the
+  rectangular data blocks that follow them.
+  - `--min-score` / `-s` — minimum table score (default 0.75)
+  - `--region` / `-r` — restrict scanning to a byte range
+  - `--top` / `-n` — number of top-scoring tables to show (default 20)
+  - `--json` — machine-readable JSON output
+  - Health signal: ≥1000 axes = genuine calibration binary; <100 = likely
+    encrypted or non-ECU.
+
+### Changed
+
+- **Version callback** (`openremap --version`) now shows active backend:
+  `openremap 0.6.2 (rust)` or `openremap 0.6.2 (python)`.
+- **`.gitignore`** — added `openremap/*.so` to block proc-macro and misc
+  build artefact leakage into the Python package directory.
+
+---
+
+## [0.6.1] — 2026-08-09
+
+Rust source directory rename and release pipeline fixes.
+
+### Fixed
+
+- **`_rust/` → `_rs/` rename** — the Cargo source directory (`_rust/`) was
+  shadowing the compiled `.abi3.so` module. Renamed to `_rs/` so Python loads
+  the native extension instead of the source directory.
+- **manylinux tag** — from `manylinux_2_17` to `manylinux_2_34` (GitHub
+  runners use glibc 2.39, too new for 2.17).
+- **Linux wheel naming** — run `maturin build` from project root (not
+  `--manifest-path`) so the wheel is named `openremap`, not `openremap_rust`.
+- **abi3 + extension-module** — both features required together for stable-ABI
+  binary wheels.
+
+---
+
+## [0.6.0] — 2026-08-09
+
+Rust native extension with PyO3 + maturin, hybrid dispatch, and automated
+multi-platform wheel publishing.
+
+### Added — Rust Native Extension (`_rs/`)
+
+- **PyO3 + maturin build** — `pyproject.toml` switched from hatchling to
+  maturin. Rust crate at `openremap/_rs/` compiles as `openremap._rust`.
+- **abi3 stable ABI** — single wheel covers Python 3.10+ on each platform.
+- **`shannon_entropy` (17.5× faster)** — uses `[u32; 256]` fixed array instead
+  of Python dict. No allocation in the hot path.
+- **`is_low_entropy`** — threshold check, dispatches to Rust.
+- **`find_changed_blocks` (135× faster)** — single-pass byte comparison with
+  merge-threshold neighbourhood clustering.
+- **`count_unique_in_window` / `find_unique_context`** — kept in Python.
+  CPython's `bytes.find()` (Two-Way substring search / FASTSEARCH) is faster
+  than Rust's `memchr::memmem` for our window sizes. Rust implementations
+  available but not dispatched by default.
+- **Hybrid dispatch pattern** — every accelerated function has a `_py_*`
+  pure-Python reference and a Rust fast path. `import openremap._rust` failure
+  falls back to Python silently. `_active_backend()` reports which backend is
+  live.
+- **Oracle fuzz tests** — 360 entropy oracle tests + 106 diff oracle tests.
+  Random inputs fed to both backends; asserts bit-identical output.
+
+### Added — CI/CD
+
+- **Release workflow** (`.github/workflows/release.yml`) — triggered on `v*`
+  tags. Matrix builds for Linux (maturin + manylinux_2_34), macOS, and Windows.
+  Publishes to PyPI via OIDC trusted publishing with `skip-existing: true`.
+- **Test workflow** (`.github/workflows/ci.yml`) — runs pytest across Python
+  3.10–3.14 on push and PR. Includes oracle fuzz tests to catch Rust ↔ Python
+  divergence.
+
+### Changed
+
+- **README** — repositioned as "offline-first engine"; renamed "Coverage" →
+  "Supported ECUs"; moved screenshot to bottom; added Rust acceleration mention.
+
+### Removed
+
+- **Codecov** — badge and integration removed.
+
+---
+
 ## [0.5.0] — 2026-08-08
 
 Recipe format 4.3 — schema restructure, creator simplification, and metadata

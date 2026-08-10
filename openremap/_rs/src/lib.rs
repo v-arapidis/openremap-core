@@ -15,21 +15,23 @@
 
 use pyo3::prelude::*;
 
+mod diff;
 mod entropy;
+mod map_hunter;
 
-/// Accelerated Shannon entropy and context-anchor search.
-///
-/// Exposes the same public API as `openremap.core.services.entropy`:
-///
-///   - ``shannon_entropy(data: bytes) -> float``
-///   - ``is_low_entropy(data: bytes, threshold: float = 2.5) -> bool``
-///   - ``count_unique_in_window(haystack: bytes, needle: bytes, start: int, end: int) -> int``
-///   - ``find_unique_context(data, offset, size, ob, min_size=32, max_size=512, threshold=2.5) -> tuple``
 #[pymodule]
 fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // ── Entropy ──────────────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(entropy::shannon_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(entropy::is_low_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(entropy::count_unique_in_window, m)?)?;
     m.add_function(wrap_pyfunction!(entropy::find_unique_context, m)?)?;
+
+    // ── Diff ─────────────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(diff::find_changed_blocks, m)?)?;
+
+    // ── Map hunter ───────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(map_hunter::scan_map_axes, m)?)?;
+    m.add_function(wrap_pyfunction!(map_hunter::scan_map_tables, m)?)?;
     Ok(())
 }

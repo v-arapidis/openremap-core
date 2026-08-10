@@ -1123,3 +1123,77 @@ def scan_map_tables(
             break
 
     return chosen
+
+
+# ============================================================================
+# Rust acceleration — dispatches to native backend when available.
+# ============================================================================
+
+import os as _os
+
+_py_scan_map_axes = scan_map_axes
+_py_scan_map_tables = scan_map_tables
+
+if _os.environ.get("OPENREMAP_FORCE_PYTHON", "").strip() not in ("1", "true", "yes"):
+    try:
+        from openremap._rust import scan_map_axes as _rs_scan_map_axes
+        from openremap._rust import scan_map_tables as _rs_scan_map_tables
+        _MAP_BACKEND = "rust"
+    except ImportError:
+        _MAP_BACKEND = "python"
+else:
+    _MAP_BACKEND = "python"
+
+
+def map_hunter_backend() -> str:
+    """Return which backend is active: ``"rust"`` or ``"python"``."""
+    return _MAP_BACKEND
+
+
+if _MAP_BACKEND == "rust":
+    def scan_map_axes(  # type: ignore[no-redef]
+        data: bytes,
+        region: slice | None = None,
+        min_axis_length: int = 4,
+        max_axis_length: int = 32,
+        min_step: int = 1,
+        max_step: int = 10_000,
+    ):
+        rs_start = -1
+        rs_end = -1
+        if region is not None:
+            rs_start = region.start if region.start is not None else -1
+            rs_end = region.stop if region.stop is not None else -1
+        raw = _rs_scan_map_axes(data, rs_start, rs_end, min_axis_length,
+                                max_axis_length, min_step, max_step)
+        return [MapAxis(offset=o, length=l, byte_order=bo, values=tuple(v))
+                for (o, l, bo, v) in raw]
+
+    def scan_map_tables(  # type: ignore[no-redef]
+        data: bytes,
+        region: slice | None = None,
+        axes: list | None = None,
+        min_score: float = 0.55,
+        max_gap: int = 8,
+        min_y_length: int = 3,
+        min_axis_length: int = 4,
+        cell_widths: tuple[int, ...] = (2, 1),
+        max_results: int | None = 2000,
+    ):
+        rs_start = -1
+        rs_end = -1
+        if region is not None:
+            rs_start = region.start if region.start is not None else -1
+            rs_end = region.stop if region.stop is not None else -1
+
+        rs_axes = None
+        if axes is not None:
+            rs_axes = [(a.offset, a.length, a.byte_order, list(a.values)) for a in axes]
+
+        raw = _rs_scan_map_tables(
+            data, rs_start, rs_end, rs_axes, min_score, max_gap,
+            min_y_length, min_axis_length, list(cell_widths), max_results,
+        )
+        return [MapTable(offset=o, cols=c, rows=r, cell_width=cw,
+                        byte_order=bo, x_axis_offset=xo, y_axis_offset=yo, score=s)
+                for (o, c, r, cw, bo, xo, yo, s) in raw]
