@@ -1,5 +1,5 @@
 [package]
-name = "openremap-rust"
+name = "openremap"
 version = "0.6.0"
 edition = "2021"
 description = "Native acceleration for openremap-core CPU-bound algorithms"

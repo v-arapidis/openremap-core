@@ -5,7 +5,6 @@ on:
     tags: ["v*"]
 
 jobs:
-  # ── Run tests first — don't publish if anything is broken ────────────────
   test:
     runs-on: ubuntu-latest
     steps:
@@ -15,7 +14,6 @@ jobs:
       - run: uv run pytest tests/ -x
       - run: uv run pytest tests/tuning/test_entropy_oracle.py -v
 
-  # ── Build platform wheels ────────────────────────────────────────────────
   build:
     needs: test
     strategy:
@@ -23,7 +21,6 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux
-            manylinux: manylinux_2_34
           - os: macos-latest
             target: macos
           - os: windows-latest
@@ -34,12 +31,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v5
 
+      # Linux: use maturin directly for manylinux tags (uv build forces
+      # --compatibility off which PyPI rejects). Run from project root so
+      # maturin discovers both the Python package and the Rust crate via
+      # pyproject.toml.
       - name: Build wheel (Linux)
         if: matrix.target == 'linux'
         run: >
           uvx maturin build --release
-          --manifest-path openremap/_rust/Cargo.toml
-          --compatibility ${{ matrix.manylinux }}
+          --compatibility manylinux_2_34
           --out dist
 
       - name: Build wheel (macOS / Windows)
@@ -51,7 +51,6 @@ jobs:
           name: wheels-${{ matrix.target }}
           path: dist/*.whl
 
-  # ── Publish to PyPI ──────────────────────────────────────────────────────
   publish:
     needs: build
     runs-on: ubuntu-latest
