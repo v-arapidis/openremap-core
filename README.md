@@ -1,31 +1,26 @@
 # OpenRemap
 
 [![CI](https://github.com/v-arapidis/openremap-core/actions/workflows/ci.yml/badge.svg)](https://github.com/v-arapidis/openremap-core/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/v-arapidis/openremap-core/branch/main/graph/badge.svg)](https://codecov.io/gh/v-arapidis/openremap-core)
+
 [![PyPI](https://img.shields.io/pypi/v/openremap.svg)](https://pypi.org/project/openremap/)
 [![Changelog](https://img.shields.io/badge/-Changelog-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
-**Python library and CLI for ECU binary identification, diffing, and patching.**
-Embed it in your application, automate it in a pipeline, or run it from the terminal.
+**An offline-first engine for analyzing, comparing, and reproducing ECU binary changes.**
+
+Embed it as a library, automate it in a pipeline, or run it from the terminal — your ECU data never leaves your machine.
 
 🌐 **[openremap.com](https://www.openremap.com)** — full documentation, guides, and changelog.
 
-> Runs on your machine. No internet. No account. No data leaves your hands — ever.
-
-<p align="center">
-  <img src="docs/images/tui-scan.png" alt="OpenRemap TUI — Scan panel" width="820">
-</p>
-
-**Ready to try it?** Jump to [Install](#install) — one command on any platform.
+> Runs entirely offline. No accounts, no telemetry, no data leaves your machine — ever.
 
 ---
 
 ## What it is
 
-OpenRemap is a **Python library first, CLI second**. The same pipeline that powers the command-line tool is fully available as importable services — no subprocess, no parsing stdout.
+OpenRemap is an **offline-first ECU binary analysis engine**, exposed as a Python library and a CLI. The same pipeline that powers the command-line tool is fully available as importable services — no subprocess, no parsing stdout.
 
 ```python
 from openremap.core.services.identifier import identify_ecu
@@ -40,6 +35,8 @@ print(f"{identity['ecu_family']}  {result.tier}")  # EDC17  High
 ```
 
 All services accept `bytes` and `dict` — no file paths, no hidden state, trivial to test and wrap in an API endpoint or a desktop app.
+
+CPU-bound algorithms (entropy analysis, context-anchor search) run on a compiled Rust backend via PyO3. Pre-built wheels ship the native extension for Linux, macOS, and Windows — `pip install openremap` and it just works. A pure-Python fallback covers platforms without pre-built wheels.
 
 → [Full integration guide](docs/integration.md)
 
@@ -57,8 +54,6 @@ Whether you are building a tuning application, automating a workflow, or just ne
 
 ## What OpenRemap does
 
-OpenRemap is a **free, offline, open-source toolkit** that handles the binary analysis and patching pipeline:
-
 | Step | Command | What happens |
 |---|---|---|
 | **Identify** | `openremap identify ecu.bin` | Reads the binary and tells you: manufacturer, ECU family, software version, hardware number, calibration ID — plus a confidence score rating how likely the file is unmodified |
@@ -74,7 +69,7 @@ OpenRemap is a **free, offline, open-source toolkit** that handles the binary an
 
 ---
 
-## Coverage
+## Supported ECUs
 
 30 extractors across 4 manufacturers, covering ECUs from 1982 to present:
 
@@ -107,7 +102,7 @@ Every identification includes a confidence verdict — `HIGH`, `MEDIUM`, `LOW`, 
 
 The `.remap` recipe is a self-contained JSON file. Every changed byte is listed with its offset, original value, modified value, and a context anchor — 32 bytes of surrounding data that let the patcher find the right location even if the binary has shifted slightly between software revisions.
 
-Recipes are human-readable, Git-diffable, and shareable. No proprietary format, no binary blobs.
+Recipes are human-readable, Git-diffable, and shareable. No proprietary format, no binary blobs. A recipe is a portable, reproducible record of a tune — you can review it, version it, and apply it to any matching ECU.
 
 → [Recipe format specification](docs/recipe-format.md)
 
@@ -115,7 +110,7 @@ Recipes are human-readable, Git-diffable, and shareable. No proprietary format, 
 
 ## Install
 
-Works on Windows, macOS, and Linux. One command to get started:
+Works on Windows, macOS, and Linux. One command:
 
 ```bash
 pip install openremap
@@ -126,6 +121,8 @@ Or with [uv](https://github.com/astral-sh/uv) (recommended):
 ```bash
 uv tool install openremap
 ```
+
+Pre-built wheels include the compiled Rust backend — no Rust toolchain required. On platforms without a pre-built wheel, the pure-Python backend takes over automatically.
 
 Detailed guides:
 
@@ -141,13 +138,13 @@ Detailed guides:
 openremap
 ```
 
-That's it. The full terminal UI launches — identify files, scan folders, cook recipes, and apply tunes, all from one interface. No flags to memorise.
+The full terminal UI launches — identify files, scan folders, cook recipes, and apply tunes, all from one interface.
 
-The complete CLI is still there when you need it:
+The complete CLI is also there when you need it:
 
 ```bash
-openremap workflow    # Prints a plain-English guide with every step and command
-openremap commands    # Quick reference for all available commands
+openremap workflow    # Prints a plain-English step-by-step guide
+openremap commands    # Quick reference of all available commands
 ```
 
 → [Full CLI reference](docs/cli.md)
@@ -174,6 +171,10 @@ Contributions are welcome — especially new ECU family extractors. See [CONTRIB
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<p align="center">
+  <img src="docs/images/tui-scan.png" alt="OpenRemap TUI — Scan panel" width="820">
+</p>
 
 ---
 

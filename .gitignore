@@ -38,6 +38,12 @@ logs/
 *.BIN
 *.ORI
 
+# ── Rust native extension (compiled) ────────────────────────────────────────
+openremap/_rust.cpython-*-*.so
+openremap/_rust.cpython-*-*.dylib
+openremap/_rust.cpython-*-*.dll
+openremap/_rust/target/
+
 # ── Editor & OS ───────────────────────────────────────────────────────────────
 .idea/
 .vscode/

@@ -47,9 +47,9 @@ def _ping(params: dict) -> dict:
 
 
 def _version(params: dict) -> dict:
-    from openremap import __version__
+    from openremap import __version__, _active_backend
 
-    return {"version": __version__}
+    return {"version": __version__, "backend": _active_backend()}
 
 
 def _infer_platform(ecu_family: str | None) -> str | None:

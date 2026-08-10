@@ -9,6 +9,14 @@ unique before they are written into a recipe.
 Primary entry point: ``find_unique_context()`` — called at cook time to
 find a context window that produces a unique anchor in the original binary.
 
+Backends
+--------
+When the native Rust extension (``openremap._rust``) is available — which
+is the default for every platform with a pre-built wheel — all four public
+functions dispatch directly to compiled Rust.  The pure-Python implementation
+below serves as both the specification and the fallback for platforms without
+a native wheel (PyPy, musl Alpine, source installs without rustup).
+
 Algorithm
 ---------
 1. Start with ``min_size`` bytes before the change offset.
@@ -26,36 +34,21 @@ import math
 from collections import Counter
 from typing import Tuple
 
+# ============================================================================
+# Pure-Python reference implementation — always available.
+#
+# These are the *specification*.  The Rust port must produce identical
+# output for identical input.  Exposed as _py_* so the oracle test harness
+# can compare Rust vs Python regardless of which backend is active.
+# ============================================================================
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
-
-def shannon_entropy(data: bytes) -> float:
-    """
-    Shannon entropy in bits per byte.
-
-    Returns 0.0 for perfectly uniform data (e.g. all zeros),
-    8.0 for perfectly random data (all 256 byte values equally likely).
-
-    Args:
-        data: Raw bytes to score.
-
-    Returns:
-        Entropy value in [0.0, 8.0], rounded to 4 decimal places.
-
-    Examples:
-        >>> shannon_entropy(b"\\x00" * 100)
-        0.0
-        >>> shannon_entropy(b"hello world")
-        > 2.8
-    """
+def _py_shannon_entropy(data: bytes) -> float:
+    """Shannon entropy in bits per byte, rounded to 4 decimal places."""
     if not data:
         return 0.0
 
     total = len(data)
-    # Counter is faster than manual dict accumulation for byte sequences
     counts = Counter(data)
 
     entropy = 0.0
@@ -69,49 +62,19 @@ def shannon_entropy(data: bytes) -> float:
     return round(entropy, 4)
 
 
-def is_low_entropy(data: bytes, threshold: float = 2.5) -> bool:
-    """
-    True when the Shannon entropy of ``data`` is below ``threshold``.
-
-    The default threshold of 2.5 bits/byte is a well-established floor
-    for distinguishing structured data from padding or repetitive fill
-    patterns (0x00, 0xFF, etc.).
-
-    Args:
-        data: Raw bytes to test.
-        threshold: Minimum acceptable entropy in bits/byte.
-
-    Returns:
-        True if the data has dangerously low entropy.
-    """
-    return shannon_entropy(data) < threshold
+def _py_is_low_entropy(data: bytes, threshold: float = 2.5) -> bool:
+    """True when ``shannon_entropy(data)`` is below ``threshold``."""
+    return _py_shannon_entropy(data) < threshold
 
 
-def count_unique_in_window(
+def _py_count_unique_in_window(
     haystack: bytes,
     needle: bytes,
     window_start: int,
     window_end: int,
 ) -> int:
-    """
-    Count all occurrences of ``needle`` within a slice of ``haystack``.
-
-    Uses ``bytes.find()`` in a loop — effectively Boyer-Moore-Horspool
-    which is O(n) in the typical case.
-
-    Args:
-        haystack: Full binary data to search within.
-        needle: Pattern to search for.
-        window_start: Start offset (inclusive) of the search region.
-        window_end: End offset (exclusive) of the search region.
-
-    Returns:
-        Number of occurrences found.  0 if needle is empty.
-
-    Examples:
-        >>> count_unique_in_window(b"ABABAB", b"AB", 0, 6)
-        3
-    """
+    """Count all (possibly overlapping) occurrences of *needle* within a
+    bounded region of *haystack*.  Returns 0 when *needle* is empty."""
     if not needle:
         return 0
 
@@ -128,7 +91,7 @@ def count_unique_in_window(
     return count
 
 
-def find_unique_context(
+def _py_find_unique_context(
     data: bytes,
     change_offset: int,
     change_size: int,
@@ -137,87 +100,80 @@ def find_unique_context(
     max_size: int = 512,
     entropy_threshold: float = 2.5,
 ) -> Tuple[bytes, int, float, int]:
+    """Find a context anchor before *change_offset* whose ``ctx + ob``
+    pattern is unique in the entire *data* AND has entropy above
+    *entropy_threshold*.
+
+    The context window doubles geometrically from *min_size* until both
+    conditions are satisfied or *max_size* is reached.  Returns
+    ``(context_bytes, context_size, entropy, match_count)``.
     """
-    Find a context anchor before ``change_offset`` that produces a unique
-    ``ctx + ob`` pattern in the original binary.
-
-    The algorithm doubles the context size geometrically until the anchor
-    is both high-entropy AND unique, or until ``max_size`` is reached.
-
-    Args:
-        data:              Full original binary bytes.
-        change_offset:     Offset where changed bytes begin.
-        change_size:       Number of bytes in the changed region.
-        ob:                Original bytes at the change location (used to
-                           build the anchor pattern).
-        min_size:          Starting context size in bytes (default 32).
-        max_size:          Ceiling for context expansion (default 512).
-        entropy_threshold: Minimum acceptable Shannon entropy in bits/byte
-                           (default 2.5).
-
-    Returns:
-        ``(context_bytes, context_size, entropy, match_count)``
-
-        ``match_count`` is the number of times ``ctx + ob`` appears in the
-        ENTIRE original binary.  1 = unique.  >1 = ambiguous.
-
-        When ``max_size`` is reached and the anchor is still non-unique or
-        low-entropy, the best-effort result is returned — the caller should
-        check ``match_count`` and decide whether to reject the recipe.
-
-    Examples:
-        >>> data = bytes(range(256)) * 8  # 2048 bytes of repeating 0..255
-        >>> ob = bytes([0xAA, 0xBB])
-        >>> # With a unique ob but low-entropy context near padding...
-        >>> ctx, size, entropy, matches = find_unique_context(
-        ...     data, 128, 2, ob, min_size=8, max_size=64
-        ... )
-        >>> size >= 8
-        True
-        >>> matches >= 1
-        True
-    """
-    # --- Guard: offset must be valid ---
     if change_offset < 0 or change_offset > len(data):
         raise ValueError(
             f"change_offset {change_offset} is out of bounds "
             f"(file size: {len(data):,} bytes)."
         )
 
-    anchor = ob  # will be extended with context — used for uniqueness search
-
     size = min_size
     while size <= max_size:
         ctx_start = max(0, change_offset - size)
         ctx = data[ctx_start:change_offset]
 
-        # If we've hit the start of the file and ctx is shorter than
-        # requested, that's fine — use what we have.
         actual_size = len(ctx)
         if actual_size == 0:
-            # No context available at all (change at offset 0).
-            # Return empty context — caller must decide.
             return b"", 0, 0.0, 0
 
-        # --- Entropy check ---
-        entropy = shannon_entropy(ctx)
-
-        # --- Uniqueness check ---
+        entropy = _py_shannon_entropy(ctx)
         anchor = ctx + ob
-        match_count = count_unique_in_window(data, anchor, 0, len(data))
+        match_count = _py_count_unique_in_window(data, anchor, 0, len(data))
 
-        # Both conditions must be satisfied
         if entropy >= entropy_threshold and match_count == 1:
             return ctx, actual_size, entropy, match_count
 
-        # --- Expand ---
         size *= 2
 
-    # --- max_size reached without satisfying conditions ---
-    # Return best effort — caller inspects match_count
+    # max_size reached — return best effort
     ctx_start = max(0, change_offset - max_size)
     ctx = data[ctx_start:change_offset]
-    entropy = shannon_entropy(ctx)
+    entropy = _py_shannon_entropy(ctx)
     anchor = ctx + ob
-    match_count = count_unique_in_window(data, anchor, 0, len(data))
+    match_count = _py_count_unique_in_window(data, anchor, 0, len(data))
     return ctx, len(ctx), entropy, match_count
+
+
+# ============================================================================
+# Public API — dispatch to Rust when available, fall back to pure Python.
+# ============================================================================
+
+import os as _os
+
+_FORCE_PYTHON = _os.environ.get("OPENREMAP_FORCE_PYTHON", "").strip() in (
+    "1", "true", "yes",
+)
+
+if not _FORCE_PYTHON:
+    try:
+        from openremap._rust import (       # type: ignore[import-untyped]
+            count_unique_in_window,
+            find_unique_context,
+            is_low_entropy,
+            shannon_entropy,
+        )
+        _ENTROPY_BACKEND = "rust"
+    except ImportError:
+        _ENTROPY_BACKEND = "python"
+else:
+    _ENTROPY_BACKEND = "python"
+
+
+def entropy_backend() -> str:
+    """Return which backend is active: ``"rust"`` or ``"python"``."""
+    return _ENTROPY_BACKEND
+
+
+if _ENTROPY_BACKEND == "python":
+    # No native extension — use the pure-Python reference above.
+    shannon_entropy = _py_shannon_entropy            # type: ignore[assignment]
+    is_low_entropy = _py_is_low_entropy              # type: ignore[assignment]
+    count_unique_in_window = _py_count_unique_in_window  # type: ignore[assignment]
+    find_unique_context = _py_find_unique_context    # type: ignore[assignment]

@@ -1,0 +1,17 @@
+[package]
+name = "openremap-rust"
+version = "0.6.0"
+edition = "2021"
+description = "Native acceleration for openremap-core CPU-bound algorithms"
+
+[lib]
+name = "_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

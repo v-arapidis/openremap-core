@@ -27,7 +27,6 @@ Usage:
 """
 
 import sys
-from importlib.metadata import version as _get_version
 from typing import Optional
 
 import typer
@@ -66,7 +65,10 @@ app = typer.Typer(
 
 def _version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"openremap {_get_version('openremap')}")
+        from openremap import __version__, _active_backend
+        backend = _active_backend()
+        suffix = f" ({backend})" if backend != "unknown" else ""
+        typer.echo(f"openremap {__version__}{suffix}")
         raise typer.Exit()
 
 
