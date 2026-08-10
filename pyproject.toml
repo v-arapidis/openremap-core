@@ -6,7 +6,7 @@ build-backend = "maturin"
 manifest-path = "openremap/_rust/Cargo.toml"
 module-name = "openremap._rust"
 python-source = "."
-features = ["pyo3/abi3-py310"]
+features = ["pyo3/abi3-py310", "pyo3/extension-module"]
 exclude = ["openremap/_rust/target/**"]
 
 [tool.uv]

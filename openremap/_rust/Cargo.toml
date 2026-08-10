@@ -9,7 +9,7 @@ name = "_rust"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.25", features = ["abi3-py310"] }
+pyo3 = { version = "0.25", features = ["abi3-py310", "extension-module"] }
 
 [profile.release]
 opt-level = 3
