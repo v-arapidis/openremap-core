@@ -24,8 +24,6 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Entropy ──────────────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(entropy::shannon_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(entropy::is_low_entropy, m)?)?;
-    m.add_function(wrap_pyfunction!(entropy::count_unique_in_window, m)?)?;
-    m.add_function(wrap_pyfunction!(entropy::find_unique_context, m)?)?;
 
     // ── Diff ─────────────────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(diff::find_changed_blocks, m)?)?;

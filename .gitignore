@@ -48,6 +48,9 @@ openremap/_rs/target/
 # ── Editor & OS ───────────────────────────────────────────────────────────────
 .idea/
 .vscode/
+CLAUDE.md
+todo.md
+tests/data/
 *.swp
 *.swo
 .DS_Store

@@ -76,69 +76,14 @@ from openremap.core.services.entropy import find_unique_context
 
 import hashlib
 import json
-import os as _os
+
 from datetime import datetime, timezone
-from typing import List as _List, Tuple as _Tuple
 
 # ============================================================================
-# find_changed_blocks — Rust-accelerated byte-level diff
+# find_changed_blocks — Rust-accelerated byte-level diff (102× faster)
 # ============================================================================
 
-_FORCE_PYTHON_DIFF = _os.environ.get("OPENREMAP_FORCE_PYTHON", "").strip() in (
-    "1", "true", "yes",
-)
-
-
-def _py_find_changed_blocks(
-    original: bytes,
-    modified: bytes,
-    merge_threshold: int = 16,
-) -> _List[_Tuple[int, int, bytes, bytes]]:
-    """Pure-Python reference — find and merge changed byte regions.
-
-    Returns a list of ``(offset, size, ob_bytes, mb_bytes)`` tuples.
-    """
-    min_length = min(len(original), len(modified))
-
-    diff_positions = [
-        i
-        for i in range(min_length)
-        if original[i] != modified[i]
-    ]
-
-    if not diff_positions:
-        return []
-
-    blocks: _List[_Tuple[int, int]] = []
-    start = diff_positions[0]
-    end = diff_positions[0]
-
-    for pos in diff_positions[1:]:
-        if pos - end <= merge_threshold:
-            end = pos
-        else:
-            blocks.append((start, end))
-            start = pos
-            end = pos
-    blocks.append((start, end))
-
-    result: _List[_Tuple[int, int, bytes, bytes]] = []
-    for blk_start, blk_end in blocks:
-        size = blk_end - blk_start + 1
-        ob_raw = original[blk_start : blk_end + 1]
-        mb_raw = modified[blk_start : blk_end + 1]
-        result.append((blk_start, size, ob_raw, mb_raw))
-
-    return result
-
-
-if not _FORCE_PYTHON_DIFF:
-    try:
-        from openremap._rust import find_changed_blocks  # type: ignore[import-untyped]
-    except ImportError:
-        find_changed_blocks = _py_find_changed_blocks  # type: ignore[assignment]
-else:
-    find_changed_blocks = _py_find_changed_blocks  # type: ignore[assignment]
+from openremap._rust import find_changed_blocks  # type: ignore[import-untyped]
 
 from openremap.core.services.annotator import RecipeAnnotator
 

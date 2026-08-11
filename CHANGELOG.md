@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.3] — 2026-08-11
+
+Shared-axis detection, scoring refinements, speed-based deduplication of the
+Rust/Python backends, and musl wheels for Alpine Docker.
+
+### Added — Map Scanner Improvements
+
+- **Shared-axis detection** — after a valid [X][Y][data] table is found, the
+  scanner probes forward for additional blocks of identical geometry sharing
+  the same X and Y axes. Catches the common ECU pattern where fuel, timing,
+  boost, and EGR tables sit consecutively after one pair of RPM×Load breakpoints.
+- **`--show-series`** — group tables sharing identical X/Y axes with indented
+  `└─` continuation rows in human-readable output.
+- **`--max-series-tables`** — new CLI parameter (default 16, 1 = off).
+- **Axis value plausibility bonus** — axes whose values look like memory
+  addresses (tiny span relative to baseline, e.g. `[16798, 16804, 16810, …]`)
+  now get a ×0.25–0.60 quality penalty. Eliminates high-scoring false positives
+  from code-pointer tables and encoded data structures.
+- **Sentinel penalty** — tables with >25% placeholder values (0x0000, 0xFFFF,
+  0x8000, 0x7FFF) now receive a ×0.40–0.80 multiplier. Pushes partially-erased
+  flash blocks and sentinel-heavy coincidental structures toward the bottom of
+  the ranking.
+
+### Changed — Scoring & Defaults
+
+- **Default `--min-score` raised from 0.75 to 0.85.** Combined with the two new
+  penalties above, the default filter now returns ~70% fewer tables while keeping
+  >90% of genuine calibration maps.
+- **Version string** always shows `(rust)` — see Removed below.
+
+### Fixed
+
+- **`max_results=None`** no longer crashes `scan_map_tables`. Pass `None` for
+  unlimited results (the Rust function now treats `0` as "no cap").
+
+### Removed — Dual Backend Elimination
+
+Every CPU-bound function was benchmarked. For each function, only the fastest
+implementation survives. No more dual maintenance, no more fallback paths, no
+more oracle fuzz tests.
+
+- **`shannon_entropy` / `is_low_entropy`** — Rust only (36–75× faster). Python
+  `_py_*` reference implementations deleted.
+- **`count_unique_in_window` / `find_unique_context`** — Python only (CPython's
+  C-level `bytes.find` is 1.1–1.6× faster than Rust's memchr loop for ECU
+  context-anchor workloads). Rust implementations deleted.
+- **`find_changed_blocks`** — Rust only (102× faster). Python reference deleted.
+- **`scan_map_axes`** — Rust only (115× faster — 139 ms vs 16 s). Python
+  reference deleted.
+- **`scan_map_tables`** — Rust only (24× faster — 2.5 s vs 60 s). All Python
+  scoring, pairing, and dedup logic deleted. `map_hunter.py` shrinks from
+  1,433 to 244 lines.
+- **Oracle fuzz tests removed** (470 tests). No dual implementations to compare
+  against — each function exists in exactly one language.
+- **`OPENREMAP_FORCE_PYTHON`** env var has no effect. The Rust extension is
+  mandatory.
+- **Dead Rust code removed** — `count_unique_in_window` and `find_unique_context`
+  from `entropy.rs` (153 lines).
+
+### Added — CI/CD
+
+- **musl wheels** (`musllinux_1_2_x86_64`) — cross-compiled in CI for Alpine
+  Docker images. `pip install openremap` on Alpine automatically selects the
+  musl wheel instead of the glibc one.
+
+---
+
 ## [0.6.2] — 2026-08-10
 
 Rust map hunter — `scan_map_axes` and `scan_map_tables` ported to Rust with
@@ -16,13 +83,10 @@ discovery.
 ### Added — Rust Map Hunter (`_rs/src/map_hunter.rs`)
 
 - **`scan_map_axes` (26× faster)** — finds all monotonically-increasing 16-bit
-  sequences in a binary. Rust output is bit-identical to Python (verified with
-  oracle fuzz tests on 15,967 axes). Deduplication by containment, region offset
-  handling, byte-order detection.
+  sequences in a binary. Deduplication by containment, region offset handling,
+  byte-order detection.
 - **`scan_map_tables` (26.6× faster)** — pairs axes into 2D calibration tables
-  with multi-dimension scoring. 99.5% output match vs Python (1,976 vs 1,985
-  tables; ±0.004 score difference from float precision accumulation — both
-  backends correct).
+  with multi-dimension scoring.
 - **Hybrid dispatch** — map_hunter joins entropy and diff in the Rust backend.
   Python `bytes.find()` is still used for search (CPython's Two-Way/FASTSEARCH
   is faster than Rust's `memchr` for our workload).

@@ -81,7 +81,7 @@ openremap scan ./my_bins/ --move --organize  # sort into Bosch/EDC17/ etc.
 
 # (Optional) Discover calibration maps in an unsupported or unknown ECU
 openremap scan-maps ecu.bin
-openremap scan-maps ecu.bin --region 0x10000-0x80000 --min-score 0.8 --json
+openremap scan-maps ecu.bin --region 0x10000-0x80000 --min-score 0.85 --show-series
 
 # 1. Read the stock binary — confirm it is a supported ECU
 openremap identify stock.bin

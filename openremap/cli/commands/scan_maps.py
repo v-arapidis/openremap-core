@@ -55,13 +55,21 @@ def scan_maps(
         exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True,
     ),
     top: int = typer.Option(20, "--top", "-n", help="Number of top-scoring tables to show (default: 20)."),
-    min_score: float = typer.Option(0.75, "--min-score", "-s", help="Minimum table score in [0, 1] (default: 0.75)."),
+    min_score: float = typer.Option(0.85, "--min-score", "-s", help="Minimum table score in [0, 1] (default: 0.85)."),
     region: str | None = typer.Option(
         None, "--region", "-r",
         help="Restrict scanning to a byte range: '0xSTART-0xEND' or 'START-END' (e.g. '0x10000-0x80000').",
         metavar="RANGE",
     ),
     as_json: bool = typer.Option(False, "--json", help="Output as JSON."),
+    max_series_tables: int = typer.Option(
+        16, "--max-series-tables",
+        help="Max consecutive shared-axis tables to probe after each anchor (1 = off, default: 16).",
+    ),
+    show_series: bool = typer.Option(
+        False, "--show-series",
+        help="Group tables that share the same X/Y axes with indented continuation rows.",
+    ),
 ) -> None:
     """
     Scan a binary for plausible calibration map axes and 2D tables.
@@ -78,7 +86,7 @@ def scan_maps(
       - Discovering candidate map locations in unsupported ECUs.
         Feed the offsets into WinOLS or ECM Titanium as starting points.
 
-    The default --min-score of 0.75 filters out most coincidental patterns
+    The default --min-score of 0.85 filters out most coincidental patterns
     (code sections, pointer tables, lookup arrays).  Lower it to 0.55 for
     exhaustive scanning of unsupported ECUs; raise to 0.85 for high-confidence
     calibration maps only.
@@ -108,7 +116,8 @@ def scan_maps(
             raise typer.Exit(code=1)
 
     axes = scan_map_axes(data, region=region_slice)
-    tables = scan_map_tables(data, region=region_slice, axes=axes, min_score=min_score)
+    tables = scan_map_tables(data, region=region_slice, axes=axes, min_score=min_score,
+                             max_series_tables=max_series_tables)
 
     if as_json:
         result = {
@@ -160,37 +169,81 @@ def scan_maps(
         return
 
     # Table listing
-    # Header
-    hdr = typer.style(
-        f"  {'Offset':>10}  {'Dim':>8}  {'Cells':>6}  {'Score':>7}  "
-        f"{'X Axis':>10}  {'Y Axis':>10}",
-        bold=True,
-    )
-    typer.echo(hdr)
-    typer.echo(typer.style("  " + "─" * 62, dim=True))
+    if show_series:
+        # Group tables by axis pair, sort groups by best score
+        from collections import defaultdict as _defaultdict
+        groups: dict[tuple, list] = _defaultdict(list)
+        for t in tables:
+            key = (t.x_axis_offset, t.y_axis_offset, t.cols, t.rows, t.cell_width, t.byte_order)
+            groups[key].append(t)
+        # Sort groups by the score of their first (best) member
+        grouped_items = sorted(groups.items(), key=lambda kv: -kv[1][0].score)
 
-    for t in tables[:top]:
-        dim = f"{t.cols}×{t.rows}"
-        cells = f"{'u8' if t.cell_width == 1 else 'u16'} {t.byte_order[:3].upper()}"
-        score_colour = (
-            typer.colors.GREEN if t.score >= 0.85
-            else typer.colors.YELLOW if t.score >= 0.70
-            else typer.colors.WHITE
+        hdr = typer.style(
+            f"  {'Offset':>10}  {'Dim':>8}  {'Cells':>6}  {'Score':>7}  "
+            f"{'X Axis':>10}  {'Y Axis':>10}",
+            bold=True,
         )
-        y_axis = f"0x{t.y_axis_offset:X}" if t.y_axis_offset is not None else "—"
+        typer.echo(hdr)
+        typer.echo(typer.style("  " + "─" * 62, dim=True))
 
-        typer.echo(
-            f"  0x{t.offset:08X}  {dim:>8}  {cells:>6}  "
-            + typer.style(f"{t.score:.3f}", fg=score_colour)
-            + f"  0x{t.x_axis_offset:08X}  {y_axis}"
+        shown = 0
+        for _key, members in grouped_items:
+            if shown >= top:
+                break
+            anchor = members[0]
+            series = members[1:]
+            for idx, t in enumerate([anchor] + series):
+                if shown >= top:
+                    break
+                dim = f"{t.cols}×{t.rows}"
+                cells = f"{'u8' if t.cell_width == 1 else 'u16'} {t.byte_order[:3].upper()}"
+                score_colour = (
+                    typer.colors.GREEN if t.score >= 0.85
+                    else typer.colors.YELLOW if t.score >= 0.70
+                    else typer.colors.WHITE
+                )
+                y_axis = f"0x{t.y_axis_offset:X}" if t.y_axis_offset is not None else "—"
+                prefix = "└─" if idx > 0 else "  "
+                typer.echo(
+                    f"{prefix} 0x{t.offset:08X}  {dim:>8}  {cells:>6}  "
+                    + typer.style(f"{t.score:.3f}", fg=score_colour)
+                    + f"  0x{t.x_axis_offset:08X}  {y_axis}"
+                )
+                shown += 1
+        total = shown
+    else:
+        hdr = typer.style(
+            f"  {'Offset':>10}  {'Dim':>8}  {'Cells':>6}  {'Score':>7}  "
+            f"{'X Axis':>10}  {'Y Axis':>10}",
+            bold=True,
         )
+        typer.echo(hdr)
+        typer.echo(typer.style("  " + "─" * 62, dim=True))
+
+        for t in tables[:top]:
+            dim = f"{t.cols}×{t.rows}"
+            cells = f"{'u8' if t.cell_width == 1 else 'u16'} {t.byte_order[:3].upper()}"
+            score_colour = (
+                typer.colors.GREEN if t.score >= 0.85
+                else typer.colors.YELLOW if t.score >= 0.70
+                else typer.colors.WHITE
+            )
+            y_axis = f"0x{t.y_axis_offset:X}" if t.y_axis_offset is not None else "—"
+
+            typer.echo(
+                f"  0x{t.offset:08X}  {dim:>8}  {cells:>6}  "
+                + typer.style(f"{t.score:.3f}", fg=score_colour)
+                + f"  0x{t.x_axis_offset:08X}  {y_axis}"
+            )
+        total = min(top, len(tables))
 
     typer.echo("")
 
-    if len(tables) > top:
+    if len(tables) > total:
         typer.echo(
             typer.style(
-                f"  … and {len(tables) - top} more.  Use --top {len(tables)} to see all, "
+                f"  … and {len(tables) - total} more.  Use --top {len(tables)} to see all, "
                 "or --min-score 0.8 to filter.",
                 dim=True,
             )

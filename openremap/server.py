@@ -294,6 +294,7 @@ def _scan_maps(params: dict) -> dict:
         buf,
         axes=axes,
         min_score=float(params.get("min_table_score", 0.55)),
+        max_series_tables=int(params.get("max_series_tables", 16)),
     )
 
     return {
@@ -427,6 +428,7 @@ def _scan_map_tables_only(params: dict) -> dict:
         data,
         axes=axes,
         min_score=float(params.get("min_table_score", 0.55)),
+        max_series_tables=int(params.get("max_series_tables", 16)),
     )
 
     serialised = _serialise_tables(tables)

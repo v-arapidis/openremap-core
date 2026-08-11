@@ -36,7 +36,7 @@ print(f"{identity['ecu_family']}  {result.tier}")  # EDC17  High
 
 All services accept `bytes` and `dict` — no file paths, no hidden state, trivial to test and wrap in an API endpoint or a desktop app.
 
-CPU-bound algorithms (entropy analysis, context-anchor search) run on a compiled Rust backend via PyO3. Pre-built wheels ship the native extension for Linux, macOS, and Windows — `pip install openremap` and it just works. A pure-Python fallback covers platforms without pre-built wheels.
+CPU-bound algorithms run on a compiled Rust backend via PyO3 (24–115× faster than pure Python). Pre-built wheels ship the native extension for Linux (glibc + musl), macOS, and Windows — `pip install openremap` and it just works.
 
 → [Full integration guide](docs/integration.md)
 
@@ -61,7 +61,8 @@ Whether you are building a tuning application, automating a workflow, or just ne
   optionally sorted into manufacturer/family trees. Suspicious files are
   flagged before you touch them.
 - **Structural map discovery** — find calibration axes and 2D tables in any
-  binary without manufacturer identification. Works on unsupported ECUs.
+  binary without manufacturer identification. Detects parallel maps (fuel,
+  timing, boost, EGR) sharing breakpoint axes. Works on unsupported ECUs.
 - **Portable recipes** — diff two binaries into a `.remap` JSON recipe. Every
   changed byte is captured with a 32-byte context anchor. Human-readable,
   Git-diffable, shareable.
@@ -72,8 +73,7 @@ Whether you are building a tuning application, automating a workflow, or just ne
 - **Python library** — every service is importable directly. No subprocess,
   no parsing stdout. Embed in scripts, pipelines, or desktop apps.
 - **Rust acceleration** — CPU-bound algorithms run on a compiled native
-  extension. Pre-built wheels for Linux, macOS, and Windows. Pure-Python
-  fallback included.
+  extension. Pre-built wheels for Linux (glibc + musl), macOS, and Windows.
 
 → [CLI reference](docs/cli.md) · [Integration guide](docs/integration.md)
 

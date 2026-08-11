@@ -12,7 +12,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v5
       - run: uv run pytest tests/ -x
-      - run: uv run pytest tests/tuning/test_entropy_oracle.py -v
 
   build:
     needs: test
@@ -21,6 +20,8 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux
+          - os: ubuntu-latest
+            target: musllinux
           - os: macos-latest
             target: macos
           - os: windows-latest
@@ -31,19 +32,31 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v5
 
-      # Linux: use maturin directly for manylinux tags (uv build forces
-      # --compatibility off which PyPI rejects). Run from project root so
-      # maturin discovers both the Python package and the Rust crate via
-      # pyproject.toml.
-      - name: Build wheel (Linux)
+      # Linux (glibc): use maturin directly for manylinux tags (uv build
+      # forces --compatibility off which PyPI rejects). Run from project
+      # root so maturin discovers both the Python package and the Rust
+      # crate via pyproject.toml.
+      - name: Build wheel (Linux — glibc)
         if: matrix.target == 'linux'
         run: >
           uvx maturin build --release
           --compatibility manylinux_2_34
           --out dist
 
+      # Linux (musl): cross-compile against musl for Alpine Docker images.
+      # Rust's x86_64-unknown-linux-musl target produces a binary that links
+      # against musl instead of glibc.  pip on Alpine automatically selects
+      # the musllinux wheel over the manylinux one.
+      - name: Build wheel (Linux — musl)
+        if: matrix.target == 'musllinux'
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          uvx maturin build --release \
+            --target x86_64-unknown-linux-musl \
+            --out dist
+
       - name: Build wheel (macOS / Windows)
-        if: matrix.target != 'linux'
+        if: matrix.target != 'linux' && matrix.target != 'musllinux'
         run: uv build
 
       - uses: actions/upload-artifact@v4

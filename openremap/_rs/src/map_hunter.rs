@@ -20,7 +20,7 @@ const TABLE_MIN_DISTINCT_RATIO: f64 = 0.18;
 const TABLE_ASCII_FRACTION: f64 = 0.75;
 const PADDING_OFFSETS: [usize; 3] = [0, 2, 4];
 const MAX_Y_LEN: usize = 32;
-const MAX_Y_TRUNC: usize = 32;
+const MAX_SERIES_TABLES: usize = 16;
 const COMMON_AXIS_SIZES: std::ops::RangeInclusive<usize> = 4..=32;
 
 const SENTINELS_U16: [u16; 4] = [0x0000, 0xFFFF, 0x8000, 0x7FFF];
@@ -60,6 +60,18 @@ fn try_axis_at(data: &[u8], offset: usize, le: bool, min_len: usize,
     count
 }
 
+fn value_plausibility(values: &[u16]) -> f64 {
+    let lo = *values.iter().min().unwrap_or(&0) as f64;
+    let hi = *values.iter().max().unwrap_or(&0) as f64;
+    let span = hi - lo;
+    // Axes that start at or near zero are always plausible.
+    if span <= 0.0 || lo <= 0.0 { return 1.0; }
+    let ratio = span / lo;
+    if ratio < 0.05 { return 0.25; }  // barely moves — memory addresses
+    if ratio < 0.15 { return 0.60; }  // suspiciously tight cluster
+    1.0
+}
+
 fn axis_quality(values: &[u16]) -> f64 {
     let n = values.len();
     if n < 2 { return 0.0; }
@@ -70,7 +82,8 @@ fn axis_quality(values: &[u16]) -> f64 {
         |(lo, hi), &s| (lo.min(s), hi.max(s)));
     let linearity = (1.0 - (max_s - min_s) / (mean * 4.0)).max(0.0);
     let bonus = if COMMON_AXIS_SIZES.contains(&n) { 1.0 } else { 0.7 };
-    0.6 * linearity + 0.4 * bonus
+    let raw = 0.6 * linearity + 0.4 * bonus;
+    raw * value_plausibility(values)
 }
 
 fn cell_max(cw: usize) -> u32 { if cw == 1 { TABLE_MAX_VALUE_U8 } else { TABLE_MAX_VALUE_U16 } }
@@ -182,6 +195,17 @@ fn stripe_penalty(values: &[u32], cols: usize, distinct_count: Option<usize>) ->
     1.0
 }
 
+fn sentinel_penalty(non_trivial: f64) -> f64 {
+    let sentinel_frac = 1.0 - non_trivial;
+    // Only penalise above 25% — real clamp / limit tables legitimately
+    // contain sentinel markers (0xFFFF = "no limit", 0x0000 = "disabled")
+    // at up to ~20% of cells.
+    if sentinel_frac > 0.40 { return 0.40; }
+    if sentinel_frac > 0.30 { return 0.60; }
+    if sentinel_frac > 0.25 { return 0.80; }
+    1.0
+}
+
 fn score_table_block(values: &[u32], cols: usize, cw: usize) -> f64 {
     let n = values.len();
     if n == 0 || cols == 0 { return 0.0; }
@@ -243,12 +267,14 @@ fn score_table_block(values: &[u32], cols: usize, cw: usize) -> f64 {
     } else { 0.0 };
 
     let distinct_count = distinct.len();
-    let distinct_score = (distinct_count as f64 / ((n as f64).sqrt() * 2.0).max(4.0)).min(1.0);
+    // Integer-floor sqrt to match Python's int(n**0.5).
+    let sqrt_n = (n as f64).sqrt() as usize;
+    let distinct_score = (distinct_count as f64 / ((sqrt_n * 2).max(4) as f64)).min(1.0);
 
     let raw = 0.20 * bounded + 0.20 * non_trivial + 0.15 * row_smooth
         + 0.15 * col_smooth + 0.15 * mono_score + 0.15 * distinct_score;
     if raw < 0.4 { return raw; }
-    raw * stripe_penalty(values, cols, Some(distinct_count))
+    raw * stripe_penalty(values, cols, Some(distinct_count)) * sentinel_penalty(non_trivial)
 }
 
 fn block_passes_hard_filters(values: &[u32], cw: usize) -> bool {
@@ -303,6 +329,13 @@ fn candidate_y_lens(y_values: Option<&[u16]>, y_max_len: usize, min_y: usize) ->
 /// Return type: (offset, cols, rows, cell_width, byte_order, x_axis_offset, y_axis_offset, score)
 type TableResult = (usize, usize, usize, usize, String, usize, Option<usize>, f64);
 
+fn effective_min_score(cells: usize, min_score: f64) -> f64 {
+    if cells <= 9 { min_score.max(0.78) }
+    else if cells <= 16 { min_score.max(0.72) }
+    else if cells <= 25 { min_score.max(0.65) }
+    else { min_score }
+}
+
 fn try_pair_with_y(
     buf: &[u8], x_off: usize, x_len: usize, y_off: usize, y_max_len_raw: usize,
     le: bool, cw: usize, min_y: usize, min_score: f64, x_qual: f64,
@@ -332,18 +365,84 @@ fn try_pair_with_y(
             if cw >= 2 && is_ascii_dense(buf, data_start, byte_count) { continue; }
             let raw = score_table_block(&block, x_len, cw);
             let score = raw * (0.7 + 0.15 * x_qual + 0.15 * y_qual);
-            let cells_count = x_len * y_len;
-            let effective_min = if cells_count <= 9 { min_score.max(0.78) }
-            else if cells_count <= 16 { min_score.max(0.72) }
-            else if cells_count <= 25 { min_score.max(0.65) }
-            else { min_score };
-            if score < effective_min { continue; }
+            if score < effective_min_score(x_len * y_len, min_score) { continue; }
             let cand = (data_start, x_len, y_len, cw, bo.to_string(), x_off,
                         Some(y_off), score);
             if best.as_ref().map_or(true, |b| cand.7 > b.7) { best = Some(cand); }
         }
     }
     best
+}
+
+/// Probe forward from *anchor* for additional blocks sharing the same axes.
+///
+/// After a strategy-1 2D hit (or 1D hit), the bytes immediately after the
+/// data block may contain further tables of identical geometry — different
+/// calibrations (fuel, timing, boost, EGR) that share the same RPM×Load axes.
+///
+/// Returns zero or more additional candidates.  The anchor itself is NOT
+/// included in the returned slice.
+fn probe_table_series(
+    buf: &[u8], anchor: &TableResult, le: bool,
+    min_score: f64, max_gap: usize, max_series_tables: usize,
+) -> Vec<TableResult> {
+    if max_series_tables <= 1 { return Vec::new(); }
+
+    let data_start = anchor.0;
+    let cols = anchor.1;
+    let rows = anchor.2;
+    let cw = anchor.3;
+    let bo = &anchor.4;
+    let x_off = anchor.5;
+    let y_off = anchor.6;
+    let cells = cols * rows;
+    let step_bytes = cells * cw;
+    let is_2d = rows > 1;
+
+    // Recompute axis qualities from buf (cheap, ≤32 values).
+    let x_qual = {
+        let xv: Vec<u16> = (0..cols).map(|k| read_u16(buf, x_off + k * 2, le).unwrap_or(0)).collect();
+        axis_quality(&xv)
+    };
+    let y_qual: f64 = if is_2d {
+        if let Some(yo) = y_off {
+            let yv: Vec<u16> = (0..rows).map(|k| read_u16(buf, yo + k * 2, le).unwrap_or(0)).collect();
+            axis_quality(&yv)
+        } else { 0.5 }
+    } else { 0.5 };
+
+    let mut out = Vec::new();
+    let mut pos = data_start + step_bytes;
+    let mut count = 1;
+
+    'outer: while count < max_series_tables {
+        for &pad in PADDING_OFFSETS.iter() {
+            if pad > max_gap { break; }
+            let p = pos + pad;
+            if p + step_bytes > buf.len() { continue; }
+            if is_clearly_erased(buf, p, step_bytes, cw) { continue; }
+            let block = match read_block(buf, p, cells, le, cw) {
+                Some(b) => b, None => continue,
+            };
+            if !block_passes_hard_filters(&block, cw) { continue; }
+            if cw >= 2 && is_ascii_dense(buf, p, step_bytes) { continue; }
+
+            let raw = score_table_block(&block, cols, cw);
+            let score = if is_2d {
+                raw * (0.7 + 0.15 * x_qual + 0.15 * y_qual)
+            } else {
+                raw * (0.7 + 0.15 * x_qual + 0.075)
+            };
+            if score < effective_min_score(cells, min_score) { continue; }
+
+            out.push((p, cols, rows, cw, bo.to_string(), x_off, y_off, score));
+            pos = p + step_bytes;
+            count += 1;
+            continue 'outer;  // advance to next slot, restart pad sweep
+        }
+        break;  // no pad worked → series ends
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -422,12 +521,14 @@ pub fn scan_map_axes(
 #[pyo3(signature = (data, region_start = -1, region_end = -1,
                     axes = None, min_score = 0.55, max_gap = 8,
                     min_y_length = 3, min_axis_length = 4,
-                    cell_widths = vec![2usize, 1], max_results = 2000))]
+                    cell_widths = vec![2usize, 1], max_results = 2000,
+                    max_series_tables = 16))]
 pub fn scan_map_tables(
     data: &[u8], region_start: isize, region_end: isize,
     axes: Option<Vec<(usize, usize, String, Vec<u16>)>>,
     min_score: f64, max_gap: usize, min_y_length: usize,
     min_axis_length: usize, cell_widths: Vec<usize>, max_results: usize,
+    max_series_tables: usize,
 ) -> Vec<(usize, usize, usize, usize, String, usize, Option<usize>, f64)> {
     let base_offset = if region_start >= 0 { region_start as usize } else { 0 };
     let buf = if region_start >= 0 && region_end > region_start {
@@ -463,8 +564,14 @@ pub fn scan_map_tables(
                     if gap > max_gap { break; }
                     if let Some(cand) = try_pair_with_y(buf, x_off, x_len, y_off, y_len,
                         le, cw, min_y_length, min_score, x_qual, Some(y_vals), max_gap) {
-                        candidates.push(cand);
                         strategy1_hit = true;
+                        // Probe for shared-axis blocks — must do this before
+                        // moving cand into candidates (Rust ownership).
+                        if max_series_tables > 1 {
+                            candidates.extend(probe_table_series(buf, &cand, le, min_score,
+                                max_gap, max_series_tables));
+                        }
+                        candidates.push(cand);
                     }
                 }
 
@@ -512,8 +619,14 @@ pub fn scan_map_tables(
                     if cw >= 2 && is_ascii_dense(buf, d_start, byte_count) { continue; }
                     let raw = score_table_block(&vals, x_len, cw);
                     let score = raw * (0.7 + 0.15 * x_qual + 0.075);
-                    if score < min_score { continue; }
-                    candidates.push((d_start, x_len, 1, cw, bo.clone(), x_off, None, score));
+                    if score < effective_min_score(x_len, min_score) { continue; }
+                    let cand = (d_start, x_len, 1, cw, bo.clone(), x_off, None, score);
+                    // Probe before push — Rust ownership.
+                    if max_series_tables > 1 {
+                        candidates.extend(probe_table_series(buf, &cand, le, min_score,
+                            max_gap, max_series_tables));
+                    }
+                    candidates.push(cand);
                 }
             }
         }
@@ -546,17 +659,35 @@ pub fn scan_map_tables(
         (start, end)
     }
 
-    fn round2(x: f64) -> f64 { (x * 100.0).round() / 100.0 }
+    fn round2(x: f64) -> f64 { (x * 100.0 + 0.5).floor() / 100.0 }
 
-    let mut claimed: Vec<(usize, usize)> = Vec::new();
+    // ClaimId groups tables that share the same axes — series members
+    // (from probe_table_series) with identical geometry but disjoint data
+    // ranges must survive the footprint dedup.
+    fn claim_id(t: &TableResult) -> (usize, Option<usize>, usize, String) {
+        (t.5, t.6, t.3, t.4.clone())  // (x_axis_offset, y_axis_offset, cell_width, byte_order)
+    }
+
+    struct Claim { fs: usize, fe: usize, ds: usize, de: usize, cid: (usize, Option<usize>, usize, String) }
+
+    let mut claims: Vec<Claim> = Vec::new();
     let mut chosen: Vec<TableResult> = Vec::new();
 
     for cand in candidates {
-        let (cs, ce) = footprint(&cand);
-        if claimed.iter().any(|&(s, e)| cs < e && s < ce) { continue; }
+        let (fs, fe) = footprint(&cand);
+        let (ds, de) = (cand.0, cand.0 + cand.1 * cand.2 * cand.3);
+        let cid = claim_id(&cand);
+
+        let conflict = claims.iter().any(|cl| {
+            if fs >= cl.fe || cl.fs >= fe { return false; }  // no footprint overlap
+            // Footprints overlap.  Allow if same ClaimId AND disjoint data.
+            if cl.cid == cid && (de <= cl.ds || cl.de <= ds) { return false; }
+            true
+        });
+        if conflict { continue; }
         chosen.push(cand);
-        claimed.push((cs, ce));
-        if chosen.len() >= max_results { break; }
+        claims.push(Claim { fs, fe, ds, de, cid });
+        if max_results > 0 && chosen.len() >= max_results { break; }
     }
 
     chosen

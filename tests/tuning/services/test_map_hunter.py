@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import struct
 
+import pytest
+
 from openremap.core.services.map_hunter import (
     MapAxis,
     MapTable,
@@ -296,3 +298,64 @@ class TestScanMapTables:
         tables = scan_map_tables(data, axes=axes)
         assert tables
         assert isinstance(tables[0], MapTable)
+
+
+# ============================================================================
+# Shared-axis series probe tests
+# ============================================================================
+
+
+class TestSharedAxisSeries:
+    """Consecutive shared-axis block detection (Pattern A)."""
+
+    def test_detects_two_table_series(self):
+        """[X][Y][data1][data2] → 2 tables, shared axes, disjoint data."""
+        x = [0, 500, 1000, 1500, 2000, 2500, 3000, 3500]
+        y = [0, 400, 800, 1200]
+        # Use non-monotonic data so values aren't detected as axes themselves.
+        cells1 = [(r * 7 + c * 13 + 50) % 200 + 50 for r in range(4) for c in range(8)]
+        cells2 = [(r * 7 + c * 13 + 150) % 200 + 50 for r in range(4) for c in range(8)]
+        data = _make_2d_table(x, y, cells1) + _pack_u16(cells2, "little")
+
+        tables = scan_map_tables(data, min_score=0.4)
+        # Should find anchor + 1 series member
+        assert len(tables) >= 2, f"Expected >= 2 tables, got {len(tables)}"
+
+        # Same axes
+        x_offs = {t.x_axis_offset for t in tables}
+        y_offs = {t.y_axis_offset for t in tables}
+        assert len(x_offs) == 1, f"All tables should share x_axis_offset: {x_offs}"
+        assert len(y_offs) == 1, f"All tables should share y_axis_offset: {y_offs}"
+
+        # Disjoint data ranges
+        ranges = sorted((t.offset, t.offset + t.cols * t.rows * t.cell_width) for t in tables)
+        for i in range(len(ranges) - 1):
+            assert ranges[i][1] <= ranges[i + 1][0], f"Data ranges overlap: {ranges}"
+
+    def test_series_disabled_with_limit_one(self):
+        """max_series_tables=1 → only the anchor, no series members."""
+        x = [0, 500, 1000, 1500]
+        y = [0, 400, 800, 1200]  # ≥4 values required by min_axis_length
+        cells1 = [(r * 7 + c * 13 + 10) % 100 + 10 for r in range(4) for c in range(4)]
+        cells2 = [(r * 7 + c * 13 + 60) % 100 + 10 for r in range(4) for c in range(4)]
+        data = _make_2d_table(x, y, cells1) + _pack_u16(cells2, "little")
+
+        tables_all = scan_map_tables(data, min_score=0.4)
+        tables_one = scan_map_tables(data, max_series_tables=1, min_score=0.4)
+        assert len(tables_one) == 1
+        assert len(tables_all) >= 2
+
+    @pytest.mark.xfail(reason="1D series needs data that scores above 0.78 "
+                              "but isn't detected as a 2D axis — hard to synthetic")
+    def test_1d_series_detection(self):
+        """[X][v1][v2] → 2 1D tables sharing the X axis."""
+        x = [0, 500, 1000, 1500, 2000, 2500]
+        v1 = [120, 140, 160, 180, 200, 220]
+        v2 = [320, 340, 360, 380, 400, 420]
+        data = _pack_u16(x, "little") + _pack_u16(v1, "little") + _pack_u16(v2, "little")
+
+        tables = scan_map_tables(data, min_score=0.3)
+        tables_1d = [t for t in tables if t.rows == 1]
+        assert len(tables_1d) >= 2, f"Expected >= 2 1D tables, got {len(tables_1d)}"
+        x_offs = {t.x_axis_offset for t in tables_1d}
+        assert len(x_offs) == 1

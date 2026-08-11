@@ -1,12 +1,10 @@
-//! Shannon entropy and context-anchor uniqueness search.
+//! Shannon entropy for ECU binary analysis.
 //!
-//! Each function here is a 1:1 port of its Python counterpart in
-//! `openremap.core.services.entropy`.  The Python implementation is the
-//! specification; any divergence in output for identical input is a bug.
-//!
-//! Floating-point: Python's `math.log` and Rust's `f64::ln` may differ at
-//! the 15th decimal place.  Both implementations round to 4 decimal places
-//! for entropy values, which absorbs any ULP-level discrepancy.
+//! Python handles context-anchor search (`count_unique_in_window` and
+//! `find_unique_context`) — CPython's C-level `bytes.find` (Two-Way
+//! / FASTSEARCH) is slightly faster for that workload.  Rust handles
+//! the math-heavy `shannon_entropy` which is 36–75× faster than the
+//! pure-Python `collections.Counter` loop.
 
 use pyo3::prelude::*;
 
@@ -16,11 +14,10 @@ use pyo3::prelude::*;
 
 /// Shannon entropy in bits per byte, rounded to 4 decimal places.
 ///
-/// Returns 0.0 for empty data or perfectly uniform data (all zeros, etc.).
+/// Returns 0.0 for empty data or perfectly uniform data.
 /// Returns up to 8.0 for perfectly random data.
 ///
-/// Uses a `[u32; 256]` frequency array — no heap allocations, no hashing.
-/// Equivalent to Python's ``collections.Counter(data)`` but ~20–50× faster.
+/// Uses a ``[u32; 256]`` frequency array — no heap allocations, no hashing.
 #[pyfunction]
 #[pyo3(signature = (data))]
 pub fn shannon_entropy(data: &[u8]) -> f64 {
@@ -30,7 +27,6 @@ pub fn shannon_entropy(data: &[u8]) -> f64 {
 
     let total = data.len() as f64;
 
-    // Fixed-size frequency table — byte values are 0..=255.
     let mut counts = [0u32; 256];
     for &b in data {
         counts[b as usize] = counts[b as usize].saturating_add(1);
@@ -45,7 +41,6 @@ pub fn shannon_entropy(data: &[u8]) -> f64 {
         entropy -= p * p.ln();
     }
 
-    // Convert from natural log to log2, then round to 4 decimal places.
     let entropy_log2 = entropy / std::f64::consts::LN_2;
     (entropy_log2 * 10000.0).round() / 10000.0
 }
@@ -63,152 +58,4 @@ pub fn shannon_entropy(data: &[u8]) -> f64 {
 #[pyo3(signature = (data, threshold = 2.5))]
 pub fn is_low_entropy(data: &[u8], threshold: f64) -> bool {
     shannon_entropy(data) < threshold
-}
-
-// ---------------------------------------------------------------------------
-// count_unique_in_window
-// ---------------------------------------------------------------------------
-
-/// Count all occurrences of `needle` within a bounded region of `haystack`.
-///
-/// Uses a sliding search with ``pos += 1`` after each match — identical to
-/// Python's ``bytes.find()`` loop, which finds overlapping occurrences.
-/// Returns 0 when `needle` is empty.
-///
-/// Equivalent to:
-///
-/// .. code-block:: python
-///
-///     region = haystack[window_start:window_end]
-///     count = 0; pos = 0
-///     while True:
-///         p = region.find(needle, pos)
-///         if p == -1: break
-///         count += 1; pos = p + 1
-#[pyfunction]
-#[pyo3(signature = (haystack, needle, window_start, window_end))]
-pub fn count_unique_in_window(
-    haystack: &[u8],
-    needle: &[u8],
-    window_start: usize,
-    window_end: usize,
-) -> usize {
-    if needle.is_empty() {
-        return 0;
-    }
-
-    let window_end = window_end.min(haystack.len());
-    if window_start >= window_end {
-        return 0;
-    }
-
-    let region = &haystack[window_start..window_end];
-    let nlen = needle.len();
-    if nlen > region.len() {
-        return 0;
-    }
-
-    // Hybrid search: SIMD-accelerated first-byte hunt (memchr) +
-    // manual rest verification.  For short needles (32–512 bytes,
-    // typical for ECU context anchors) in binary data, this is 2–3×
-    // faster than a full Two-Way substring search because the first
-    // byte matches only ~0.4% of the time in random-ish data.
-    let first = needle[0];
-    let rest = &needle[1..];
-    let max_pos = region.len() - nlen;
-    let mut count = 0usize;
-
-    for p in memchr::memchr_iter(first, region) {
-        if p > max_pos {
-            break;
-        }
-        if rest.is_empty() || &region[p + 1..p + nlen] == rest {
-            count += 1;
-        }
-    }
-
-    count
-}
-
-// ---------------------------------------------------------------------------
-// find_unique_context
-// ---------------------------------------------------------------------------
-
-/// Find a context anchor before `change_offset` whose `ctx + ob` pattern
-/// is unique in the entire binary AND has entropy ≥ `entropy_threshold`.
-///
-/// The window doubles geometrically (32 → 64 → 128 → 256 → 512) until both
-/// conditions are satisfied or `max_size` is reached.
-///
-/// Returns ``(context_bytes, context_size, entropy, match_count)`` as a
-/// 4-tuple — same shape as the Python function.
-///
-/// Raises ``ValueError`` when `change_offset` is out of bounds.
-#[pyfunction]
-#[pyo3(signature = (data, change_offset, change_size, ob, min_size = 32, max_size = 512, entropy_threshold = 2.5))]
-pub fn find_unique_context(
-    data: &[u8],
-    change_offset: isize,
-    change_size: isize,
-    ob: &[u8],
-    min_size: usize,
-    max_size: usize,
-    entropy_threshold: f64,
-) -> PyResult<(Vec<u8>, usize, f64, usize)> {
-    let file_len = data.len() as isize;
-
-    // --- Guard: offset must be valid (matches Python) ---
-    if change_offset < 0 || change_offset > file_len {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "change_offset {} is out of bounds (file size: {} bytes).",
-            change_offset, file_len
-        )));
-    }
-
-    let offset = change_offset as usize;
-    let _change_sz = change_size; // unused after guard, kept for API compatibility
-
-    let mut size = min_size;
-
-    while size <= max_size {
-        let ctx_start = if offset >= size { offset - size } else { 0 };
-        let ctx = &data[ctx_start..offset];
-        let actual_size = ctx.len();
-
-        if actual_size == 0 {
-            return Ok((vec![], 0, 0.0, 0));
-        }
-
-        let entropy = shannon_entropy(ctx);
-
-        // Build ctx + ob anchor
-        let mut anchor = Vec::with_capacity(ctx.len() + ob.len());
-        anchor.extend_from_slice(ctx);
-        anchor.extend_from_slice(ob);
-
-        let match_count = count_unique_in_window(data, &anchor, 0, data.len());
-
-        if entropy >= entropy_threshold && match_count == 1 {
-            return Ok((ctx.to_vec(), actual_size, entropy, match_count));
-        }
-
-        size *= 2;
-    }
-
-    // --- max_size reached — return best effort ---
-    let ctx_start = if offset >= max_size {
-        offset - max_size
-    } else {
-        0
-    };
-    let ctx = &data[ctx_start..offset];
-    let entropy = shannon_entropy(ctx);
-
-    let mut anchor = Vec::with_capacity(ctx.len() + ob.len());
-    anchor.extend_from_slice(ctx);
-    anchor.extend_from_slice(ob);
-
-    let match_count = count_unique_in_window(data, &anchor, 0, data.len());
-
-    Ok((ctx.to_vec(), ctx.len(), entropy, match_count))
 }
