@@ -104,15 +104,15 @@ def _infer_platform(ecu_family: str | None) -> str | None:
 
 
 def _identify(params: dict) -> dict:
-    from openremap.core.services.confidence import score_identity
-    from openremap.core.services.identifier import identify_ecu
+    from openremap.core.services.identify.confidence import score_identity
+    from openremap.core.services.identify.identifier import identify_ecu
 
     path = params["path"]
     data = Path(path).read_bytes()
     filename = Path(path).name
 
     identity = identify_ecu(data, filename)
-    confidence = score_identity(identity, filename)
+    confidence = score_identity(identity, filename, data=data)
 
     # detection_strength may be an Enum — normalise to the member name or None.
     det_strength = identity.get("detection_strength")
@@ -154,7 +154,7 @@ def _identify(params: dict) -> dict:
 
 
 def _cook(params: dict) -> dict:
-    from openremap.core.services.recipe_builder import ECUDiffAnalyzer
+    from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 
     original_path = params["original_path"]
     modified_path = params["modified_path"]
@@ -206,7 +206,7 @@ def _cook(params: dict) -> dict:
 
 
 def _tune(params: dict) -> dict:
-    from openremap.core.services.patcher import ECUPatcher
+    from openremap.core.services.recipes.patcher import ECUPatcher
 
     path = params["path"]
     recipe = params["recipe"]
@@ -242,7 +242,7 @@ def _tune(params: dict) -> dict:
 
 
 def _validate(params: dict) -> dict:
-    from openremap.core.services.validate_exists import ECUExistenceValidator
+    from openremap.core.services.recipes.validate_exists import ECUExistenceValidator
 
     path = params["path"]
     recipe = params["recipe"]
@@ -268,7 +268,7 @@ def _validate(params: dict) -> dict:
 
 
 def _scan_maps(params: dict) -> dict:
-    from openremap.core.services.map_hunter import scan_map_axes, scan_map_tables
+    from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tables
 
     path = params["path"]
     data = Path(path).read_bytes()
@@ -345,6 +345,7 @@ def _serialise_tables(tables) -> list[dict]:
             "byte_order": t.byte_order,
             "x_axis_offset": t.x_axis_offset,
             "y_axis_offset": t.y_axis_offset,
+            "stride": t.stride,
             "score": t.score,
         }
         for t in tables
@@ -362,7 +363,7 @@ def _scan_map_axes_only(params: dict) -> dict:
     The returned axes are cached (keyed by path + mtime + size) so the
     follow-up `scan_map_tables` call doesn't have to re-do the work.
     """
-    from openremap.core.services.map_hunter import scan_map_axes
+    from openremap.core.services.maps.map_hunter import scan_map_axes
 
     path = params["path"]
     key = _cache_key(path)
@@ -398,7 +399,7 @@ def _scan_map_tables_only(params: dict) -> dict:
     Result is cached by (path, mtime, size) so revisiting the same file
     skips the expensive O(N\u00b2) pairing pass entirely.
     """
-    from openremap.core.services.map_hunter import scan_map_axes, scan_map_tables
+    from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tables
 
     path = params["path"]
     key = _cache_key(path)
@@ -447,8 +448,8 @@ def _scan_map_tables_only(params: dict) -> dict:
 
 def _scan(params: dict) -> dict:
     """Batch-identify a list of file paths."""
-    from openremap.core.services.confidence import score_identity
-    from openremap.core.services.identifier import identify_ecu
+    from openremap.core.services.identify.confidence import score_identity
+    from openremap.core.services.identify.identifier import identify_ecu
 
     results = []
     for p in params.get("paths", []):

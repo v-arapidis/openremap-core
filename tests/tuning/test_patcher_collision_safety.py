@@ -57,8 +57,8 @@ from __future__ import annotations
 import pytest
 
 from tests.conftest import make_recipe, make_instruction
-from openremap.core.services.patcher import ECUPatcher, PatchStatus, EXACT_WINDOW
-from openremap.core.services.validate_exists import ECUExistenceValidator, MatchStatus
+from openremap.core.services.recipes.patcher import ECUPatcher, PatchStatus, EXACT_WINDOW
+from openremap.core.services.recipes.validate_exists import ECUExistenceValidator, MatchStatus
 
 
 # ---------------------------------------------------------------------------

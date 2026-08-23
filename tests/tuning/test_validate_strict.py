@@ -11,7 +11,7 @@ Covers:
 """
 
 from tests.conftest import make_bin, make_bin_with, make_recipe, make_instruction
-from openremap.core.services.validate_strict import ECUStrictValidator
+from openremap.core.services.recipes.validate_strict import ECUStrictValidator
 
 
 # ---------------------------------------------------------------------------
@@ -470,7 +470,7 @@ class TestCheckMatchKeyMismatch:
 
         target = make_bin(256)
         v = make_validator(target, [], ecu={"match_key": "EDC17::SOMEVERSION"})
-        with patch("openremap.core.services.validate_strict.identify_ecu") as mock_id:
+        with patch("openremap.core.services.recipes.preflight.identify_ecu") as mock_id:
             mock_id.side_effect = RuntimeError("identification failed")
             result = v.check_match_key()
         assert result is None
@@ -481,7 +481,7 @@ class TestCheckMatchKeyMismatch:
         target = make_bin(256)
         recipe_key = "EDC17::SOMEVERSION"
         v = make_validator(target, [], ecu={"match_key": recipe_key})
-        with patch("openremap.core.services.validate_strict.identify_ecu") as mock_id:
+        with patch("openremap.core.services.recipes.preflight.identify_ecu") as mock_id:
             mock_id.return_value = {"match_key": recipe_key}
             result = v.check_match_key()
         assert result is None
@@ -491,8 +491,59 @@ class TestCheckMatchKeyMismatch:
 
         target = make_bin(256)
         v = make_validator(target, [], ecu={"match_key": "EDC17::SOMEVERSION"})
-        with patch("openremap.core.services.validate_strict.identify_ecu") as mock_id:
+        with patch("openremap.core.services.recipes.preflight.identify_ecu") as mock_id:
             mock_id.return_value = {"match_key": "EDC17::DIFFERENTVERSION"}
             result = v.check_match_key()
         assert result is not None
         assert "mismatch" in result.lower()
+
+
+
+# ---------------------------------------------------------------------------
+# Invalid hex — malformed recipes must be recorded, never raise
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidHex:
+    def test_malformed_ob_recorded_as_failed_result(self):
+        target = make_bin(512)
+        v = make_validator(target, [make_instruction(100, "AABB", "CCDD")])
+        v.recipe["instructions"][0]["ob"] = "ZZZZ"
+        v.validate_all()
+        assert len(v.results) == 1
+        r = v.results[0]
+        assert r.passed is False
+        assert "Invalid hex" in r.reason
+        assert "ZZZZ" in r.reason
+
+    def test_malformed_ob_marks_recipe_unsafe(self):
+        target = make_bin(512)
+        v = make_validator(target, [make_instruction(100, "AABB", "CCDD")])
+        v.recipe["instructions"][0]["ob"] = "ZZZZ"
+        v.validate_all()
+        passed, failed, _ = v.score()
+        assert (passed, failed) == (0, 1)
+        assert v.to_dict()["summary"]["safe_to_patch"] is False
+
+    def test_odd_length_hex_recorded_as_failed_result(self):
+        target = make_bin(512)
+        v = make_validator(target, [make_instruction(100, "AABB", "CCDD")])
+        v.recipe["instructions"][0]["ob"] = "ABC"
+        v.validate_all()
+        assert v.results[0].passed is False
+        assert "Invalid hex" in v.results[0].reason
+
+    def test_valid_instructions_still_evaluated_after_invalid_one(self):
+        target = make_bin_with(512, {100: 0xAA, 101: 0xBB, 200: 0xCC})
+        v = make_validator(
+            target,
+            [
+                make_instruction(100, "AABB", "CCDD"),
+                make_instruction(200, "CC", "DD"),
+            ],
+        )
+        v.recipe["instructions"][0]["ob"] = "ZZZZ"
+        v.validate_all()
+        assert len(v.results) == 2
+        assert v.results[0].passed is False
+        assert v.results[1].passed is True

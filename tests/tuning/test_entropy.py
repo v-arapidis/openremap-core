@@ -211,7 +211,7 @@ class TestFindUniqueContext:
         assert matches > 1
 
     def test_change_at_offset_zero(self):
-        """Change at offset 0 returns empty context."""
+        """Change at offset 0 returns empty context with a real match count."""
         data = bytes(range(256))
         ob = bytes([0x00])
         ctx, size, entropy, matches = find_unique_context(
@@ -219,7 +219,25 @@ class TestFindUniqueContext:
         )
         assert ctx == b""
         assert size == 0
-        assert matches == 0
+        assert matches == 1  # ob (0x00) appears exactly once in range(256)
+
+    def test_change_at_offset_zero_non_unique_ob(self):
+        """Offset-0 change whose ob repeats must report the true count."""
+        data = bytes(256)  # all zeros
+        ob = bytes([0x00])
+        ctx, size, entropy, matches = find_unique_context(
+            data, 0, len(ob), ob, min_size=32, max_size=128,
+        )
+        assert ctx == b""
+        assert matches == 256  # ob appears at every position
+
+    def test_min_size_greater_than_max_size_raises(self):
+        """Inverted context sizes must fail loudly, not silently weaken the anchor."""
+        data = bytes(range(256))
+        with pytest.raises(ValueError, match="min_size"):
+            find_unique_context(
+                data, 100, 1, bytes([0x64]), min_size=512, max_size=32,
+            )
 
     def test_entropy_gate_requires_both_conditions(self):
         """Both entropy >= threshold AND match_count == 1 must be satisfied."""

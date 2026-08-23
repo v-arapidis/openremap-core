@@ -66,7 +66,7 @@ def _write_recipe(
     """Write a minimal but fully-valid format-4.3 recipe to *path*.
 
     Args:
-        path:         Destination path (must have a .openremap extension).
+        path:         Destination path (must have a .remap extension).
         instructions: List of instruction dicts.  Defaults to one instruction
                       at offset 100, ob=``AA``, mb=``BB``.
         file_size:    Value recorded in ``ecu.file_size``; should match the
@@ -168,7 +168,7 @@ class TestValidateBeforeSuccess:
     def test_matching_binary_exits_zero(self, tmp_path):
         """Binary with ob=AA at offset 100 passes pre-flight and exits 0."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # ob = "AA" → byte 0xAA must be at offset 100
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
@@ -180,7 +180,7 @@ class TestValidateBeforeSuccess:
     def test_matching_binary_reports_safe_to_tune(self, tmp_path):
         """The human-readable output explicitly states 'Safe to tune'."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -193,7 +193,7 @@ class TestValidateBeforeSuccess:
     def test_json_flag_outputs_json_report(self, tmp_path):
         """--json emits the validation report as a JSON object and exits 0."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -208,7 +208,7 @@ class TestValidateBeforeSuccess:
     def test_json_flag_report_has_safe_to_patch_true(self, tmp_path):
         """With --json the summary.safe_to_patch flag is True on a matching binary."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -226,7 +226,7 @@ class TestValidateBeforeSuccess:
         exit-1 gate, so --json suppresses the non-zero exit on failure.
         """
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # Byte at offset 100 is 0x00, not 0xAA — validation will fail
         target.write_bytes(_make_bin(1024))
         _write_recipe(recipe)
@@ -242,7 +242,7 @@ class TestValidateBeforeSuccess:
     def test_json_report_contains_target_and_recipe_filenames(self, tmp_path):
         """The JSON report includes target_file and recipe_file fields."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -257,7 +257,7 @@ class TestValidateBeforeSuccess:
     def test_zero_instruction_recipe_exits_zero(self, tmp_path):
         """A recipe with no instructions is trivially safe: exits 0."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024))
         _write_recipe(recipe, instructions=[])
 
@@ -286,7 +286,7 @@ class TestValidateBeforeFailure:
         you need a zero exit regardless of validation outcome.
         """
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # Offset 100 is 0xFF, recipe expects 0xAA
         target.write_bytes(_make_bin(1024, {100: 0xFF}))
         _write_recipe(recipe)
@@ -298,7 +298,7 @@ class TestValidateBeforeFailure:
     def test_mismatching_binary_reports_not_safe(self, tmp_path):
         """The human-readable output states the binary is NOT safe to tune."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xFF}))
         _write_recipe(recipe)
 
@@ -316,7 +316,7 @@ class TestValidateBeforeFailure:
         own _read_bin helper then rejects the extension with exit 1.
         """
         target = tmp_path / "target.txt"  # wrong extension, file exists
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -342,10 +342,32 @@ class TestValidateBeforeFailure:
         error_text = result.stderr + result.stdout
         assert "openremap" in error_text.lower()
 
+    def test_legacy_openremap_recipe_accepted(self, tmp_path):
+        """A recipe with the legacy .openremap extension is still accepted."""
+        target = tmp_path / "target.bin"
+        recipe = tmp_path / "recipe.openremap"
+        target.write_bytes(_make_bin(1024, {100: 0xAA}))
+        _write_recipe(recipe)
+
+        result = runner.invoke(app, ["validate", "before", str(target), str(recipe)])
+
+        assert result.exit_code == 0, result.output
+
+    def test_legacy_json_recipe_accepted(self, tmp_path):
+        """A recipe with the legacy .json extension is still accepted."""
+        target = tmp_path / "target.bin"
+        recipe = tmp_path / "recipe.json"
+        target.write_bytes(_make_bin(1024, {100: 0xAA}))
+        _write_recipe(recipe)
+
+        result = runner.invoke(app, ["validate", "before", str(target), str(recipe)])
+
+        assert result.exit_code == 0, result.output
+
     def test_missing_target_exits_nonzero(self, tmp_path):
         """A non-existent target file causes a non-zero exit (Click exists=True)."""
         missing = tmp_path / "ghost.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         _write_recipe(recipe)
 
         result = runner.invoke(app, ["validate", "before", str(missing), str(recipe)])
@@ -372,7 +394,7 @@ class TestValidateCheck:
     def test_ob_at_exact_offset_exits_zero(self, tmp_path):
         """ob bytes found at the exact expected offset → verdict safe_exact → exit 0."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -387,7 +409,7 @@ class TestValidateCheck:
         the check command therefore exits 0 (not 1) for shifted results.
         """
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # ob = "AA" is at offset 200, not 100 — shifted by +100
         target.write_bytes(_make_bin(1024, {200: 0xAA}))
         _write_recipe(recipe)
@@ -399,7 +421,7 @@ class TestValidateCheck:
     def test_ob_missing_exits_one(self, tmp_path):
         """ob bytes absent from the entire binary → missing_unrecoverable → exit 1."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # Binary is all zeros; ob=AA is nowhere in it
         target.write_bytes(_make_bin(1024))
         _write_recipe(recipe)
@@ -411,7 +433,7 @@ class TestValidateCheck:
     def test_check_json_flag_exits_zero(self, tmp_path):
         """--json always exits 0 and emits a JSON report."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -426,7 +448,7 @@ class TestValidateCheck:
     def test_check_json_report_has_verdict(self, tmp_path):
         """The JSON report from validate check includes a verdict field."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -438,10 +460,68 @@ class TestValidateCheck:
         assert "verdict" in report["summary"]
         assert report["summary"]["verdict"] == "safe_exact"
 
+    def test_check_malformed_ob_exits_one_invalid_recipe(self, tmp_path):
+        """A recipe with non-hex ob must exit 1 with an invalid_recipe verdict."""
+        target = tmp_path / "target.bin"
+        recipe = tmp_path / "recipe.remap"
+        target.write_bytes(_make_bin(1024, {100: 0xAA}))
+        _write_recipe(
+            recipe,
+            instructions=[
+                {
+                    "offset": 100,
+                    "offset_hex": "64",
+                    "size": 0,
+                    "ob": "ZZZZ",
+                    "mb": "BB",
+                    "ctx": "",
+                    "context_after": "",
+                    "context_size": 0,
+                }
+            ],
+        )
+
+        result = runner.invoke(
+            app, ["validate", "check", str(target), str(recipe)]
+        )
+
+        assert result.exit_code == 1, result.output
+        assert "traceback" not in result.output.lower()
+        assert "invalid" in result.output.lower()
+
+    def test_check_malformed_ob_json_verdict_invalid_recipe(self, tmp_path):
+        """--json mode reports verdict invalid_recipe for malformed hex."""
+        target = tmp_path / "target.bin"
+        recipe = tmp_path / "recipe.remap"
+        target.write_bytes(_make_bin(1024, {100: 0xAA}))
+        _write_recipe(
+            recipe,
+            instructions=[
+                {
+                    "offset": 100,
+                    "offset_hex": "64",
+                    "size": 0,
+                    "ob": "ZZZZ",
+                    "mb": "BB",
+                    "ctx": "",
+                    "context_after": "",
+                    "context_size": 0,
+                }
+            ],
+        )
+
+        result = runner.invoke(
+            app, ["validate", "check", str(target), str(recipe), "--json"]
+        )
+
+        report = _parse_json_from_stdout(result.stdout)
+        assert report["summary"]["verdict"] == "invalid_recipe"
+        assert report["summary"]["invalid"] == 1
+
     def test_non_bin_target_exits_one(self, tmp_path):
         """Wrong target extension causes exit 1 (extension checked before search)."""
         target = tmp_path / "target.txt"  # wrong extension, file exists
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -463,7 +543,7 @@ class TestValidateCheck:
     def test_zero_instruction_recipe_exits_zero(self, tmp_path):
         """An empty recipe is trivially safe: no missing bytes → exit 0."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024))
         _write_recipe(recipe, instructions=[])
 
@@ -487,7 +567,7 @@ class TestValidateAfter:
     def test_patched_binary_exits_zero(self, tmp_path):
         """Binary with mb=BB at offset 100 confirms the patch and exits 0."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # mb = "BB" → byte 0xBB must be at offset 100
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
@@ -499,7 +579,7 @@ class TestValidateAfter:
     def test_patched_binary_reports_tune_confirmed(self, tmp_path):
         """The human-readable output states the tune was confirmed."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
 
@@ -513,7 +593,7 @@ class TestValidateAfter:
     def test_unpatched_binary_exits_one(self, tmp_path):
         """Binary that still has ob (not mb) at offset 100 fails confirmation → exit 1."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # ob byte 0xAA is still at offset 100 — patch was never applied
         tuned.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
@@ -525,7 +605,7 @@ class TestValidateAfter:
     def test_after_json_flag_exits_zero(self, tmp_path):
         """--json emits the verification report as JSON and exits 0."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
 
@@ -540,7 +620,7 @@ class TestValidateAfter:
     def test_after_json_report_has_patch_confirmed_true(self, tmp_path):
         """The JSON report summary.patch_confirmed flag is True for a patched binary."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
 
@@ -554,7 +634,7 @@ class TestValidateAfter:
     def test_non_bin_tuned_file_exits_one(self, tmp_path):
         """Wrong extension on the tuned binary causes exit 1."""
         tuned = tmp_path / "target_tuned.txt"  # wrong extension, file exists
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
 
@@ -663,7 +743,7 @@ class TestValidateReadErrors:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -679,7 +759,7 @@ class TestValidateReadErrors:
     def test_read_bin_empty_file_before_exits_one(self, tmp_path):
         """A zero-byte target file exits 1 with an error message."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(b"")
         _write_recipe(recipe)
 
@@ -692,7 +772,7 @@ class TestValidateReadErrors:
     def test_read_bin_empty_file_check_exits_one(self, tmp_path):
         """A zero-byte target file exits 1 for 'validate check'."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(b"")
         _write_recipe(recipe)
 
@@ -705,7 +785,7 @@ class TestValidateReadErrors:
     def test_read_bin_empty_file_after_exits_one(self, tmp_path):
         """A zero-byte tuned file exits 1 for 'validate after'."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(b"")
         _write_recipe(recipe)
 
@@ -724,7 +804,7 @@ class TestValidateReadRecipeErrors:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -740,7 +820,7 @@ class TestValidateReadRecipeErrors:
     def test_read_recipe_invalid_json_exits_one(self, tmp_path):
         """A recipe with invalid JSON exits 1 with a JSON parse error message."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         recipe.write_text("{ this is not valid json }", encoding="utf-8")
 
@@ -753,7 +833,7 @@ class TestValidateReadRecipeErrors:
     def test_read_recipe_invalid_json_check_exits_one(self, tmp_path):
         """Invalid recipe JSON exits 1 for 'validate check'."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         recipe.write_text("not json at all", encoding="utf-8")
 
@@ -768,7 +848,7 @@ class TestValidateWriteJSON:
     def test_before_with_output_file_creates_file(self, tmp_path):
         """validate before --output writes the JSON report to disk (lines 129-134)."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         output = tmp_path / "report.json"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
@@ -784,7 +864,7 @@ class TestValidateWriteJSON:
     def test_check_with_output_file_creates_file(self, tmp_path):
         """validate check --output writes the JSON report to disk."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         output = tmp_path / "report.json"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
@@ -800,7 +880,7 @@ class TestValidateWriteJSON:
     def test_after_with_output_file_creates_file(self, tmp_path):
         """validate after --output writes the JSON report to disk."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         output = tmp_path / "report.json"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
@@ -818,7 +898,7 @@ class TestValidateWriteJSON:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         output = tmp_path / "report.json"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
@@ -847,7 +927,7 @@ class TestValidateWarnLine:
     def test_size_mismatch_warning_shown_in_before(self, tmp_path):
         """Recipe ecu.file_size mismatch shows size warning (line 150)."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # Target is 1024 bytes; recipe declares 2048 — triggers size_warn
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe_with_file_size(recipe, file_size=2048)
@@ -862,7 +942,7 @@ class TestValidateWarnLine:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -871,7 +951,7 @@ class TestValidateWarnLine:
         recipe.write_text(json.dumps(data), encoding="utf-8")
 
         with patch(
-            "openremap.core.services.validate_strict.identify_ecu",
+            "openremap.core.services.recipes.preflight.identify_ecu",
             return_value={"match_key": "ACTUAL::KEY"},
         ):
             result = runner.invoke(
@@ -884,7 +964,7 @@ class TestValidateWarnLine:
     def test_size_mismatch_warning_shown_in_check(self, tmp_path):
         """validate check also shows size warning when file_size mismatches."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe_with_file_size(recipe, file_size=2048)
 
@@ -896,7 +976,7 @@ class TestValidateWarnLine:
     def test_size_mismatch_warning_shown_in_after(self, tmp_path):
         """validate after also shows size warning when file_size mismatches."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe_with_file_size(recipe, file_size=2048)
 
@@ -914,7 +994,7 @@ class TestValidateBeforeException:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -939,13 +1019,13 @@ class TestValidateBeforeFailedResults:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
         mock_report = {
             "target_file": "target.bin",
-            "recipe_file": "recipe.openremap",
+            "recipe_file": "recipe.remap",
             "target_md5": "abc123",
             "summary": {
                 "total": 1,
@@ -990,7 +1070,7 @@ class TestValidateBeforeFailedResults:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -1010,7 +1090,7 @@ class TestValidateBeforeFailedResults:
 
         mock_report = {
             "target_file": "target.bin",
-            "recipe_file": "recipe.openremap",
+            "recipe_file": "recipe.remap",
             "target_md5": "abc123",
             "summary": {
                 "total": 12,
@@ -1049,7 +1129,7 @@ class TestValidateCheckException:
         from unittest.mock import patch
 
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -1070,7 +1150,7 @@ class TestValidateCheckShiftedAndMissingDetail:
     def test_shifted_instructions_display(self, tmp_path):
         """ob found at shifted offset → shifted detail is shown in output."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # ob = "AA" at offset 100 in recipe, but binary has 0xAA at offset 200
         target.write_bytes(_make_bin(1024, {200: 0xAA}))
         _write_recipe(recipe)
@@ -1084,7 +1164,7 @@ class TestValidateCheckShiftedAndMissingDetail:
     def test_missing_instructions_display(self, tmp_path):
         """ob absent from the binary → missing detail is shown in output."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # Binary is all zeros; ob=AA is nowhere
         target.write_bytes(_make_bin(1024))
         _write_recipe(recipe)
@@ -1104,7 +1184,7 @@ class TestValidateAfterException:
         from unittest.mock import patch
 
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
 
@@ -1125,7 +1205,7 @@ class TestValidateAfterFailureDetail:
     def test_failure_details_shown_for_unpatched_binary(self, tmp_path):
         """Unpatched binary (ob still present) shows failure detail."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         # ob byte 0xAA is still at offset 100 — patch was never applied
         tuned.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
@@ -1143,7 +1223,7 @@ class TestValidateDeprecatedAliases:
     def test_strict_alias_delegates_to_before(self, tmp_path):
         """'validate strict' shows deprecation note and runs before logic (lines 693-700)."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -1156,7 +1236,7 @@ class TestValidateDeprecatedAliases:
     def test_strict_alias_exits_zero_on_match(self, tmp_path):
         """'validate strict' exits 0 when ob bytes match (delegates to before)."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -1167,7 +1247,7 @@ class TestValidateDeprecatedAliases:
     def test_exists_alias_delegates_to_check(self, tmp_path):
         """'validate exists' shows deprecation note and runs check logic (lines 725-732)."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -1179,7 +1259,7 @@ class TestValidateDeprecatedAliases:
     def test_exists_alias_exits_zero_on_exact_match(self, tmp_path):
         """'validate exists' exits 0 when ob bytes are found at exact offset."""
         target = tmp_path / "target.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         target.write_bytes(_make_bin(1024, {100: 0xAA}))
         _write_recipe(recipe)
 
@@ -1190,7 +1270,7 @@ class TestValidateDeprecatedAliases:
     def test_tuned_alias_delegates_to_after(self, tmp_path):
         """'validate tuned' shows deprecation note and runs after logic (lines 758-765)."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
 
@@ -1202,7 +1282,7 @@ class TestValidateDeprecatedAliases:
     def test_tuned_alias_exits_zero_on_confirmed_patch(self, tmp_path):
         """'validate tuned' exits 0 when mb bytes are confirmed at expected offset."""
         tuned = tmp_path / "target_tuned.bin"
-        recipe = tmp_path / "recipe.openremap"
+        recipe = tmp_path / "recipe.remap"
         tuned.write_bytes(_make_bin(1024, {100: 0xBB}))
         _write_recipe(recipe)
 

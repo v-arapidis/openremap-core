@@ -427,7 +427,9 @@ def _lookup(name: str) -> dict | None:
         ):
             return fam
         for alias in fam["aliases"]:
-            if needle == alias.replace("-", "").replace("_", "").replace(".", ""):
+            if needle == (
+                alias.lower().replace(" ", "").replace("-", "").replace("_", "").replace(".", "").replace("/", "")
+            ):
                 return fam
     return None
 
@@ -511,7 +513,7 @@ def _print_detail(fam: dict) -> None:
         first = True
         for word in words:
             if line_len + len(word) + 1 > 56 and line:
-                prefix = "  " + " " * 16 if not first else "  " + " " * 16
+                prefix = "  " + " " * 16
                 typer.echo(f"{prefix}{' '.join(line)}")
                 line = [word]
                 line_len = len(word)

@@ -8,7 +8,6 @@ all extraction logic to the correct implementation.
 
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
@@ -89,30 +88,6 @@ SYNC_MARKER = "SYNC_MARKER"  # Sync marker present (e.g. AA55CC33)
 MANUFACTURER_CONFIRM = (
     "MANUFACTURER_CONFIRM"  # Manufacturer name confirmed (e.g. "MAG", "MARELLI")
 )
-
-
-@dataclass(frozen=True)
-class DetectionResult:
-    """
-    Rich detection result carrying the evidence that led to a match.
-
-    ``can_handle()`` still returns ``bool`` for backward compatibility.
-    Evidence is stored on the extractor instance via ``_last_evidence``
-    and read by the identifier / confidence scorer after a positive match.
-
-    This class is provided for documentation and for any future migration
-    where ``can_handle()`` returns ``DetectionResult`` directly.
-    """
-
-    matched: bool
-    evidence: Tuple[str, ...] = ()
-
-    def __bool__(self) -> bool:  # pragma: no cover
-        return self.matched
-
-    @property
-    def evidence_count(self) -> int:
-        return len(self.evidence)
 
 
 class BaseManufacturerExtractor(ABC):
@@ -315,6 +290,16 @@ class BaseManufacturerExtractor(ABC):
             dataset_number    : str   — dataset reference number
             oem_part_number   : str   — vehicle manufacturer part number
             raw_strings       : list  — printable ASCII strings from header
+            ident_block       : (int, int) — (start, end) offsets of the
+                                decoded identity block.  Optional but
+                                recommended for extractors whose ident
+                                block is shorter than the generic
+                                64-byte printable-run heuristic used by
+                                the confidence scorer's ident-block
+                                cross-check (e.g. Denso/Hitachi Subaru
+                                units).  The scorer validates the region
+                                (bounds, size, printable content) before
+                                trusting it.
 
         Args:
             data:     Raw bytes of the ECU binary file

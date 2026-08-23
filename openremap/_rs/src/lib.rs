@@ -1,35 +1,50 @@
 //! Native acceleration for openremap-core CPU-bound algorithms.
 //!
 //! This crate is compiled to a native shared library via PyO3 + maturin
-//! and loaded as `openremap._rust`.  Every public function here has a
-//! pure-Python equivalent in `openremap.core.services.*` that serves as
-//! both the specification and the fallback when the native library is
-//! unavailable (PyPy, unsupported platform, source install without Rust).
-//!
-//! # Correctness guarantee
-//!
-//! Each function MUST produce bit-identical output to its Python counterpart
-//! for all inputs.  The test suite runs an oracle fuzz harness that feeds
-//! random data to both backends and asserts equality.  Any divergence is a
-//! bug in the Rust port — the Python implementation is the specification.
+//! and loaded as `openremap._rust`.  It is **mandatory** — there is no
+//! pure-Python fallback (see CLAUDE.md / AGENTS.md).  Behavioural
+//! correctness is covered by the test suite (e.g.
+//! `tests/tuning/services/test_map_hunter.py`, `tests/tuning/test_entropy.py`).
 
 use pyo3::prelude::*;
 
-mod diff;
-mod entropy;
-mod map_hunter;
+mod checksums;
+mod identify;
+mod maps;
+mod primitives;
+mod recipes;
 
 #[pymodule]
 fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // ── Endianness ───────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(identify::endian::detect_endian, m)?)?;
+
+    // ── Layout ───────────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(maps::layout_scan::find_ident_blocks, m)?)?;
+
+    // ── CRC-16/ARC ───────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(primitives::crc16::crc16_arc, m)?)?;
+
+    // ── Denso Subaru ─────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(checksums::denso::detect_denso, m)?)?;
+
+    // ── NefMoto ME7 ──────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(checksums::nefmoto_scan::locate_pattern, m)?)?;
+    m.add_function(wrap_pyfunction!(checksums::nefmoto_scan::rolling_checksum, m)?)?;
+
     // ── Entropy ──────────────────────────────────────────────────────────
-    m.add_function(wrap_pyfunction!(entropy::shannon_entropy, m)?)?;
-    m.add_function(wrap_pyfunction!(entropy::is_low_entropy, m)?)?;
+    m.add_function(wrap_pyfunction!(primitives::entropy::shannon_entropy, m)?)?;
+    m.add_function(wrap_pyfunction!(primitives::entropy::is_low_entropy, m)?)?;
 
     // ── Diff ─────────────────────────────────────────────────────────────
-    m.add_function(wrap_pyfunction!(diff::find_changed_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(recipes::diff::find_changed_blocks, m)?)?;
 
     // ── Map hunter ───────────────────────────────────────────────────────
-    m.add_function(wrap_pyfunction!(map_hunter::scan_map_axes, m)?)?;
-    m.add_function(wrap_pyfunction!(map_hunter::scan_map_tables, m)?)?;
+    m.add_function(wrap_pyfunction!(maps::map_hunter::scan_map_axes, m)?)?;
+    m.add_function(wrap_pyfunction!(maps::map_hunter::scan_map_tables, m)?)?;
+
+    // ── Checksum sweep ───────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(checksums::checksum::checksum_compute, m)?)?;
+    m.add_function(wrap_pyfunction!(checksums::checksum::me7_multipoint_scan, m)?)?;
     Ok(())
 }

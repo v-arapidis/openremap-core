@@ -12,7 +12,7 @@ Covers:
 """
 
 from tests.conftest import make_bin, make_bin_with
-from openremap.core.services.recipe_builder import ECUDiffAnalyzer, Change
+from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer, Change
 
 
 # ---------------------------------------------------------------------------
@@ -598,3 +598,73 @@ class TestBuildOrst:
         tune = a.build_orst(id="orst_x", name="Empty")
         assert tune["message"] is None
         assert tune["instructions"] == []
+
+
+# ---------------------------------------------------------------------------
+# derive_trust_level
+# ---------------------------------------------------------------------------
+
+
+class TestDeriveTrustLevel:
+    """Trust level derivation from the creator block."""
+
+    @staticmethod
+    def _creator(name=None, signature=None, id=None):
+        creator = {"name": name, "signature": signature}
+        if id is not None:
+            creator["id"] = id
+        return creator
+
+    def test_no_name_is_unsigned(self):
+        from openremap.core.services.recipes.recipe_builder import derive_trust_level
+
+        assert derive_trust_level(self._creator()) == "UNSIGNED"
+
+    def test_name_only_is_community(self):
+        from openremap.core.services.recipes.recipe_builder import derive_trust_level
+
+        assert derive_trust_level(self._creator(name="alice")) == "COMMUNITY"
+
+    def test_name_and_signature_is_signed(self):
+        from openremap.core.services.recipes.recipe_builder import derive_trust_level
+
+        assert (
+            derive_trust_level(self._creator(name="alice", signature="sig"))
+            == "SIGNED"
+        )
+
+    def test_name_signature_and_id_is_verified(self):
+        from openremap.core.services.recipes.recipe_builder import derive_trust_level
+
+        assert (
+            derive_trust_level(
+                self._creator(name="alice", signature="sig", id="u123")
+            )
+            == "VERIFIED"
+        )
+
+    def test_empty_id_does_not_count_as_verified(self):
+        """An empty-string id must NOT promote SIGNED to VERIFIED."""
+        from openremap.core.services.recipes.recipe_builder import derive_trust_level
+
+        assert (
+            derive_trust_level(
+                self._creator(name="alice", signature="sig", id="")
+            )
+            == "SIGNED"
+        )
+
+    def test_missing_id_does_not_count_as_verified(self):
+        from openremap.core.services.recipes.recipe_builder import derive_trust_level
+
+        assert (
+            derive_trust_level(self._creator(name="alice", signature="sig"))
+            == "SIGNED"
+        )
+
+    def test_build_creator_block_anonymous_is_unsigned(self):
+        from openremap.core.services.recipes.recipe_builder import build_creator_block
+
+        block = build_creator_block()
+        assert block["trust_level"] == "UNSIGNED"
+        assert block["id"] == ""

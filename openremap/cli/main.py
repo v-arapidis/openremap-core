@@ -16,12 +16,12 @@ Usage:
     openremap families
     openremap families --family EDC16
     openremap identify ecu.bin
-    openremap cook stock.bin stage1.bin --output recipe.openremap
-    openremap tune target.bin recipe.openremap
-    openremap tune target.bin recipe.openremap --output target_tuned.bin
-    openremap validate before target.bin recipe.openremap
-    openremap validate check  target.bin recipe.openremap
-    openremap validate after  target_tuned.bin recipe.openremap
+    openremap cook stock.bin stage1.bin --output recipe.remap
+    openremap tune target.bin recipe.remap
+    openremap tune target.bin recipe.remap --output target_tuned.bin
+    openremap validate before target.bin recipe.remap
+    openremap validate check  target.bin recipe.remap
+    openremap validate after  target_tuned.bin recipe.remap
     openremap scan ./my_bins/
     openremap scan ./my_bins/ --move --organize
 """
@@ -34,10 +34,18 @@ import typer
 from openremap.cli.commands import validate
 from openremap.cli.commands.cmds import commands
 from openremap.cli.commands.cook import cook
+from openremap.cli.commands.cook_volatile import cook_volatile
 from openremap.cli.commands.families import families
 from openremap.cli.commands.identify import identify
 from openremap.cli.commands.scan import scan
+from openremap.cli.commands.diff_maps import diff_maps
+from openremap.cli.commands.audit import audit_cmd
+from openremap.cli.commands.checksum import checksum_cmd
+from openremap.cli.commands.health import health_cmd
+from openremap.cli.commands.merge import merge
+from openremap.cli.commands.layout import layout
 from openremap.cli.commands.scan_maps import scan_maps
+from openremap.cli.commands.scan_vins import scan_vins_cmd
 from openremap.cli.commands.tune import tune
 from openremap.cli.commands.workflow import workflow
 
@@ -51,6 +59,7 @@ app = typer.Typer(
         "OpenRemap — ECU binary analysis and patching toolkit.\n\n"
         "Diff, validate, and apply tuning recipes to automotive ECU binaries "
         "without a running API server.\n\n"
+        "Run with no arguments to launch the full terminal UI.\n"
         "New here?  Run  openremap workflow  for a plain-English step-by-step guide.\n"
         "Quick reminder?  Run  openremap commands  for a one-line-per-command cheat-sheet."
     ),
@@ -125,10 +134,38 @@ app.command(
 )(identify)
 
 app.command(
+    name="audit",
+    help="The receipt check: verify stock, tuned, and recipe belong together.",
+    no_args_is_help=True,
+)(audit_cmd)
+
+app.command(
+    name="layout",
+    help="Print the flash-layout block map of an ECU binary (erased/code/calibration/ident).",
+    no_args_is_help=True,
+)(layout)
+
+app.command(
+    name="merge",
+    help="Merge two recipes into one, validated against a common stock binary.",
+    no_args_is_help=True,
+)(merge)
+
+app.command(
     name="cook",
     help="Cook a recipe by diffing an original and a modified ECU binary.",
     no_args_is_help=True,
 )(cook)
+
+app.command(
+    name="cook-volatile",
+    help=(
+        "Cook a car-portable recipe: diff two binaries, detect volatile "
+        "instructions (VIN, checksum stores), exclude the near-certain "
+        "ones, and record evidence in a 'volatile' recipe section."
+    ),
+    no_args_is_help=True,
+)(cook_volatile)
 
 # validate has real sub-commands (before / check / after) and uses
 # @app.command() internally — add_typer works correctly for it.
@@ -154,6 +191,24 @@ app.command(
 )(scan)
 
 app.command(
+    name="checksum",
+    help="Detect which checksum schemes a binary satisfies (OK/STALE detection, no correction).",
+    no_args_is_help=True,
+)(checksum_cmd)
+
+app.command(
+    name="health",
+    help="One-shot calibration health check: identity, checksums, axis sanity, map-count envelope, erased blocks, VINs. CI-gateable (--json).",
+    no_args_is_help=True,
+)(health_cmd)
+
+app.command(
+    name="scan-vins",
+    help="Locate VIN candidates in an ECU binary and score them.",
+    no_args_is_help=True,
+)(scan_vins_cmd)
+
+app.command(
     name="scan-maps",
     help=(
         "Scan an ECU binary for plausible calibration map axes and 2D tables.\n\n"
@@ -164,6 +219,18 @@ app.command(
     ),
     no_args_is_help=True,
 )(scan_maps)
+
+app.command(
+    name="diff-maps",
+    help=(
+        "Diff calibration maps between a stock and tuned ECU binary.\n\n"
+        "Scans both files, matches maps by axis fingerprint, and reports "
+        "cell-by-cell changes for each matched pair. "
+        "Useful for auditing a tune: which maps were modified, how aggressive "
+        "each change is, and whether anything looks suspicious."
+    ),
+    no_args_is_help=True,
+)(diff_maps)
 
 
 # ---------------------------------------------------------------------------

@@ -35,6 +35,22 @@ def entropy_backend() -> str:
 # ============================================================================
 
 
+def find_all_offsets(haystack: bytes, needle: bytes) -> list[int]:
+    """Return every offset where *needle* occurs (possibly overlapping) in
+    *haystack*, using CPython's ``bytes.find`` (Two-Way / FASTSEARCH)."""
+    if not needle:
+        return []
+    offsets: list[int] = []
+    pos = 0
+    while True:
+        p = haystack.find(needle, pos)
+        if p == -1:
+            break
+        offsets.append(p)
+        pos = p + 1
+    return offsets
+
+
 def count_unique_in_window(
     haystack: bytes,
     needle: bytes,
@@ -82,6 +98,11 @@ def find_unique_context(
             f"(file size: {len(data):,} bytes)."
         )
 
+    if min_size > max_size:
+        raise ValueError(
+            f"min_size ({min_size}) must be <= max_size ({max_size})."
+        )
+
     size = min_size
     while size <= max_size:
         ctx_start = max(0, change_offset - size)
@@ -89,7 +110,13 @@ def find_unique_context(
 
         actual_size = len(ctx)
         if actual_size == 0:
-            return b"", 0, 0.0, 0
+            # Degenerate case: change at offset 0 — no bytes before it to use
+            # as context.  The effective anchor is just ob (plus ctx_after,
+            # captured by the caller).  Return its real occurrence count so
+            # Guard 3 and the annotator see a truthful uniqueness signal
+            # instead of an ambiguous 0.
+            match_count = count_unique_in_window(data, ob, 0, len(data))
+            return b"", 0, 0.0, match_count
 
         entropy = shannon_entropy(ctx)
         anchor = ctx + ob

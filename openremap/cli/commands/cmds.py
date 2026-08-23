@@ -36,6 +36,10 @@ def _blank() -> None:
 # syntax is printed in bold green; description in normal white.
 _COMMANDS: list[tuple[str, str]] = [
     (
+        "openremap",
+        "Launch the full terminal UI (no arguments needed).",
+    ),
+    (
         "openremap commands",
         "This cheat-sheet — all commands at a glance.",
     ),
@@ -72,8 +76,48 @@ _COMMANDS: list[tuple[str, str]] = [
         "Same as above but output raw JSON — useful for scripting.",
     ),
     (
-        "openremap cook <STOCK> <TUNED> --output recipe.openremap",
+        "openremap health <FILE>",
+        "One-shot safety check — checksums, axes, map counts, VIN duplication.",
+    ),
+    (
+        "openremap checksum <FILE>",
+        "Verify known checksum schemes (OK/STALE detection, no correction).",
+    ),
+    (
+        "openremap scan-maps <FILE>",
+        "Structurally discover calibration map axes and 2D tables.",
+    ),
+    (
+        "openremap layout <FILE>",
+        "Flash-layout block map — erased/code/calibration/ident regions.",
+    ),
+    (
+        "openremap scan-vins <FILE>",
+        "Locate VIN candidates and score them (evidence-based, never a claim).",
+    ),
+    (
+        "openremap scan-maps <FILE> --export <DIR>",
+        "Export every found table as CSV files (WinOLS/ECM Titanium import).",
+    ),
+    (
+        "openremap diff-maps <STOCK> <TUNED>",
+        "Match calibration maps by axis fingerprint and diff cell-by-cell.",
+    ),
+    (
+        "openremap cook <STOCK> <TUNED> --output recipe.remap",
         "Diff two binaries and save every changed byte block as a recipe.",
+    ),
+    (
+        "openremap cook-volatile <STOCK> <TUNED> --output portable.remap",
+        "Cook a car-portable recipe — excludes volatile bytes (VIN, checksum stores) with evidence.",
+    ),
+    (
+        "openremap merge <A.remap> <B.remap> --stock <ORIGINAL>",
+        "Combine two recipes into one, validated against the common stock.",
+    ),
+    (
+        "openremap audit <STOCK> <TUNED> <RECIPE>",
+        "Receipt check — provenance, fingerprint, unaccounted changes.",
     ),
     (
         "openremap tune <TARGET> <RECIPE>",

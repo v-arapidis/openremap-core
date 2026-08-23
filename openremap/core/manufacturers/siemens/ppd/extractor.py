@@ -151,9 +151,6 @@ class SiemensPPDExtractor(BaseManufacturerExtractor):
         # PPD binaries do not embed a standalone hardware number.
         result["hardware_number"] = self._first_hit(raw_hits, "hw_sw_version")
 
-        # --- Step 9: Resolve displacement ---
-        result["displacement"] = self._first_hit(raw_hits, "displacement")
-
         # --- Step 10: Build compound match key ---
         result["match_key"] = self.build_match_key(
             ecu_family=ecu_family,

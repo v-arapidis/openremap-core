@@ -19,13 +19,8 @@ from typing import Optional
 
 import typer
 
-from openremap.core.services.confidence import ConfidenceResult, score_identity
-from openremap.core.services.identifier import identify_ecu
-
-app = typer.Typer(
-    help="Identify an ECU binary — manufacturer, family, software version, and more.",
-    no_args_is_help=True,
-)
+from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
+from openremap.core.services.identify.identifier import identify_ecu
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -94,9 +89,21 @@ def _format_table(result: dict) -> str:
 
 
 def _write_output(content: str, output: Optional[Path]) -> None:
-    """Write content to a file or stdout."""
+    """Write content to a file (creating parent directories) or stdout."""
     if output:
-        output.write_text(content, encoding="utf-8")
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(content, encoding="utf-8")
+        except OSError as exc:
+            typer.echo(
+                typer.style(
+                    f"Error: could not write output to '{output}': {exc}",
+                    fg=typer.colors.RED,
+                    bold=True,
+                ),
+                err=True,
+            )
+            raise typer.Exit(code=1)
         typer.echo(f"Saved to {output}")
     else:
         typer.echo(content)
@@ -107,11 +114,10 @@ def _write_output(content: str, output: Optional[Path]) -> None:
 # ---------------------------------------------------------------------------
 
 
-@app.callback(invoke_without_command=True)
 def identify(
     file: Path = typer.Argument(
         ...,
-        help="ECU binary file to identify (.bin or .ori).",
+        help="ECU binary file to identify (.bin, .ori, or .hex).",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -140,11 +146,11 @@ def identify(
     assessment of how reliably the binary was identified.
     """
     suffix = file.suffix.lower()
-    if suffix not in (".bin", ".ori"):
+    if suffix not in (".bin", ".ori", ".hex"):
         typer.echo(
             typer.style(
                 f"  ⚠  Unrecognised extension '{file.suffix}' — proceeding anyway. "
-                "Expected .bin or .ori.",
+                "Expected .bin, .ori, or .hex.",
                 fg=typer.colors.YELLOW,
             ),
             err=True,
@@ -179,7 +185,7 @@ def identify(
         )
         raise typer.Exit(code=1)
 
-    confidence = score_identity(result, filename=file.name)
+    confidence = score_identity(result, filename=file.name, data=data)
 
     if as_json:
         json_out = dict(result)
@@ -246,7 +252,6 @@ def identify(
 
     if output:
         plain = re.sub(r"\x1b\[[0-9;]*m", "", full_output)
-        output.write_text(plain, encoding="utf-8")
-        typer.echo(f"Saved to {output}")
+        _write_output(plain, output)
     else:
         typer.echo(full_output)

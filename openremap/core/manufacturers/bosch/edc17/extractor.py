@@ -528,14 +528,6 @@ class BoschExtractor(BaseManufacturerExtractor):
             # to avoid picking up garbage digit runs.
             return max(bosch_canonical, key=lambda c: len(c) if len(c) <= 18 else 0)
 
-        # Fallback — longest candidate, capped at 18 chars
-        valid = [c for c in candidates if len(c) <= 18]
-        if valid:
-            return max(valid, key=len)
-
-        # Last resort — shortest of whatever remains (least likely to be garbage)
-        return min(candidates, key=len)
-
     def _resolve_hardware_number(self, raw_hits: Dict[str, List[str]]) -> Optional[str]:
         """
         Resolve the hardware part number (e.g. "0281034791").

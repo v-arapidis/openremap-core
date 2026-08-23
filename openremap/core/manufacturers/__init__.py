@@ -25,6 +25,13 @@ Inter-manufacturer priority rationale:
                     implemented manufacturers because several Marelli extractors
                     use weaker heuristics (e.g. IAW 1AP has only a 3-byte "1ap"
                     anchor).
+    Denso         — SH7055/SH7058/SH72531/diesel Subaru-application families.
+                    Anchored on identity-block descriptors + CAL ID + Denso
+                    copyright strings.  Sizes (160K-1MB) are disjoint from the
+                    European families; runs after Marelli.
+    Hitachi       — SH72546 1.5/2MB Subaru-application family.  No fixed
+                    identity block; detected via a "T\\x00"-tagged CAL ID.
+                    Largest sizes in the registry; runs last.
 """
 
 from openremap.core.manufacturers.base import BaseManufacturerExtractor
@@ -32,6 +39,8 @@ from openremap.core.manufacturers import bosch
 from openremap.core.manufacturers import siemens
 from openremap.core.manufacturers import delphi
 from openremap.core.manufacturers import marelli
+from openremap.core.manufacturers import denso
+from openremap.core.manufacturers import hitachi
 
 # ---------------------------------------------------------------------------
 # Built-in registry — inter-manufacturer order.
@@ -43,6 +52,8 @@ BUILTIN_EXTRACTORS: list[BaseManufacturerExtractor] = [
     *siemens.EXTRACTORS,
     *delphi.EXTRACTORS,
     *marelli.EXTRACTORS,
+    *denso.EXTRACTORS,
+    *hitachi.EXTRACTORS,
 ]
 
 

@@ -1,7 +1,7 @@
 """
 Tests for the ``scan`` sub-command.
 
-The ``scan`` command processes a directory of binary files (.bin or .ori)
+The ``scan`` command processes a directory of binary files (.bin, .ori, or .hex)
 through all registered extractors and classifies each file into one of five
 categories:
 
@@ -112,6 +112,20 @@ class TestScanDryRun:
         output = result.stdout + result.stderr
         # Should mention "unknown"
         assert "unknown" in output.lower()
+
+    def test_scan_hex_extension_not_trash(self, tmp_path):
+        """A .hex file is scanned (Subaru dumps are raw binaries named .hex)."""
+        hex_file = tmp_path / "subaru.hex"
+        hex_file.write_bytes(_make_bin(1024))
+
+        result = runner.invoke(app, ["scan", str(tmp_path)])
+
+        assert result.exit_code == 0
+        output = result.stdout + result.stderr
+        # The zero-filled .hex is not recognised by any extractor, but it
+        # must be classified as UNKNOWN, not routed to trash.
+        assert "subaru.hex" in output
+        assert "Trash           0" in output
 
     def test_scan_does_not_move_files_in_dry_run(self, tmp_path):
         """In dry-run mode, files are not moved."""
@@ -507,6 +521,54 @@ class TestScanCombinedFlags:
         assert result.exit_code == 0
         assert report_file.exists()
 
+    def test_scan_move_report_file_size_is_real(self, tmp_path):
+        """--move + --report must record the file size captured before the move."""
+        test_file = tmp_path / "test.bin"
+        test_file.write_bytes(_make_bin(1024))
+        report_file = tmp_path / "report.json"
+
+        result = runner.invoke(
+            app,
+            [
+                "scan",
+                str(tmp_path),
+                "--move",
+                "--create-dirs",
+                "--report",
+                str(report_file),
+            ],
+        )
+
+        assert result.exit_code == 0
+        rows = json.loads(report_file.read_text(encoding="utf-8"))
+        assert rows, "report must contain at least one row"
+        assert rows[0]["file_size"] == 1024
+
+    def test_scan_move_report_trash_file_size_is_real(self, tmp_path):
+        """Wrong-extension file routed to trash with --move keeps its size."""
+        trash_file = tmp_path / "notes.txt"
+        trash_file.write_bytes(b"hello world")
+        report_file = tmp_path / "report.json"
+
+        result = runner.invoke(
+            app,
+            [
+                "scan",
+                str(tmp_path),
+                "--move",
+                "--create-dirs",
+                "--report",
+                str(report_file),
+            ],
+        )
+
+        assert result.exit_code == 0
+        rows = json.loads(report_file.read_text(encoding="utf-8"))
+        assert rows, "report must contain at least one row"
+        trash_rows = [r for r in rows if r["filename"] == "notes.txt"]
+        assert trash_rows
+        assert trash_rows[0]["file_size"] == len(b"hello world")
+
     def test_scan_organize_and_report_together(self, tmp_path):
         """--organize and --report can be used together."""
         test_file = tmp_path / "test.bin"
@@ -710,7 +772,7 @@ class TestRenderConfidenceTagDirect:
     def test_with_warnings_includes_warning_text(self):
         """A confidence result with warnings includes ⚠ and the warning text."""
         from openremap.cli.commands.scan import _render_confidence_tag
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -728,7 +790,7 @@ class TestRenderConfidenceTagDirect:
     def test_without_warnings_returns_tier_only(self):
         """A confidence result without warnings returns just the tier label."""
         from openremap.cli.commands.scan import _render_confidence_tag
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -754,7 +816,7 @@ class TestBuildReportRowDirect:
             ScanResult,
             DEST_UNKNOWN,
         )
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -1263,7 +1325,7 @@ class TestScanCLIUncoveredPaths:
         """Confidence tag (including warnings) is shown for SCANNED files (lines 688-692)."""
         from unittest.mock import MagicMock, patch
         from openremap.cli.commands.scan import ScanResult, DEST_SCANNED
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )

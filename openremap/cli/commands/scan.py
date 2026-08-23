@@ -10,7 +10,7 @@ sorts each file into one of five destination sub-folders:
   sw_missing — exactly one extractor claimed the file BUT match_key is None
   contested  — more than one extractor claimed the file
   unknown    — no extractor could handle the file
-  trash      — file does not have a .bin or .ori extension
+  trash      — file does not have a .bin, .ori, or .hex extension
 
 Running without any flags performs a safe dry-run preview — nothing is moved.
 Pass --move to actually sort files. Pass --organize to sort into
@@ -42,13 +42,15 @@ import typer
 
 from openremap.core.manufacturers import EXTRACTORS
 from openremap.core.manufacturers.base import BaseManufacturerExtractor
-from openremap.core.services.confidence import ConfidenceResult, score_identity
+from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-VALID_EXTENSIONS = {".bin", ".ori"}
+# .hex is accepted because Subaru (Denso/Hitachi) dumps conventionally ship
+# as raw binaries named ".hex" (RomRaider convention) — not Intel HEX text.
+VALID_EXTENSIONS = {".bin", ".ori", ".hex"}
 
 DEST_SCANNED = "scanned"
 DEST_SW_MISSING = "sw_missing"
@@ -244,9 +246,17 @@ def _build_report_row(
     confidence: Optional[ConfidenceResult],
     sha256: Optional[str],
     elapsed_ms: float,
+    size: Optional[int] = None,
 ) -> dict:
-    """Build a flat dict suitable for JSON / CSV report output."""
+    """Build a flat dict suitable for JSON / CSV report output.
+
+    *size* is the file size captured *before* any move operation.  When
+    omitted, it falls back to stating *filepath* (only correct when the
+    file has not been moved).
+    """
     extraction = result.extraction or {}
+    if size is None:
+        size = filepath.stat().st_size if filepath.exists() else None
     row: dict = {
         "filename": filepath.name,
         "destination": result.destination,
@@ -257,7 +267,7 @@ def _build_report_row(
         "hardware_number": extraction.get("hardware_number"),
         "calibration_id": extraction.get("calibration_id"),
         "match_key": extraction.get("match_key"),
-        "file_size": filepath.stat().st_size if filepath.exists() else None,
+        "file_size": size,
         "sha256": sha256,
         "elapsed_ms": round(elapsed_ms, 2),
     }
@@ -395,7 +405,7 @@ def scan(
         Path,
         typer.Argument(
             help=(
-                "Directory containing the raw .bin/.ori files to scan. "
+                "Directory containing the raw .bin/.ori/.hex files to scan. "
                 "Defaults to the current working directory."
             ),
             file_okay=False,
@@ -488,7 +498,7 @@ def scan(
       sw_missing — identified but match_key could not be extracted
       contested  — claimed by more than one extractor
       unknown    — no extractor matched
-      trash      — not a .bin or .ori file
+      trash      — not a .bin, .ori, or .hex file
 
     Use --organize to further sort scanned and sw_missing files into
     manufacturer/family sub-folders (e.g. scanned/Bosch/EDC17/).
@@ -620,6 +630,7 @@ def scan(
         # --- Wrong extension → trash ---
         if ext not in VALID_EXTENSIONS:
             actual_dest = dest[DEST_TRASH]
+            size = filepath.stat().st_size if filepath.exists() else None
             if not dry_run:
                 safe_move(filepath, actual_dest)
             counts[DEST_TRASH] += 1
@@ -633,6 +644,7 @@ def scan(
                         None,
                         None,
                         0.0,
+                        size,
                     )
                 )
             continue
@@ -666,6 +678,7 @@ def scan(
                         None,
                         None,
                         0.0,
+                        len(data),
                     )
                 )
             continue
@@ -695,7 +708,7 @@ def scan(
                 getattr(result.extractor, "detection_strength", None),
             )
 
-        confidence = score_identity(identity_for_scoring, filename=filepath.name)
+        confidence = score_identity(identity_for_scoring, filename=filepath.name, data=data)
 
         # --- SHA-256 for the report ---
         sha256_hex: Optional[str] = None
@@ -746,7 +759,9 @@ def scan(
         # --- Accumulate report row ---
         if report is not None:
             report_rows.append(
-                _build_report_row(filepath, result, confidence, sha256_hex, elapsed_ms)
+                _build_report_row(
+                    filepath, result, confidence, sha256_hex, elapsed_ms, len(data)
+                )
             )
 
     elapsed_total = time.perf_counter() - start_all

@@ -22,7 +22,7 @@ No arguments. No options. Just run it and read.
 |---|---|
 | **0** | Sort a folder of ECU binaries into a tidy library (optional) |
 | **1** | Read a stock binary — confirm it is a supported ECU |
-| **2** | Cook a recipe by comparing the stock and tuned binary |
+| **2** | Cook a recipe by comparing the stock and tuned binary (`openremap cook`). Applying to **another car** of the same SW revision? Use `openremap cook-volatile` — it excludes VIN/checksum-store bytes with evidence |
 | **3** | Apply the recipe — validate before → apply → validate after in one shot (`openremap tune`) |
 | **4** | Validate individually (advanced — only when Step 3 fails) |
 | **⚠ 5** | **MANDATORY** — correct checksums before flashing to any vehicle |

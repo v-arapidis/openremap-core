@@ -21,8 +21,3 @@ Modules:
     extractor — MarelliMJD6JFExtractor (BaseManufacturerExtractor subclass)
 """
 
-from openremap.core.manufacturers.marelli.mjd6jf.extractor import (
-    MarelliMJD6JFExtractor,
-)
-
-__all__ = ["MarelliMJD6JFExtractor"]

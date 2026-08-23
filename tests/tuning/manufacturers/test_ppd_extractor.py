@@ -576,26 +576,6 @@ class TestExtractCalibrationId:
 
 
 # ---------------------------------------------------------------------------
-# extract() — displacement
-# ---------------------------------------------------------------------------
-
-
-class TestExtractDisplacement:
-    def test_displacement_from_full_ident(self):
-        buf = make_buf(SIZE_2MB)
-        write(buf, 0x40000, OEM_PART_FULL)
-        result = EXTRACTOR.extract(bytes(buf))
-        assert result.get("displacement") is not None
-
-    def test_displacement_standalone(self):
-        buf = make_buf(SIZE_2MB)
-        write(buf, 0x100, PPD_FAMILY_12)
-        write(buf, 0x200, b"R4 2.0l")
-        result = EXTRACTOR.extract(bytes(buf))
-        assert result.get("displacement") is not None
-
-
-# ---------------------------------------------------------------------------
 # extract() — match key
 # ---------------------------------------------------------------------------
 

@@ -6,10 +6,10 @@ openremap validate after   <tuned>  <recipe>
 Validate ECU binaries against a recipe before or after tuning.
 
 Examples:
-    openremap validate before target.bin recipe.openremap
-    openremap validate check  target.bin recipe.openremap
-    openremap validate after  target_tuned.bin recipe.openremap
-    openremap validate before target.bin recipe.openremap --json
+    openremap validate before target.bin recipe.remap
+    openremap validate check  target.bin recipe.remap
+    openremap validate after  target_tuned.bin recipe.remap
+    openremap validate before target.bin recipe.remap --json
 
 Deprecated aliases (still work, hidden from --help):
     openremap validate strict  →  openremap validate before
@@ -25,9 +25,9 @@ from typing import Optional
 
 import typer
 
-from openremap.core.services.validate_exists import ECUExistenceValidator, MatchStatus
-from openremap.core.services.validate_patched import ECUPatchedValidator
-from openremap.core.services.validate_strict import ECUStrictValidator
+from openremap.core.services.recipes.validate_exists import ECUExistenceValidator, MatchStatus
+from openremap.core.services.recipes.validate_patched import ECUPatchedValidator
+from openremap.core.services.recipes.validate_strict import ECUStrictValidator
 
 app = typer.Typer(
     help=(
@@ -43,7 +43,7 @@ app = typer.Typer(
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-_ALLOWED_BIN = (".bin", ".ori")
+_ALLOWED_BIN = (".bin", ".ori", ".hex")
 
 
 def _read_bin(path: Path, label: str) -> bytes:
@@ -51,7 +51,7 @@ def _read_bin(path: Path, label: str) -> bytes:
     if path.suffix.lower() not in _ALLOWED_BIN:
         typer.echo(
             typer.style(
-                f"Error: {label} file '{path.name}' must be a .bin or .ori file.",
+                f"Error: {label} file '{path.name}' must be a .bin, .ori, or .hex file.",
                 fg=typer.colors.RED,
                 bold=True,
             ),
@@ -85,11 +85,11 @@ def _read_bin(path: Path, label: str) -> bytes:
 
 
 def _read_recipe(path: Path) -> dict:
-    """Read and parse a recipe .openremap (or legacy .json) file."""
-    if path.suffix.lower() not in (".openremap", ".json"):
+    """Read and parse a recipe .remap (or legacy .openremap/.json) file."""
+    if path.suffix.lower() not in (".remap", ".openremap", ".json"):
         typer.echo(
             typer.style(
-                f"Error: Recipe file '{path.name}' must be a .openremap or .json file.",
+                f"Error: Recipe file '{path.name}' must be a .remap, .openremap, or .json file.",
                 fg=typer.colors.RED,
                 bold=True,
             ),
@@ -325,6 +325,7 @@ def _run_check(
     exact = summary.get("exact", 0)
     shifted = summary.get("shifted", 0)
     missing = summary.get("missing", 0)
+    invalid = summary.get("invalid", 0)
 
     typer.echo("")
     _warn_line(size_warn, match_key_warn)
@@ -333,6 +334,7 @@ def _run_check(
         "safe_exact": typer.colors.GREEN,
         "shifted_recoverable": typer.colors.YELLOW,
         "missing_unrecoverable": typer.colors.RED,
+        "invalid_recipe": typer.colors.RED,
     }.get(verdict, typer.colors.WHITE)
 
     typer.echo(
@@ -360,6 +362,11 @@ def _run_check(
         typer.echo(
             f"  {'Missing':<{col}} "
             + typer.style(str(missing), fg=typer.colors.RED, bold=True)
+        )
+    if invalid:
+        typer.echo(
+            f"  {'Invalid':<{col}} "
+            + typer.style(str(invalid), fg=typer.colors.RED, bold=True)
         )
     typer.echo("")
 
@@ -401,7 +408,24 @@ def _run_check(
             )
         typer.echo("")
 
-    if verdict == "missing_unrecoverable":
+    # Print invalid detail
+    invalid_results = [
+        r
+        for r in report.get("results", [])
+        if r.get("status") == MatchStatus.INVALID.value
+    ]
+    if invalid_results:
+        typer.echo(
+            typer.style("  Invalid instructions:", fg=typer.colors.RED, bold=True)
+        )
+        for r in invalid_results:
+            typer.echo(
+                f"    #{r['instruction_index']:>4}  "
+                f"expected {r['offset_hex_expected']}  — {r['reason']}"
+            )
+        typer.echo("")
+
+    if verdict in ("missing_unrecoverable", "invalid_recipe"):
         raise typer.Exit(code=1)
 
 
@@ -522,7 +546,7 @@ def _run_after(
 def before(
     target: Path = typer.Argument(
         ...,
-        help="The untuned ECU binary to validate (.bin or .ori).",
+        help="The untuned ECU binary to validate (.bin, .ori, or .hex).",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -531,7 +555,7 @@ def before(
     ),
     recipe: Path = typer.Argument(
         ...,
-        help="The recipe .openremap file to validate against.",
+        help="The recipe .remap file to validate against.",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -571,7 +595,7 @@ def before(
 def check(
     target: Path = typer.Argument(
         ...,
-        help="The target ECU binary to search (.bin or .ori).",
+        help="The target ECU binary to search (.bin, .ori, or .hex).",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -580,7 +604,7 @@ def check(
     ),
     recipe: Path = typer.Argument(
         ...,
-        help="The recipe .openremap file to validate against.",
+        help="The recipe .remap file to validate against.",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -619,7 +643,7 @@ def check(
 def after(
     patched_file: Path = typer.Argument(
         ...,
-        help="The tuned ECU binary to verify (.bin or .ori).",
+        help="The tuned ECU binary to verify (.bin, .ori, or .hex).",
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -629,7 +653,7 @@ def after(
     ),
     recipe: Path = typer.Argument(
         ...,
-        help="The recipe .openremap file used during tuning.",
+        help="The recipe .remap file used during tuning.",
         exists=True,
         file_okay=True,
         dir_okay=False,

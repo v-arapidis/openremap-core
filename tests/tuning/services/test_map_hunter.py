@@ -6,7 +6,7 @@ import struct
 
 import pytest
 
-from openremap.core.services.map_hunter import (
+from openremap.core.services.maps.map_hunter import (
     MapAxis,
     MapTable,
     scan_map_axes,
@@ -359,3 +359,98 @@ class TestSharedAxisSeries:
         assert len(tables_1d) >= 2, f"Expected >= 2 1D tables, got {len(tables_1d)}"
         x_offs = {t.x_axis_offset for t in tables_1d}
         assert len(x_offs) == 1
+
+
+# ---------------------------------------------------------------------------
+# Compound table splitting — [X1][X2][Y][row-interleaved data]
+# ---------------------------------------------------------------------------
+
+
+def _make_compound(
+    x1: list[int],
+    x2: list[int],
+    y: list[int],
+    cells1: list[int],
+    cells2: list[int],
+    *,
+    prefix: bytes = b"\x00" * 32,
+) -> bytes:
+    """Lay out [prefix | X1 | X2 | Y | rows of (cells1 | cells2) interleaved]."""
+    assert len(cells1) == len(x1) * len(y)
+    assert len(cells2) == len(x2) * len(y)
+    rows = []
+    for r in range(len(y)):
+        rows.extend(cells1[r * len(x1) : (r + 1) * len(x1)])
+        rows.extend(cells2[r * len(x2) : (r + 1) * len(x2)])
+    return (
+        prefix
+        + _pack_u16(x1)
+        + _pack_u16(x2)
+        + _pack_u16(y)
+        + _pack_u16(rows)
+    )
+
+
+class TestCompoundSplitting:
+    """Two maps sharing a Y axis are split into strided halves."""
+
+    def test_splits_8plus8_compound(self) -> None:
+        x1 = [680, 685, 810, 925, 1045, 1120, 1255, 1280]
+        x2 = [1330, 1531, 1660, 1825, 1970, 2148, 2315, 2365]
+        y = [690, 715, 825, 955, 1070, 1175, 1270, 1310]
+        cells1 = [1000 + r * 80 + c * 30 for r in range(len(y)) for c in range(len(x1))]
+        cells2 = [300 + r * 40 + c * 15 for r in range(len(y)) for c in range(len(x2))]
+
+        data = _make_compound(x1, x2, y, cells1, cells2)
+        tables = scan_map_tables(data, min_score=0.4)
+
+        split = [t for t in tables if t.stride is not None]
+        assert len(split) == 2, f"expected 2 split halves, got {[(t.cols, t.rows) for t in split]}"
+        halves = sorted(split, key=lambda t: t.cols)
+        assert all(t.rows == 8 for t in halves)
+        assert all(t.stride == 32 for t in halves)
+        assert halves[0].cols == 8 and halves[1].cols == 8
+        assert halves[0].x_axis_offset == 32
+        assert halves[1].x_axis_offset == 32 + 8 * 2
+        assert halves[0].y_axis_offset == 32 + 16 * 2
+        assert halves[0].offset == 32 + 16 * 2 + 8 * 2
+        assert halves[1].offset == halves[0].offset + 8 * 2
+
+    def test_splits_10plus6_compound(self) -> None:
+        x1 = [1013, 1033, 1058, 1077, 1099, 1130, 1164, 1203, 1275, 1373]
+        x2 = [1438, 1473, 1503, 1544, 1609, 1687]
+        y = [1013, 1040, 1068, 1114, 1160, 1210]
+        cells1 = [900 + r * 80 + c * 40 for r in range(len(y)) for c in range(len(x1))]
+        cells2 = [300 + r * 30 + c * 15 for r in range(len(y)) for c in range(len(x2))]
+
+        data = _make_compound(x1, x2, y, cells1, cells2)
+        tables = scan_map_tables(data, min_score=0.4)
+
+        split = [t for t in tables if t.stride is not None]
+        assert len(split) == 2
+        halves = sorted(split, key=lambda t: t.cols)
+        assert halves[0].cols == 6 and halves[1].cols == 10
+        assert all(t.stride == 32 for t in halves)
+
+    def test_does_not_split_monotonic_single_map(self) -> None:
+        """A continuous ramp separates trivially but has no cliff — kept."""
+        x = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
+        y = [10, 20, 30, 40]
+        cells = [200 + r * 80 + c * 30 for r in range(len(y)) for c in range(len(x))]
+        data = _make_2d_table(x, y, cells, prefix=b"\x00" * 32)
+
+        tables = scan_map_tables(data, min_score=0.4)
+        assert all(t.stride is None for t in tables), "ramp must not split"
+
+    def test_split_halves_are_not_resplit(self) -> None:
+        """Split halves carry stride and must never be split again."""
+        x1 = [680, 685, 810, 925, 1045, 1120, 1255, 1280]
+        x2 = [1330, 1531, 1660, 1825, 1970, 2148, 2315, 2365]
+        y = [690, 715, 825, 955, 1070, 1175, 1270, 1310]
+        cells1 = [1000 + r * 80 + c * 30 for r in range(len(y)) for c in range(len(x1))]
+        cells2 = [300 + r * 40 + c * 15 for r in range(len(y)) for c in range(len(x2))]
+
+        data = _make_compound(x1, x2, y, cells1, cells2)
+        tables = scan_map_tables(data, min_score=0.4)
+        split = [t for t in tables if t.stride is not None]
+        assert all(t.cols < 10 for t in split), "8-col halves must not be resplit"

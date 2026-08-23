@@ -23,20 +23,10 @@ coverage.xml
 .env
 .env.*
 plugins/
-changes/
-docs/offset-matching-audit.md
-docs/remaining-audit-items.md
-todo/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/
 *.log
-
-# ── ECU binary files — never commit real ECU binaries ────────────────────────
-*.bin
-*.ori
-*.BIN
-*.ORI
 
 # ── Rust native extension (compiled + build artefacts) ──────────────────────
 openremap/_rust*.so
@@ -48,10 +38,33 @@ openremap/_rs/target/
 # ── Editor & OS ───────────────────────────────────────────────────────────────
 .idea/
 .vscode/
-CLAUDE.md
-todo.md
-tests/data/
 *.swp
 *.swo
 .DS_Store
 Thumbs.db
+
+# ---- Plans and Fixes ----------------------------------------
+fix.md
+todo.md
+docs/offset-matching-audit.md
+docs/remaining-audit-items.md
+changes/
+todo/
+archive/
+
+# --- Agents ---------------------------------
+.claude/
+CLAUDE.md
+opencode.json
+AGENTS.md
+
+# -----Testing Data - Never Commit! ------------
+tests/data/
+*.bin
+*.ori
+*.BIN
+*.ORI
+benchmarks/
+review/
+report.md
+notes/

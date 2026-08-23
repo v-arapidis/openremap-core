@@ -38,8 +38,8 @@ import pytest
 from typer.testing import CliRunner
 
 from tests.conftest import make_bin_with
-from openremap.cli.commands.cook import app as cook_app
-from openremap.core.services.recipe_builder import ECUDiffAnalyzer
+from openremap.cli.main import app as cook_app
+from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ class TestIdentityMatchGuard:
         orig = _build(512)
         mod = _build(512, {0: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[{"match_key": None}, {"match_key": "EDC17::12345"}],
         ):
             a = _analyzer(orig, mod)
@@ -188,7 +188,7 @@ class TestIdentityMatchGuard:
         orig = _build(512)
         mod = _build(512, {0: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[{"match_key": "ME7::99999"}, {"match_key": None}],
         ):
             a = _analyzer(orig, mod)
@@ -198,7 +198,7 @@ class TestIdentityMatchGuard:
         orig = _build(512)
         mod = _build(512, {0: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::11111", "ecu_family": "ME7"},
                 {"match_key": "EDC17::22222", "ecu_family": "EDC17"},
@@ -214,7 +214,7 @@ class TestIdentityMatchGuard:
         orig = _build(512)
         mod = _build(512, {0: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::11111", "ecu_family": "ME7"},
                 {"match_key": "EDC17::22222", "ecu_family": "EDC17"},
@@ -229,7 +229,7 @@ class TestIdentityMatchGuard:
         orig = _build(512)
         mod = _build(512, {100: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::11111", "ecu_family": "ME7"},
                 {"match_key": "ME7::11111", "ecu_family": "ME7"},
@@ -242,7 +242,7 @@ class TestIdentityMatchGuard:
         orig = _build(512)
         mod = _build(512, {0: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=RuntimeError("identification failed"),
         ):
             a = _analyzer(orig, mod)
@@ -253,7 +253,7 @@ class TestIdentityMatchGuard:
         orig = _build(512)
         mod = _build(512, {100: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::11111", "ecu_family": "ME7"},
                 {"match_key": "EDC17::22222", "ecu_family": "EDC17"},
@@ -302,7 +302,7 @@ class TestCookWarningsAPI:
         orig = _build(512)
         mod = _build(512, {100: 0xFF})
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::A", "ecu_family": "ME7"},
                 {"match_key": "EDC17::B", "ecu_family": "EDC17"},
@@ -334,7 +334,7 @@ class TestCookWarningsAPI:
         mod[100] = 0xFF
         mod = bytes(mod)
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::A", "ecu_family": "ME7"},
                 {"match_key": "EDC17::B", "ecu_family": "EDC17"},
@@ -407,7 +407,7 @@ class TestCookWarningsAPI:
 
         a = _analyzer(orig, mod)
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=all_responses,
         ):
             a.build_recipe()
@@ -656,7 +656,7 @@ class TestBuildRecipeGuardOrder:
             return {"match_key": "FAKE::KEY", "ecu_family": "FAKE"}
 
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=counting_identify,
         ):
             with pytest.raises(ValueError, match="size mismatch"):
@@ -680,7 +680,7 @@ class TestBuildRecipeGuardOrder:
             return {"match_key": None}
 
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=counting_identify,
         ):
             a.build_recipe()
@@ -717,13 +717,13 @@ class TestCookCLISizeMismatch:
     def test_exit_code_1_on_size_mismatch(self, tmp_path):
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 512)
-        result = runner.invoke(cook_app, [str(orig), str(mod)])
+        result = runner.invoke(cook_app, ["cook", str(orig), str(mod)])
         assert result.exit_code == 1
 
     def test_error_message_mentions_size(self, tmp_path):
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 512)
-        result = runner.invoke(cook_app, [str(orig), str(mod)])
+        result = runner.invoke(cook_app, ["cook", str(orig), str(mod)])
         assert (
             "size" in result.output.lower() or "size" in (result.stderr or "").lower()
         )
@@ -732,13 +732,14 @@ class TestCookCLISizeMismatch:
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 512)
         output = tmp_path / "out.openremap"
-        runner.invoke(cook_app, [str(orig), str(mod), "--output", str(output)])
+        runner.invoke(cook_app, ["cook", str(orig), str(mod), "--output", str(output)])
         assert not output.exists()
 
     def test_exit_code_0_on_same_size(self, tmp_path):
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 1024, {100: 0xAA})
-        result = runner.invoke(cook_app, [str(orig), str(mod)])
+        result = runner.invoke(cook_app, ["cook", "--allow-non-unique", str(orig), str(mod)]
+        )
         assert result.exit_code == 0
 
 
@@ -764,7 +765,7 @@ class TestCookCLIIdentityWarning:
         mod = self._write_bin(tmp_path, "mod.bin", _build(512, {100: 0xFF}))
 
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::11111", "ecu_family": "ME7"},
                 {"match_key": "EDC17::22222", "ecu_family": "EDC17"},
@@ -781,7 +782,7 @@ class TestCookCLIIdentityWarning:
                 },
             ],
         ):
-            result = runner.invoke(cook_app, [str(orig), str(mod)])
+            result = runner.invoke(cook_app, ["cook", str(orig), str(mod)])
 
         combined = result.output + (result.stderr or "")
         assert "warning" in combined.lower() or "mismatch" in combined.lower()
@@ -791,7 +792,7 @@ class TestCookCLIIdentityWarning:
         mod = self._write_bin(tmp_path, "mod.bin", _build(512, {100: 0xFF}))
 
         with patch(
-            "openremap.core.services.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.recipe_builder.identify_ecu",
             side_effect=[
                 {"match_key": "ME7::11111", "ecu_family": "ME7"},
                 {"match_key": "EDC17::22222", "ecu_family": "EDC17"},
@@ -808,7 +809,8 @@ class TestCookCLIIdentityWarning:
                 },
             ],
         ):
-            result = runner.invoke(cook_app, [str(orig), str(mod)])
+            result = runner.invoke(cook_app, ["cook", "--allow-non-unique", str(orig), str(mod)]
+            )
 
         assert result.exit_code == 0
 
@@ -816,7 +818,55 @@ class TestCookCLIIdentityWarning:
         orig = self._write_bin(tmp_path, "orig.bin", _build(512))
         mod = self._write_bin(tmp_path, "mod.bin", _build(512, {100: 0xFF}))
         # No patch — identify_ecu returns no match_key for unknown bins
-        result = runner.invoke(cook_app, [str(orig), str(mod)])
+        result = runner.invoke(cook_app, ["cook", "--allow-non-unique", str(orig), str(mod)]
+        )
         combined = result.output + (result.stderr or "")
         assert "mismatch" not in combined.lower()
         assert result.exit_code == 0
+
+
+# ===========================================================================
+# Offset-0 changes — degenerate context must be flagged consistently
+# ===========================================================================
+
+
+class TestOffsetZeroGuard:
+    """A change at offset 0 has no context bytes; the effective anchor is ob."""
+
+    def test_offset_zero_unique_ob_passes_guard3(self):
+        """Unique ob at offset 0 passes Guard 3 and emits ctx_unique=True."""
+        orig = bytes(range(256))  # 0x00 appears exactly once
+        mod = bytearray(orig)
+        mod[0] = 0x01
+        a = ECUDiffAnalyzer(
+            bytes(orig), bytes(mod), "a.bin", "b.bin", context_size=16,
+        )
+        recipe = a.build_recipe()  # require_unique=True (default)
+        inst = recipe["instructions"][0]
+        assert inst["ctx"] == ""
+        assert inst["ctx_unique"] is True
+
+    def test_offset_zero_non_unique_ob_raises_with_require_unique(self):
+        """Repetitive ob at offset 0 → Guard 3 hard error (require_unique=True)."""
+        orig = bytes(1024)  # all zeros — ob 0x00 appears everywhere
+        mod = bytearray(orig)
+        mod[0] = 0xFF
+        a = ECUDiffAnalyzer(
+            orig, bytes(mod), "a.bin", "b.bin", context_size=16,
+        )
+        with pytest.raises(ValueError, match="non-unique"):
+            a.build_recipe()
+
+    def test_offset_zero_non_unique_ob_warns_without_require_unique(self):
+        """With require_unique=False the same cook records a warning instead."""
+        orig = bytes(1024)
+        mod = bytearray(orig)
+        mod[0] = 0xFF
+        a = ECUDiffAnalyzer(
+            orig, bytes(mod), "a.bin", "b.bin", context_size=16,
+            require_unique=False,
+        )
+        recipe = a.build_recipe()
+        inst = recipe["instructions"][0]
+        assert inst["ctx_unique"] is False
+        assert any("non-unique" in w for w in recipe["ecu"]["cook_warnings"])

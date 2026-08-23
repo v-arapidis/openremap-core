@@ -33,6 +33,7 @@ from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.message import Message
 from textual.widgets import (
     Button,
+    Checkbox,
     ContentSwitcher,
     DataTable,
     Footer,
@@ -54,13 +55,13 @@ from openremap.cli.commands.scan import (
     _safe_folder_name,
 )
 from openremap.core.manufacturers import EXTRACTORS
-from openremap.core.services.confidence import ConfidenceResult, score_identity
-from openremap.core.services.identifier import identify_ecu
-from openremap.core.services.patcher import ECUPatcher
-from openremap.core.services.recipe_builder import ECUDiffAnalyzer
-from openremap.core.services.validate_exists import ECUExistenceValidator, MatchStatus
-from openremap.core.services.validate_patched import ECUPatchedValidator
-from openremap.core.services.validate_strict import ECUStrictValidator
+from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
+from openremap.core.services.identify.identifier import identify_ecu
+from openremap.core.services.recipes.patcher import ECUPatcher
+from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
+from openremap.core.services.recipes.validate_exists import ECUExistenceValidator, MatchStatus
+from openremap.core.services.recipes.validate_patched import ECUPatchedValidator
+from openremap.core.services.recipes.validate_strict import ECUStrictValidator
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -86,19 +87,19 @@ def _pick_file(
     if mode == "bin":
         zenity_filter = [
             "--file-filter",
-            "ECU binaries | *.bin *.ori",
+            "ECU binaries | *.bin *.ori *.hex",
             "--file-filter",
             "All files | *",
         ]
-        kdialog_filter = "*.bin *.ori"
+        kdialog_filter = "*.bin *.ori *.hex"
     elif mode == "json":
         zenity_filter = [
             "--file-filter",
-            "Recipe | *.openremap *.json",
+            "Recipe | *.remap *.openremap *.json",
             "--file-filter",
             "All files | *",
         ]
-        kdialog_filter = "*.openremap *.json"
+        kdialog_filter = "*.remap *.openremap *.json"
     else:
         zenity_filter = ["--file-filter", "All files | *"]
         kdialog_filter = "*"
@@ -179,7 +180,7 @@ def _pick_file(
         if mode == "bin":
             filetypes = [("ECU binaries", "*.bin *.ori"), ("All files", "*.*")]
         elif mode == "json":
-            filetypes = [("Recipe", "*.openremap *.json"), ("All files", "*.*")]
+            filetypes = [("Recipe", "*.remap *.openremap *.json"), ("All files", "*.*")]
         else:
             filetypes = [("All files", "*.*")]
 
@@ -351,21 +352,21 @@ def _pick_save_file(
     if mode == "json":
         zenity_filter = [
             "--file-filter",
-            "Recipe | *.openremap",
+            "Recipe | *.remap *.openremap",
             "--file-filter",
             "All files | *",
         ]
-        kdialog_filter = "*.openremap"
-        tk_filetypes = [("Recipe", "*.openremap"), ("All files", "*.*")]
-        tk_defaultext = ".openremap"
+        kdialog_filter = "*.remap *.openremap"
+        tk_filetypes = [("Recipe", "*.remap *.openremap"), ("All files", "*.*")]
+        tk_defaultext = ".remap"
     else:
         zenity_filter = [
             "--file-filter",
-            "ECU binaries | *.bin *.ori",
+            "ECU binaries | *.bin *.ori *.hex",
             "--file-filter",
             "All files | *",
         ]
-        kdialog_filter = "*.bin *.ori"
+        kdialog_filter = "*.bin *.ori *.hex"
         tk_filetypes = [("ECU binaries", "*.bin *.ori"), ("All files", "*.*")]
         tk_defaultext = ".bin"
 
@@ -778,7 +779,7 @@ class IdentifyPanel(Vertical):
                 self.post_message(IdentifyFailed("File is empty."))
                 return
             result = identify_ecu(data=data, filename=path.name)
-            confidence = score_identity(result, filename=path.name)
+            confidence = score_identity(result, filename=path.name, data=data)
             self.post_message(IdentifyDone(result, confidence, path.name, path))
         except OSError as exc:
             self.post_message(IdentifyFailed(f"Read error: {exc}"))
@@ -1087,7 +1088,7 @@ class ScanPanel(Vertical):
                     )
                     continue
                 result = identify_ecu(data=data, filename=f.name)
-                confidence = score_identity(result, filename=f.name)
+                confidence = score_identity(result, filename=f.name, data=data)
                 scan_result = classify_file(data=data, filename=f.name)
                 rows.append((rel_name, result, confidence))
                 classified.append((f, scan_result))
@@ -1231,7 +1232,7 @@ class CookPanel(Vertical):
                 with Vertical(classes="field-col-last"):
                     yield Static("Output recipe", classes="field-label")
                     yield Input(
-                        placeholder="/path/to/recipe.openremap", id="cook-output-input"
+                        placeholder="/path/to/recipe.remap", id="cook-output-input"
                     )
                     yield Button(
                         "💾  Save as…",
@@ -1240,6 +1241,10 @@ class CookPanel(Vertical):
                     )
             with Horizontal(classes="btn-row"):
                 yield Button("COOK", id="btn-cook", classes="btn-primary")
+            yield Checkbox(
+                "Allow non-unique anchors  (recipe usable only on THIS binary)",
+                id="cook-allow-nonunique",
+            )
             with ScrollableContainer(id="cook-result"):
                 yield Static(
                     Text(
@@ -1289,7 +1294,7 @@ class CookPanel(Vertical):
         # Auto-fill output into the OpenRemap folder if still empty
         out_input = self.query_one("#cook-output-input", Input)
         if not out_input.value.strip():
-            default = _recipes_dir() / (message.path.stem + "_recipe.openremap")
+            default = _recipes_dir() / (message.path.stem + "_recipe.remap")
             out_input.value = str(default)
 
     @on(FilePickedForCookMod)
@@ -1357,9 +1362,9 @@ class CookPanel(Vertical):
             suggested = Path(out_str)
         elif orig_str:
             p = Path(orig_str)
-            suggested = _recipes_dir() / (p.stem + "_recipe.openremap")
+            suggested = _recipes_dir() / (p.stem + "_recipe.remap")
         else:
-            suggested = _recipes_dir() / "recipe.openremap"
+            suggested = _recipes_dir() / "recipe.remap"
         picked = _pick_save_file(suggested, mode="json", title="Save recipe as…")
         if picked is not None:
             self.post_message(FilePickedForCookOutput(picked))
@@ -1372,7 +1377,13 @@ class CookPanel(Vertical):
             )
 
     @work(exclusive=True, thread=True)
-    def _do_cook(self, original: Path, modified: Path, output: Optional[Path]) -> None:
+    def _do_cook(
+        self,
+        original: Path,
+        modified: Path,
+        output: Optional[Path],
+        allow_non_unique: bool = False,
+    ) -> None:
         try:
             original_data = original.read_bytes()
             modified_data = modified.read_bytes()
@@ -1381,8 +1392,15 @@ class CookPanel(Vertical):
                 modified_data=modified_data,
                 original_filename=original.name,
                 modified_filename=modified.name,
+                require_unique=not allow_non_unique,
             )
             recipe = analyzer.build_recipe()
+            try:
+                from openremap.core.services.recipes.recipe_maps import attach_maps
+
+                attach_maps(recipe, original_data)
+            except Exception:
+                pass  # annotation is best-effort — never block a cook
             warnings = analyzer.cook_warnings()
             flagged = [
                 inst for inst in recipe.get("instructions", []) if inst.get("flags")
@@ -1397,7 +1415,19 @@ class CookPanel(Vertical):
         except OSError as exc:
             self.post_message(CookFailed(f"File read error: {exc}"))
         except ValueError as exc:
-            self.post_message(CookFailed(str(exc)))
+            msg = str(exc)
+            if "non-unique context" in msg:
+                self.post_message(
+                    CookFailed(
+                        f"{msg}\n\nContext anchors appear more than once in the "
+                        "stock binary — this recipe could patch the WRONG location "
+                        "on a different software revision.\nEnable "
+                        "\"Allow non-unique anchors\" only if the recipe will be "
+                        "applied to this exact binary."
+                    )
+                )
+            else:
+                self.post_message(CookFailed(msg))
         except Exception as exc:
             self.post_message(CookFailed(str(exc)))
 
@@ -1419,11 +1449,11 @@ class CookPanel(Vertical):
 
         orig = Path(orig_str)
         mod = Path(mod_str)
-        # Default output: OpenRemap folder, named <orig_stem>_recipe.openremap
+        # Default output: OpenRemap folder, named <orig_stem>_recipe.remap
         out = (
             Path(out_str)
             if out_str
-            else _recipes_dir() / (orig.stem + "_recipe.openremap")
+            else _recipes_dir() / (orig.stem + "_recipe.remap")
         )
 
         for p, label in ((orig, "Original"), (mod, "Modified")):
@@ -1437,7 +1467,10 @@ class CookPanel(Vertical):
         self.query_one("#cook-display", Static).update(
             Text("\n  Cooking recipe…", style="dim")
         )
-        self._do_cook(orig, mod, out)
+        allow_non_unique = self.query_one(
+            "#cook-allow-nonunique", Checkbox
+        ).value
+        self._do_cook(orig, mod, out, allow_non_unique)
 
     def _render_cook_result(
         self,
@@ -1541,9 +1574,9 @@ class TunePanel(Vertical):
                         classes="btn-secondary",
                     )
                 with Vertical(classes="field-col"):
-                    yield Static("Recipe  (.openremap)", classes="field-label")
+                    yield Static("Recipe  (.remap)", classes="field-label")
                     yield Input(
-                        placeholder="/path/to/recipe.openremap", id="tune-recipe-input"
+                        placeholder="/path/to/recipe.remap", id="tune-recipe-input"
                     )
                     yield Button(
                         "📂  Browse recipe",
@@ -1749,13 +1782,6 @@ class TunePanel(Vertical):
             )
             return
 
-        try:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_bytes(tuned_bytes)
-        except OSError as exc:
-            self.post_message(TuneFailed(f"Cannot write output: {exc}"))
-            return
-
         # ── Phase 3 — validate after ──────────────────────────────────────
         try:
             v3 = ECUPatchedValidator(
@@ -1769,6 +1795,19 @@ class TunePanel(Vertical):
             p3_ok = p3_report.get("summary", {}).get("patch_confirmed", False)
         except Exception as exc:
             self.post_message(TuneFailed(f"Phase 3 error: {exc}"))
+            return
+
+        if not p3_ok:
+            self.post_message(
+                TuneDone(p1_ok, p2_ok, False, p1_report, p2_report, p3_report, output_path)
+            )
+            return
+
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(tuned_bytes)
+        except OSError as exc:
+            self.post_message(TuneFailed(f"Cannot write output: {exc}"))
             return
 
         self.post_message(
@@ -1990,9 +2029,9 @@ class ValidatePanel(Vertical):
                     id="btn-browse-validate-bin",
                     classes="btn-secondary",
                 )
-            yield Static("Recipe  (.openremap)", classes="field-label")
+            yield Static("Recipe  (.remap)", classes="field-label")
             yield Input(
-                placeholder="/path/to/recipe.openremap", id="validate-recipe-input"
+                placeholder="/path/to/recipe.remap", id="validate-recipe-input"
             )
             with Horizontal(classes="btn-row"):
                 yield Button(

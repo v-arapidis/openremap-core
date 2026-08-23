@@ -1,13 +1,19 @@
 """
-Tests for ``openremap cook <original> <modified> [--output <recipe.openremap>]`.
+Tests for ``openremap cook <original> <modified> [--output <recipe.remap>]`.
 
 Runs every scenario through the real CLI via typer.testing.CliRunner.
 No mocking — all files are created in pytest's tmp_path fixture.
 
 Exit-code contract (derived from the cook command source):
   0  — success (recipe built, regardless of instruction count)
-  1  — bad input (wrong extension, empty file, or I/O error caught in the command)
+  1  — bad input (wrong extension, empty file, or I/O error caught in the
+       command), or non-unique context anchors when --allow-non-unique is
+       not passed (Guard 3 — the strict default)
   2  — missing file (Click enforces exists=True on both Path arguments)
+
+Note: the synthetic test binaries are zero-filled, which produces non-unique
+context anchors — the success-path tests below pass --allow-non-unique.
+Strict-default behaviour is covered by TestRequireUniqueStrict.
 """
 
 import json
@@ -68,10 +74,10 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(data)
         modified.write_bytes(data)
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -85,10 +91,10 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -102,7 +108,7 @@ class TestCookSuccess:
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
 
-        result = runner.invoke(app, ["cook", str(original), str(modified)])
+        result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 0, result.output
         recipe = _parse_json_from_stdout(result.stdout)
@@ -114,10 +120,10 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {200: 0xFF}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -132,12 +138,13 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         result = runner.invoke(
             app,
             [
                 "cook",
+                "--allow-non-unique",
                 str(original),
                 str(modified),
                 "--output",
@@ -160,12 +167,13 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         result = runner.invoke(
             app,
             [
                 "cook",
+                "--allow-non-unique",
                 str(original),
                 str(modified),
                 "--output",
@@ -186,10 +194,10 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.ori"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -200,10 +208,10 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         recipe = json.loads(output.read_text())
@@ -216,10 +224,10 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         recipe = json.loads(output.read_text())
@@ -235,10 +243,10 @@ class TestCookSuccess:
         original.write_bytes(_make_bin(1024))
         # Change byte at offset 100 from 0x00 to 0xAA
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         recipe = json.loads(output.read_text())
@@ -252,10 +260,10 @@ class TestCookSuccess:
         # Original has 0x00 at offset 100; modified has 0xAA there.
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         recipe = json.loads(output.read_text())
@@ -272,10 +280,10 @@ class TestCookSuccess:
         modified = tmp_path / "tuned.bin"
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA, 500: 0xBB}))
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -314,7 +322,7 @@ class TestCookFileErrors:
         original.chmod(0o000)
 
         try:
-            result = runner.invoke(app, ["cook", str(original), str(modified)])
+            result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
             assert result.exit_code in (1, 2)
             error_text = result.stderr + result.stdout
             assert "error" in error_text.lower() or "read" in error_text.lower()
@@ -334,7 +342,7 @@ class TestCookFileErrors:
         modified.chmod(0o000)
 
         try:
-            result = runner.invoke(app, ["cook", str(original), str(modified)])
+            result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
             assert result.exit_code in (1, 2)
             error_text = result.stderr + result.stdout
             assert "error" in error_text.lower() or "read" in error_text.lower()
@@ -355,13 +363,13 @@ class TestCookEdgeCases:
         """Cook can handle very small binary files (e.g., 1 byte)."""
         original = tmp_path / "original.bin"
         modified = tmp_path / "modified.bin"
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         original.write_bytes(b"\x00")
         modified.write_bytes(b"\xff")
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -375,13 +383,13 @@ class TestCookEdgeCases:
         size = 10 * 1024 * 1024
         original = tmp_path / "original.bin"
         modified = tmp_path / "modified.bin"
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         original.write_bytes(_make_bin(size))
         modified.write_bytes(_make_bin(size, {100: 0xAA}))
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -392,13 +400,13 @@ class TestCookEdgeCases:
         data = _make_bin(1024)
         original = tmp_path / "original.bin"
         modified = tmp_path / "modified.bin"
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         original.write_bytes(data)
         modified.write_bytes(data)
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -410,13 +418,13 @@ class TestCookEdgeCases:
         """Cook rejects files of different sizes with exit code 1."""
         original = tmp_path / "original.bin"
         modified = tmp_path / "modified.bin"
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(2048))  # Different size
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 1
@@ -426,7 +434,7 @@ class TestCookEdgeCases:
         """Cook correctly handles recipes with many changes."""
         original = tmp_path / "original.bin"
         modified = tmp_path / "modified.bin"
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         original_data = _make_bin(1024)
         patches = {i * 10: 0xFF for i in range(100)}  # 100 changes
@@ -436,7 +444,7 @@ class TestCookEdgeCases:
         modified.write_bytes(modified_data)
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -457,11 +465,11 @@ class TestCookEdgeCases:
         # because the path already exists as a regular file.
         parent_is_file = tmp_path / "somefile.bin"
         parent_is_file.write_bytes(b"\x00")
-        output = parent_is_file / "recipe.openremap"  # parent is a file, not a dir
+        output = parent_is_file / "recipe.remap"  # parent is a file, not a dir
 
         result = runner.invoke(
             app,
-            ["cook", str(original), str(modified), "--output", str(output)],
+            ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)],
         )
 
         # Should fail because mkdir raises OSError (FileExistsError / NotADirectoryError)
@@ -471,13 +479,13 @@ class TestCookEdgeCases:
         """Cooked recipe statistics are accurate."""
         original = tmp_path / "original.bin"
         modified = tmp_path / "modified.bin"
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
 
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024, {100: 0xAA, 200: 0xBB}))
 
         result = runner.invoke(
-            app, ["cook", str(original), str(modified), "--output", str(output)]
+            app, ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)]
         )
 
         assert result.exit_code == 0, result.output
@@ -507,7 +515,7 @@ class TestCookErrors:
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024))
 
-        result = runner.invoke(app, ["cook", str(original), str(modified)])
+        result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 1
         error_text = result.stderr + result.stdout
@@ -520,7 +528,7 @@ class TestCookErrors:
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024))
 
-        result = runner.invoke(app, ["cook", str(original), str(modified)])
+        result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 1
 
@@ -531,7 +539,7 @@ class TestCookErrors:
         original.write_bytes(_make_bin(1024))
         modified.write_bytes(_make_bin(1024))
 
-        result = runner.invoke(app, ["cook", str(original), str(modified)])
+        result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 1
 
@@ -578,7 +586,7 @@ class TestCookReadAndWriteErrors:
         modified.write_bytes(b"\x00" * 1024)
 
         with patch("pathlib.Path.read_bytes", side_effect=OSError("permission denied")):
-            result = runner.invoke(app, ["cook", str(original), str(modified)])
+            result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 1
         combined = result.stdout + result.stderr
@@ -591,7 +599,7 @@ class TestCookReadAndWriteErrors:
         original.write_bytes(b"")  # empty — triggers the empty-file branch
         modified.write_bytes(b"\x00" * 1024)
 
-        result = runner.invoke(app, ["cook", str(original), str(modified)])
+        result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 1
         combined = result.stdout + result.stderr
@@ -604,7 +612,7 @@ class TestCookReadAndWriteErrors:
         original.write_bytes(b"\x00" * 1024)
         modified.write_bytes(b"")  # empty — triggers the empty-file branch
 
-        result = runner.invoke(app, ["cook", str(original), str(modified)])
+        result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 1
         combined = result.stdout + result.stderr
@@ -616,14 +624,14 @@ class TestCookReadAndWriteErrors:
 
         original = tmp_path / "stock.bin"
         modified = tmp_path / "tuned.bin"
-        output = tmp_path / "recipe.openremap"
+        output = tmp_path / "recipe.remap"
         original.write_bytes(b"\x00" * 1024)
         modified.write_bytes(b"\x01" * 1024)  # one byte differs → one instruction
 
         with patch("pathlib.Path.write_text", side_effect=OSError("disk full")):
             result = runner.invoke(
                 app,
-                ["cook", str(original), str(modified), "--output", str(output)],
+                ["cook", "--allow-non-unique", str(original), str(modified), "--output", str(output)],
             )
 
         assert result.exit_code == 1
@@ -643,8 +651,239 @@ class TestCookReadAndWriteErrors:
             "openremap.cli.commands.cook.ECUDiffAnalyzer",
             side_effect=RuntimeError("diff engine crashed"),
         ):
-            result = runner.invoke(app, ["cook", str(original), str(modified)])
+            result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
 
         assert result.exit_code == 1
         combined = result.stdout + result.stderr
         assert "error" in combined.lower() or "cook failed" in combined.lower()
+
+
+# ---------------------------------------------------------------------------
+# TestRequireUniqueStrict — Guard 3 strict default + opt-out
+# ---------------------------------------------------------------------------
+
+
+class TestRequireUniqueStrict:
+    def test_non_unique_anchors_fail_by_default(self, tmp_path):
+        """Zero-filled data → non-unique anchors → cook aborts with exit 1."""
+        original = tmp_path / "stock.bin"
+        modified = tmp_path / "tuned.bin"
+        output = tmp_path / "recipe.remap"
+        original.write_bytes(_make_bin(1024))
+        modified.write_bytes(_make_bin(1024, {100: 0xAA}))
+
+        result = runner.invoke(
+            app,
+            ["cook", str(original), str(modified), "--output", str(output)],
+        )
+
+        assert result.exit_code == 1
+        combined = result.stdout + result.stderr
+        assert "non-unique" in combined.lower()
+        assert "--allow-non-unique" in combined
+        assert not output.exists()
+
+    def test_allow_non_unique_succeeds_with_warning(self, tmp_path):
+        original = tmp_path / "stock.bin"
+        modified = tmp_path / "tuned.bin"
+        output = tmp_path / "recipe.remap"
+        original.write_bytes(_make_bin(1024))
+        modified.write_bytes(_make_bin(1024, {100: 0xAA}))
+
+        result = runner.invoke(
+            app,
+            [
+                "cook",
+                "--allow-non-unique",
+                str(original),
+                str(modified),
+                "--output",
+                str(output),
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert output.exists()
+        combined = result.stdout + result.stderr
+        assert "non-unique" in combined.lower()
+
+    def test_unique_anchors_succeed_without_flag(self, tmp_path):
+        """High-entropy data → unique anchors → strict default still cooks."""
+        import os
+
+        original = tmp_path / "stock.bin"
+        modified = tmp_path / "tuned.bin"
+        output = tmp_path / "recipe.remap"
+        data = bytearray(os.urandom(1024))
+        original.write_bytes(bytes(data))
+        mod = bytearray(data)
+        mod[100] = (mod[100] + 1) & 0xFF
+        modified.write_bytes(bytes(mod))
+
+        result = runner.invoke(
+            app,
+            ["cook", str(original), str(modified), "--output", str(output)],
+        )
+
+        assert result.exit_code == 0
+        assert output.exists()
+
+    def test_help_shows_flag(self):
+        result = runner.invoke(app, ["cook", "--help"])
+        assert result.exit_code == 0
+        # Rich help panel truncates long options — match the stable fragment.
+        assert "allow-non-uni" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# TestRecipeDeterminism — the "git-level" layout contract
+# ---------------------------------------------------------------------------
+
+
+class TestRecipeDeterminism:
+    """Re-cooking the same pair produces an identical file except the
+    created_at timestamp — the foundation for clean git diffs."""
+
+    def test_two_cooks_identical_modulo_created_at(self, tmp_path):
+        original = tmp_path / "stock.bin"
+        modified = tmp_path / "tuned.bin"
+        original.write_bytes(_make_bin(1024))
+        modified.write_bytes(_make_bin(1024, {100: 0xAA, 200: 0xBB}))
+
+        a = runner.invoke(
+            app,
+            [
+                "cook",
+                "--allow-non-unique",
+                str(original),
+                str(modified),
+                "--compact",
+            ],
+        )
+        b = runner.invoke(
+            app,
+            [
+                "cook",
+                "--allow-non-unique",
+                str(original),
+                str(modified),
+                "--compact",
+            ],
+        )
+        assert a.exit_code == 0 and b.exit_code == 0
+
+        def strip_created_at(stdout: str) -> str:
+            import re
+
+            return re.sub(r'"created_at": "[^"]*"', '"created_at": ""', stdout)
+
+        assert strip_created_at(a.stdout) == strip_created_at(b.stdout)
+
+    def test_semantically_identical_after_sort_keys(self, tmp_path):
+        """Sorted keys must not change a single field or value — only line
+        order.  Parsed dicts of two cooks are equal once created_at is
+        neutralised."""
+        original = tmp_path / "stock.bin"
+        modified = tmp_path / "tuned.bin"
+        original.write_bytes(_make_bin(1024))
+        modified.write_bytes(_make_bin(1024, {100: 0xAA}))
+
+        result = runner.invoke(
+            app,
+            [
+                "cook",
+                "--allow-non-unique",
+                str(original),
+                str(modified),
+                "--compact",
+            ],
+        )
+        assert result.exit_code == 0
+        data = _parse_json_from_stdout(result.stdout)
+        assert data["schema_version"] == "4.4"
+        assert data["type"] == "recipe"
+        inst = data["instructions"][0]
+        assert inst["offset"] == 100 and inst["ob"] == "00" and inst["mb"] == "AA"
+        # fingerprint must be present and stable (it is content-based)
+        assert data["fingerprint"].startswith("sha256:")
+        assert len(data["fingerprint"]) == len("sha256:") + 64
+
+
+# ---------------------------------------------------------------------------
+# TestCookAnnotateMaps — schema 4.4 maps layer
+# ---------------------------------------------------------------------------
+
+
+def _bin_with_map(size: int = 8192, off: int = 512) -> tuple[bytearray, int]:
+    """Random bin (unique anchors) with one embedded 4x3 u16 map at *off*."""
+    import os
+    import struct
+
+    buf = bytearray(os.urandom(size))
+    x = list(range(0, 4 * 100, 100))
+    y = [0, 50, 100]
+    cells = [100 + r * 10 + c for r in range(3) for c in range(4)]
+    fmt = "<" + "H" * 4
+    buf[off : off + 8] = struct.pack(fmt, *x)
+    buf[off + 8 : off + 14] = struct.pack("<" + "H" * 3, *y)
+    data_off = off + 14
+    buf[data_off : data_off + 24] = struct.pack("<" + "H" * 12, *cells)
+    return buf, data_off
+
+
+class TestCookAnnotateMaps:
+    def test_annotate_maps_emits_schema_4_4_with_refs(self, tmp_path):
+        stock, data_off = _bin_with_map()
+        tuned = bytearray(stock)
+        tuned[data_off] ^= 0xFF
+        tuned[data_off + 2] ^= 0xFF
+
+        original = tmp_path / "stock.bin"
+        modified = tmp_path / "tuned.bin"
+        original.write_bytes(bytes(stock))
+        modified.write_bytes(bytes(tuned))
+
+        result = runner.invoke(
+            app,
+            [
+                "cook",
+                str(original),
+                str(modified),
+                "--annotate-maps",
+                "--compact",
+            ],
+        )
+        assert result.exit_code == 0
+        data = _parse_json_from_stdout(result.stdout)
+        assert data["schema_version"] == "4.4"
+        assert "maps" in data
+        assert any(m["instruction_refs"] for m in data["maps"])
+        # every ref must point at a valid instruction index
+        n_inst = len(data["instructions"])
+        for m in data["maps"]:
+            assert all(1 <= r <= n_inst for r in m["instruction_refs"])
+
+    def test_no_annotate_maps_emits_lean_4_3(self, tmp_path):
+        stock, data_off = _bin_with_map()
+        tuned = bytearray(stock)
+        tuned[data_off] ^= 0xFF
+
+        original = tmp_path / "stock.bin"
+        modified = tmp_path / "tuned.bin"
+        original.write_bytes(bytes(stock))
+        modified.write_bytes(bytes(tuned))
+
+        result = runner.invoke(
+            app,
+            ["cook", str(original), str(modified), "--compact", "--no-annotate-maps"],
+        )
+        assert result.exit_code == 0
+        data = _parse_json_from_stdout(result.stdout)
+        assert data["schema_version"] == "4.3"
+        assert "maps" not in data
+
+    def test_help_shows_flag(self):
+        result = runner.invoke(app, ["cook", "--help"])
+        assert result.exit_code == 0
+        # Rich help panel truncates long options — match the stable fragment.
+        assert "--annotate-maps" in result.stdout

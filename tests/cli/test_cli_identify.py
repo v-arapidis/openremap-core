@@ -295,6 +295,35 @@ class TestIdentifyOutputFile:
         content = out.read_text(encoding="utf-8")
         assert "\x1b[" not in content
 
+    def test_output_creates_missing_parent_dirs(self, tmp_path: Path) -> None:
+        """--output into a non-existent directory creates it, no traceback."""
+        f = tmp_path / "test.bin"
+        f.write_bytes(_ZERO_BIN)
+        out = tmp_path / "deep" / "nested" / "result.json"
+        result = runner.invoke(
+            app, ["identify", str(f), "--json", "--output", str(out)]
+        )
+        assert result.exit_code == 0
+        assert "traceback" not in (result.stdout + result.stderr).lower()
+        assert out.exists()
+
+    def test_output_unwritable_path_clean_error(self, tmp_path: Path) -> None:
+        """Unwritable output path → clean error message + exit 1, no traceback."""
+        f = tmp_path / "test.bin"
+        f.write_bytes(_ZERO_BIN)
+        blocker = tmp_path / "is_a_file"
+        blocker.write_text("occupied", encoding="utf-8")
+        out = blocker / "result.json"
+
+        result = runner.invoke(
+            app, ["identify", str(f), "--json", "--output", str(out)]
+        )
+
+        assert result.exit_code == 1
+        combined = result.stdout + result.stderr
+        assert "traceback" not in combined.lower()
+        assert "could not write" in combined.lower()
+
 
 # ===========================================================================
 # Unrecognised file extension
@@ -457,7 +486,7 @@ class TestFormatConfidenceInlineDirect:
     def test_returns_string_for_high_tier(self) -> None:
         """_format_confidence_inline returns a non-empty styled string."""
         from openremap.cli.commands.identify import _format_confidence_inline
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -475,7 +504,7 @@ class TestFormatConfidenceInlineDirect:
     def test_returns_string_for_unknown_tier(self) -> None:
         """_format_confidence_inline handles Unknown tier without error."""
         from openremap.cli.commands.identify import _format_confidence_inline
-        from openremap.core.services.confidence import ConfidenceResult
+        from openremap.core.services.identify.confidence import ConfidenceResult
 
         cr = ConfidenceResult(score=0, tier="Unknown", signals=[], warnings=[])
         result = _format_confidence_inline(cr)
@@ -484,7 +513,7 @@ class TestFormatConfidenceInlineDirect:
     def test_returns_string_for_suspicious_tier_with_summary(self) -> None:
         """_format_confidence_inline includes summary when signals are present."""
         from openremap.cli.commands.identify import _format_confidence_inline
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -505,7 +534,7 @@ class TestIdentifyWithConfidenceWarnings:
     def test_warnings_appear_in_table_output(self, tmp_path: Path) -> None:
         """When score_identity returns warnings, they appear in the table output."""
         from unittest.mock import patch
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -533,7 +562,7 @@ class TestIdentifyWithConfidenceWarnings:
     def test_multiple_warnings_all_displayed(self, tmp_path: Path) -> None:
         """Multiple warnings are each displayed in the output."""
         from unittest.mock import patch
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -632,7 +661,7 @@ class TestIdentifySignalsLoop:
     def test_negative_delta_signal_displayed(self, tmp_path: Path) -> None:
         """A signal with negative delta renders with a minus marker."""
         from unittest.mock import patch
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )
@@ -664,7 +693,7 @@ class TestIdentifySignalsLoop:
     def test_identified_ecu_shows_manufacturer_and_family(self, tmp_path: Path) -> None:
         """When ecu_family is not None the status line shows manufacturer · family."""
         from unittest.mock import patch
-        from openremap.core.services.confidence import (
+        from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
         )

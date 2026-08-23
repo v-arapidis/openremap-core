@@ -15,13 +15,13 @@ from __future__ import annotations
 import pytest
 
 from tests.conftest import make_bin, make_bin_with
-from openremap.core.services.annotator import (
+from openremap.core.services.recipes.annotator import (
     InstructionFlag,
     LowEntropyScanner,
     RecipeAnnotator,
     VINScanner,
 )
-from openremap.core.services.recipe_builder import ECUDiffAnalyzer
+from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 
 
 # ---------------------------------------------------------------------------
@@ -108,10 +108,12 @@ class TestVINScanner:
         recipe = _make_recipe_with_instruction(vin_offset, 17, ob_hex, mb_hex)
 
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert len(flags) == 1
         assert flags[0].kind == "VIN_SUSPECT"
-        assert flags[0].confidence == 0.9
+        # no ident block, no mirror → WMI(0.30)+year(0.10)+tail(0.10)=0.50
+        assert flags[0].confidence == 0.5
         assert "WVWZZZ3CZWE123456" in flags[0].reason
 
     def test_no_flag_on_non_vin_data(self):
@@ -119,6 +121,7 @@ class TestVINScanner:
         orig = make_bin(1024)
         recipe = _make_recipe_with_instruction(100, 4, "00000000", "AABBCCDD")
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert flags == []
 
@@ -128,6 +131,7 @@ class TestVINScanner:
         # Instruction at offset 0x100 — far from VIN at 0x800
         recipe = _make_recipe_with_instruction(0x100, 4, "00000000", "FFFFFFFF")
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert flags == []
 
@@ -140,6 +144,7 @@ class TestVINScanner:
         ob_hex = orig[inst_offset : inst_offset + 8].hex().upper()
         recipe = _make_recipe_with_instruction(inst_offset, 8, ob_hex, "FF" * 8)
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert len(flags) == 1
         assert flags[0].kind == "VIN_SUSPECT"
@@ -152,6 +157,7 @@ class TestVINScanner:
         ob_hex = orig[inst_offset : inst_offset + 12].hex().upper()
         recipe = _make_recipe_with_instruction(inst_offset, 12, ob_hex, "FF" * 12)
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert len(flags) == 1
         assert flags[0].kind == "VIN_SUSPECT"
@@ -165,6 +171,7 @@ class TestVINScanner:
         # (they're 0x00 from make_bin_with)
         recipe = _make_recipe_with_instruction(inst_offset, 4, "00000000", "FFFFFFFF")
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert flags == []
 
@@ -177,6 +184,7 @@ class TestVINScanner:
             0x200, 17, orig[0x200:0x211].hex().upper(), "FF" * 17
         )
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert flags == []
 
@@ -192,6 +200,7 @@ class TestVINScanner:
             0x200, 40, orig[0x200:0x228].hex().upper(), "FF" * 40
         )
         scanner = VINScanner()
+        scanner.prepare(orig)
         flags = scanner.scan(recipe["instructions"][0], orig)
         assert len(flags) == 1
 
@@ -199,6 +208,65 @@ class TestVINScanner:
 # ---------------------------------------------------------------------------
 # RecipeAnnotator
 # ---------------------------------------------------------------------------
+
+
+class TestLowEntropyScanner:
+    """Hand-made recipes may omit optional metadata fields — no crash."""
+
+    def _instruction(self, **extra) -> dict:
+        inst = {
+            "offset": 100,
+            "size": 2,
+            "ob": "AABB",
+            "mb": "CCDD",
+            "ctx": "00" * 8,
+            "context_size": 8,
+        }
+        inst.update(extra)
+        return inst
+
+    def test_non_unique_without_entropy_no_crash(self):
+        """ctx_unique=False with no ctx_entropy → WEAK_ANCHOR flag, no TypeError."""
+        scanner = LowEntropyScanner()
+        flags = scanner.scan(
+            self._instruction(ctx_unique=False), bytes(1024),
+        )
+        assert len(flags) == 1
+        assert flags[0].kind == "WEAK_ANCHOR"
+        assert "entropy=unknown" in flags[0].reason
+
+    def test_non_unique_with_entropy_shows_value(self):
+        """When ctx_entropy is present it is shown in the reason string."""
+        scanner = LowEntropyScanner()
+        flags = scanner.scan(
+            self._instruction(ctx_unique=False, ctx_entropy=1.5), bytes(1024),
+        )
+        assert len(flags) == 1
+        assert flags[0].kind == "WEAK_ANCHOR"
+        assert "entropy=1.5" in flags[0].reason
+
+    def test_annotator_tolerates_hand_made_recipe(self):
+        """End-to-end: annotate() on an external recipe without ctx_entropy."""
+        recipe = {
+            "schema_version": "4.3",
+            "instructions": [
+                {
+                    "offset": 100,
+                    "size": 2,
+                    "ob": "AABB",
+                    "mb": "CCDD",
+                    "ctx": "00" * 8,
+                    "context_size": 8,
+                    "ctx_unique": False,
+                }
+            ],
+        }
+        annotator = RecipeAnnotator()
+        annotator.annotate(recipe, bytes(1024))
+
+        flags = recipe["instructions"][0]["flags"]
+        kinds = [f["kind"] for f in flags]
+        assert "WEAK_ANCHOR" in kinds
 
 
 class TestRecipeAnnotator:
@@ -341,3 +409,45 @@ class TestRecipeAnnotator:
                 assert "reason" in flag
                 assert "confidence" in flag
                 assert "action" in flag
+
+
+class TestVINScannerPrecision:
+    """The evidence-based upgrade: VIN-shaped lookalikes must NOT flag."""
+
+    def _flag_overlapping(self, payload: bytes) -> list:
+        buf = bytearray(1024)
+        buf[0x200 : 0x200 + len(payload)] = payload
+        orig = bytes(buf)
+        inst = {
+            "offset": 0x200,
+            "size": len(payload),
+            "ob": orig[0x200 : 0x200 + len(payload)].hex().upper(),
+            "mb": "FF" * len(payload),
+        }
+        scanner = VINScanner()
+        scanner.prepare(orig)
+        return scanner.scan(inst, orig)
+
+    def test_calibration_number_not_flagged(self):
+        # A real corpus lookalike: Bosch calibration ID, mirrored.
+        flags = self._flag_overlapping(b"1037541778126241V")
+        assert flags == []
+
+    def test_serial_pattern_not_flagged(self):
+        flags = self._flag_overlapping(b"99999999999999999")
+        assert flags == []
+
+    def test_test_ramp_not_flagged(self):
+        flags = self._flag_overlapping(b"12345678901234567")
+        assert flags == []
+
+    def test_real_structured_vin_flagged(self):
+        # WMI-valid VIN (real shape, from the corpus).
+        flags = self._flag_overlapping(b"W0L0JBF19W5117067")
+        assert len(flags) == 1
+        assert flags[0].kind == "VIN_SUSPECT"
+
+    def test_unknown_wmi_not_flagged_by_default(self):
+        # Structurally VIN-like but unknown manufacturer prefix.
+        flags = self._flag_overlapping(b"1SN100K5400000CAS")
+        assert flags == []

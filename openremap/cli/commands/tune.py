@@ -13,11 +13,11 @@ three phases pass. Exit code 0 = success, 1 = any phase failed.
 Use --skip-validation to bypass Phases 1 and 3 (escape hatch for scripted pipelines).
 
 Examples:
-    openremap tune target.bin recipe.openremap
-    openremap tune target.bin recipe.openremap --output my_tuned.bin
-    openremap tune target.bin recipe.openremap --report tune_report.json
-    openremap tune target.bin recipe.openremap --skip-validation
-    openremap tune target.bin recipe.openremap --json
+    openremap tune target.bin recipe.remap
+    openremap tune target.bin recipe.remap --output my_tuned.bin
+    openremap tune target.bin recipe.remap --report tune_report.json
+    openremap tune target.bin recipe.remap --skip-validation
+    openremap tune target.bin recipe.remap --json
 """
 
 from __future__ import annotations
@@ -28,15 +28,15 @@ from typing import Annotated, Optional
 
 import typer
 
-from openremap.core.services.patcher import ECUPatcher
-from openremap.core.services.validate_patched import ECUPatchedValidator
-from openremap.core.services.validate_strict import ECUStrictValidator
+from openremap.core.services.recipes.patcher import ECUPatcher
+from openremap.core.services.recipes.validate_patched import ECUPatchedValidator
+from openremap.core.services.recipes.validate_strict import ECUStrictValidator
 
 # ---------------------------------------------------------------------------
 # Helpers — file I/O
 # ---------------------------------------------------------------------------
 
-_ALLOWED_BIN = (".bin", ".ori")
+_ALLOWED_BIN = (".bin", ".ori", ".hex")
 
 
 def _read_bin(path: Path, label: str) -> bytes:
@@ -44,7 +44,7 @@ def _read_bin(path: Path, label: str) -> bytes:
     if path.suffix.lower() not in _ALLOWED_BIN:
         typer.echo(
             typer.style(
-                f"Error: {label} file '{path.name}' must be a .bin or .ori file.",
+                f"Error: {label} file '{path.name}' must be a .bin, .ori, or .hex file.",
                 fg=typer.colors.RED,
                 bold=True,
             ),
@@ -78,11 +78,11 @@ def _read_bin(path: Path, label: str) -> bytes:
 
 
 def _read_recipe(path: Path) -> dict:
-    """Read and parse a recipe .openremap (or .json) file, exiting with a clear message on error."""
-    if path.suffix.lower() not in (".openremap", ".json"):
+    """Read and parse a recipe .remap (or legacy .openremap/.json) file, exiting with a clear message on error."""
+    if path.suffix.lower() not in (".remap", ".openremap", ".json"):
         typer.echo(
             typer.style(
-                f"Error: Recipe file '{path.name}' must be a .openremap or .json file.",
+                f"Error: Recipe file '{path.name}' must be a .remap, .openremap, or .json file.",
                 fg=typer.colors.RED,
                 bold=True,
             ),
@@ -503,7 +503,7 @@ def tune(
     target: Annotated[
         Path,
         typer.Argument(
-            help="The untuned ECU binary to apply the recipe to (.bin or .ori).",
+            help="The untuned ECU binary to apply the recipe to (.bin, .ori, or .hex).",
             exists=True,
             file_okay=True,
             dir_okay=False,
@@ -514,7 +514,7 @@ def tune(
     recipe: Annotated[
         Path,
         typer.Argument(
-            help="The recipe file (.openremap) to apply.",
+            help="The recipe file (.remap) to apply.",
             exists=True,
             file_okay=True,
             dir_okay=False,
@@ -677,7 +677,7 @@ def tune(
     # ── Write tuned binary ───────────────────────────────────────────────────
     all_ok = p1_ok and p2_ok and p3_ok
 
-    if p2_ok:
+    if all_ok:
         try:
             resolved_output.parent.mkdir(parents=True, exist_ok=True)
             resolved_output.write_bytes(tuned_bytes)
@@ -716,11 +716,22 @@ def tune(
             p2_ok=p2_ok,
             p3_ok=p3_ok,
             output=resolved_output,
-            tune_applied=p2_ok,
+            tune_applied=all_ok,
             target_md5=target_md5,
             tuned_md5=tuned_md5,
             skip_validation=skip_validation,
         )
+
+    if p2_ok and not all_ok:
+        typer.echo(
+            typer.style(
+                f"  Tuned binary NOT written — post-tune verification failed.  "
+                f"No file was created at '{resolved_output}'.",
+                fg=typer.colors.YELLOW,
+                bold=True,
+            )
+        )
+        typer.echo("")
 
     if not all_ok:
         raise typer.Exit(code=1)

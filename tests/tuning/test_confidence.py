@@ -25,7 +25,7 @@ Covers:
 
 import pytest
 
-from openremap.core.services.confidence import (
+from openremap.core.services.identify.confidence import (
     ConfidenceResult,
     ConfidenceSignal,
     _family_expects_field,
@@ -43,14 +43,15 @@ from openremap.core.manufacturers.base import DetectionStrength
 
 def _identity(
     *,
-    ecu_family="EDC17",
-    ecu_variant="EDC17C66",
-    software_version="1037541778",
-    hardware_number="0261209352",
-    calibration_id="1037393302",
-    match_key="EDC17C66::1037541778",
-    oem_part_number=None,
+    ecu_family: str = "EDC17",
+    ecu_variant: str | None = "EDC17C66",
+    software_version: str | None = "1037541778",
+    hardware_number: str | None = "0261209352",
+    calibration_id: str | None = "1037393302",
+    match_key: str | None = "EDC17C66::1037541778",
+    oem_part_number: str | None = None,
     detection_strength=None,
+    detection_evidence=(),
 ) -> dict:
     """Return a fully-populated EDC17 identity dict (all fields present)."""
     return {
@@ -65,6 +66,7 @@ def _identity(
         "sha256": "abc" * 21 + "d",
         "oem_part_number": oem_part_number,
         "detection_strength": detection_strength,
+        "detection_evidence": detection_evidence,
     }
 
 
@@ -908,6 +910,83 @@ class TestDetectionStrength:
 
 
 # ---------------------------------------------------------------------------
+# Detection evidence bonus (dynamic — replaces static strength)
+# ---------------------------------------------------------------------------
+
+
+class TestDetectionEvidence:
+    def test_evidence_bonus_applied(self):
+        result = score_identity(
+            _identity(detection_evidence=("MAGIC_MATCH", "LAYOUT_FINGERPRINT")),
+            filename="ecu.bin",
+        )
+        assert any(
+            s.delta == 8 and "detection evidence" in s.label.lower()
+            for s in result.signals
+        )
+
+    def test_evidence_replaces_static_strength(self):
+        result = score_identity(
+            _identity(
+                detection_strength="strong",
+                detection_evidence=("SIZE_MATCH",),
+            ),
+            filename="ecu.bin",
+        )
+        assert any(
+            "detection evidence" in s.label.lower() for s in result.signals
+        )
+        assert not any(
+            "detection strength" in s.label.lower() for s in result.signals
+        )
+
+    def test_unknown_tag_uses_default_weight(self):
+        result = score_identity(
+            _identity(detection_evidence=("FREE_FORM_CUSTOM_CHECK",)),
+            filename="ecu.bin",
+        )
+        assert any(
+            s.delta == 2 and "detection evidence" in s.label.lower()
+            for s in result.signals
+        )
+
+    def test_bonus_capped_at_20(self):
+        result = score_identity(
+            _identity(
+                detection_evidence=(
+                    "MAGIC_MATCH",
+                    "HEADER_MATCH",
+                    "POINTER_TABLE",
+                    "LAYOUT_FINGERPRINT",
+                    "IDENT_BLOCK",
+                    "BOOT_BLOCK",
+                    "FAMILY_ANCHOR",
+                    "FAMILY_STRING",
+                    "SYNC_MARKER",
+                ),
+            ),
+            filename="ecu.bin",
+        )
+        assert any(
+            s.delta == 20 and "detection evidence" in s.label.lower()
+            for s in result.signals
+        )
+
+    def test_empty_evidence_falls_back_to_static(self):
+        result = score_identity(
+            _identity(
+                detection_strength="moderate",
+                detection_evidence=(),
+            ),
+            filename="ecu.bin",
+        )
+        assert any(
+            s.delta == 10 and "detection strength" in s.label.lower()
+            for s in result.signals
+        )
+
+
+# ---------------------------------------------------------------------------
 # OEM part number
 # ---------------------------------------------------------------------------
 
@@ -1100,3 +1179,186 @@ class TestDeterminism:
         r_stock = score_identity(identity, filename="ecu.bin")
         r_tuned = score_identity(identity, filename="ecu_stage1.bin")
         assert r_stock.score != r_tuned.score
+
+
+# ---------------------------------------------------------------------------
+# Ident-block cross-check (data passed to score_identity)
+# ---------------------------------------------------------------------------
+
+
+def _bin_with_ident(fields: dict[str, bytes]) -> bytes:
+    """Binary with a printable ident block containing the given strings."""
+    import os
+
+    blob = bytearray(os.urandom(0x200))
+    ident = b"   ".join(fields.values()) + b" " * 80
+    blob[0x100 : 0x100 + len(ident)] = ident
+    return bytes(blob)
+
+
+class TestIdentBlockCrossCheck:
+    def test_field_inside_ident_block_earns_bonus(self):
+        data = _bin_with_ident({"sw": b"1037541778", "hw": b"0261209352"})
+        ident = _identity(
+            software_version="1037541778", hardware_number="0261209352"
+        )
+        result = score_identity(ident, filename="ecu.bin", data=data)
+        assert any(
+            "ident block" in s.label and s.delta == 10 for s in result.signals
+        )
+
+    def test_single_field_bonus_is_five(self):
+        data = _bin_with_ident({"sw": b"1037541778"})
+        ident = _identity(
+            software_version="1037541778", hardware_number=None, calibration_id=None
+        )
+        result = score_identity(ident, filename="ecu.bin", data=data)
+        assert any(
+            "ident block" in s.label and s.delta == 5 for s in result.signals
+        )
+
+    def test_field_outside_ident_block_no_bonus(self):
+        # The value appears only in code (not in the ASCII ident block).
+        data = _bin_with_ident({})
+        code_value = bytes.fromhex("1037541778")
+        ident = _identity(software_version="1037541778")
+        result = score_identity(ident, filename="ecu.bin", data=data)
+        assert not any("ident block" in s.label for s in result.signals)
+
+    def test_no_ident_blocks_no_signal(self):
+        import os
+
+        data = os.urandom(0x200)
+        ident = _identity()
+        result = score_identity(ident, filename="ecu.bin", data=data)
+        assert not any("ident block" in s.label for s in result.signals)
+
+    def test_without_data_behaviour_unchanged(self):
+        ident = _identity()
+        with_data = score_identity(ident, filename="ecu.bin")
+        without_data = score_identity(ident, filename="ecu.bin", data=b"")
+        assert with_data.score == without_data.score
+
+    def test_mirrored_occurrence_inside_block_counts(self):
+        # Value appears in code AND inside the ident block (mirrors) — the
+        # ident-block occurrence must win.
+        data = _bin_with_ident({"sw": b"1037541778"})
+        mirrored = bytearray(data)
+        mirrored[0x40 : 0x40 + 10] = b"1037541778"  # a code-area copy
+        ident = _identity(software_version="1037541778")
+        result = score_identity(ident, filename="ecu.bin", data=bytes(mirrored))
+        assert any("ident block" in s.label for s in result.signals)
+
+
+# ---------------------------------------------------------------------------
+# Declared ident-block cross-check (extractor-provided ident_block region)
+# ---------------------------------------------------------------------------
+# Families like Denso/Hitachi Subaru store identity metadata in blocks
+# shorter than the generic 64-byte printable-run heuristic.  Extractors may
+# declare the exact region via identity["ident_block"] = (start, end); the
+# scorer must honour it (after sanity checks) and fall back to the generic
+# scan otherwise.
+# ---------------------------------------------------------------------------
+
+
+def _bin_with_short_declared_ident(
+    fields: dict[str, bytes], region: tuple[int, int] = (0x2000, 0x2040)
+) -> bytes:
+    """1 MB binary whose short ident block holds the given strings."""
+    blob = bytearray(b"\xff" * 0x100000)
+    blob[region[0] : region[1]] = (
+        b"   ".join(fields.values()) + b" " * 16
+    )[: region[1] - region[0]]
+    return bytes(blob)
+
+
+class TestDeclaredIdentBlock:
+    def test_short_declared_block_earns_bonus(self):
+        data = _bin_with_short_declared_ident(
+            {"sw": b"A2WC400H", "cal": b"86CAU_AT"}
+        )
+        ident = _identity(
+            ecu_family="SH7058",
+            software_version="A2WC400H",
+            calibration_id="86CAU_AT",
+            hardware_number=None,
+        )
+        ident["ident_block"] = (0x2000, 0x2040)
+        result = score_identity(ident, filename="ecu.hex", data=data)
+        assert any(
+            "ident block" in s.label and s.delta == 10 for s in result.signals
+        )
+
+    def test_declared_block_beats_generic_heuristic(self):
+        # The declared block is far shorter than 64 printable bytes, so the
+        # generic scan would find nothing — the declaration must win.
+        data = _bin_with_short_declared_ident({"sw": b"A2WC400H"})
+        ident = _identity(
+            ecu_family="SH7058",
+            software_version="A2WC400H",
+            calibration_id=None,
+            hardware_number=None,
+        )
+        ident["ident_block"] = (0x2000, 0x2040)
+        result = score_identity(ident, filename="ecu.hex", data=data)
+        assert any(
+            "ident block" in s.label and s.delta == 5 for s in result.signals
+        )
+
+    def test_field_outside_declared_block_no_bonus(self):
+        data = _bin_with_short_declared_ident({"sw": b"A2WC400H"})
+        ident = _identity(
+            ecu_family="SH7058",
+            software_version="1037541778",  # not present anywhere
+            calibration_id=None,
+            hardware_number=None,
+        )
+        ident["ident_block"] = (0x2000, 0x2040)
+        result = score_identity(ident, filename="ecu.hex", data=data)
+        assert not any("ident block" in s.label for s in result.signals)
+
+    def test_invalid_bounds_fall_back_to_generic(self):
+        # Out-of-range declaration is ignored; the generic scan finds
+        # nothing in the random binary → no bonus.
+        import os
+
+        data = os.urandom(0x400)
+        ident = _identity(software_version="1037541778")
+        ident["ident_block"] = (0x10000, 0x20000)
+        result = score_identity(ident, filename="ecu.bin", data=data)
+        assert not any("ident block" in s.label for s in result.signals)
+
+    def test_oversized_declaration_rejected(self):
+        # A declared region larger than 4 KB is not a metadata block.
+        data = bytearray(b"\xff" * 0x10000)
+        data[0x2000:0x2018] = b"A2WC400H" + b" " * 8
+        ident = _identity(
+            ecu_family="SH7058",
+            software_version="A2WC400H",
+            calibration_id=None,
+            hardware_number=None,
+        )
+        ident["ident_block"] = (0, 0x10000)
+        result = score_identity(ident, filename="ecu.hex", data=bytes(data))
+        assert not any("ident block" in s.label for s in result.signals)
+
+    def test_non_printable_declaration_rejected(self):
+        # A declared region with almost no printable ASCII is not an ident
+        # block — falls back to the generic scan (which finds nothing).
+        import os
+
+        data = os.urandom(0x100000)
+        ident = _identity(software_version="A2WC400H")
+        ident["ident_block"] = (0x100, 0x140)
+        result = score_identity(ident, filename="ecu.hex", data=data)
+        assert not any("ident block" in s.label for s in result.signals)
+
+    def test_no_declaration_uses_generic_scan(self):
+        data = _bin_with_ident({"sw": b"1037541778"})
+        ident = _identity(
+            software_version="1037541778",
+            hardware_number=None,
+            calibration_id=None,
+        )
+        result = score_identity(ident, filename="ecu.bin", data=data)
+        assert any("ident block" in s.label for s in result.signals)
