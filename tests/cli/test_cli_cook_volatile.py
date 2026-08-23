@@ -333,13 +333,14 @@ class TestFlagMatrix:
         assert "excluded as volatile" not in combined
         assert "flagged for review" not in combined
 
-    def test_help_exits_zero_and_shows_flags(self):
+    def test_help_exits_zero_and_shows_flags(self, monkeypatch):
+        # Rich truncates long option names to the terminal width — force a
+        # wide terminal so the full flag names are present (CI runners vary).
+        monkeypatch.setenv("COLUMNS", "200")
         result = runner.invoke(app, ["cook-volatile", "--help"])
         assert result.exit_code == 0
         combined = result.stdout + result.stderr
-        # Rich truncates long option names — match stable fragments
-        # (same approach as test_cli_cook.py).
-        for flag in ("--no-exclude", "--exclude-uncert", "--accept-volatile"):
+        for flag in ("--no-exclude", "--exclude-uncertain", "--accept-volatile"):
             assert flag in combined
 
 

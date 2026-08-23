@@ -728,10 +728,12 @@ class TestRequireUniqueStrict:
         assert result.exit_code == 0
         assert output.exists()
 
-    def test_help_shows_flag(self):
+    def test_help_shows_flag(self, monkeypatch):
+        # Rich truncates long option names to the terminal width — force a
+        # wide terminal so the full flag name is present (CI runners vary).
+        monkeypatch.setenv("COLUMNS", "200")
         result = runner.invoke(app, ["cook", "--help"])
         assert result.exit_code == 0
-        # Rich help panel truncates long options — match the stable fragment.
         assert "allow-non-uni" in result.stdout
 
 
@@ -882,8 +884,10 @@ class TestCookAnnotateMaps:
         assert data["schema_version"] == "4.3"
         assert "maps" not in data
 
-    def test_help_shows_flag(self):
+    def test_help_shows_flag(self, monkeypatch):
+        # Rich truncates long option names to the terminal width — force a
+        # wide terminal so the full flag name is present (CI runners vary).
+        monkeypatch.setenv("COLUMNS", "200")
         result = runner.invoke(app, ["cook", "--help"])
         assert result.exit_code == 0
-        # Rich help panel truncates long options — match the stable fragment.
         assert "--annotate-maps" in result.stdout
