@@ -334,18 +334,14 @@ class TestFlagMatrix:
         assert "flagged for review" not in combined
 
     def test_help_exits_zero_and_shows_flags(self, monkeypatch):
-        # Rich renders long option names in a fixed-width cell and truncates
-        # with an ellipsis regardless of terminal width (--exclude-uncertain
-        # always renders as --exclude-uncert…).  Force the no-tty path + a
-        # wide COLUMNS so the truncation point is stable across CI runners,
-        # then match the stable fragment of each flag.
-        import os
+        # Typer renders --help through a Rich console whose width comes from
+        # typer.rich_utils.MAX_WIDTH (read from the TERMINAL_WIDTH env var
+        # at import time — CI runners set it).  Pin a wide console so the
+        # truncation point is stable; --exclude-uncertain still renders as
+        # --exclude-uncert… (fixed-width option cell), so match that fragment.
+        import typer.rich_utils as rich_utils
 
-        def _no_tty(*args, **kwargs):
-            raise OSError("not a tty")
-
-        monkeypatch.setattr(os, "get_terminal_size", _no_tty)
-        monkeypatch.setenv("COLUMNS", "200")
+        monkeypatch.setattr(rich_utils, "MAX_WIDTH", 200)
         result = runner.invoke(app, ["cook-volatile", "--help"])
         assert result.exit_code == 0
         combined = result.stdout + result.stderr
