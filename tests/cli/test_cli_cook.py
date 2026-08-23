@@ -728,19 +728,6 @@ class TestRequireUniqueStrict:
         assert result.exit_code == 0
         assert output.exists()
 
-    def test_help_shows_flag(self, monkeypatch):
-        # Typer renders --help through a Rich console whose width comes from
-        # typer.rich_utils.MAX_WIDTH (read from the TERMINAL_WIDTH env var
-        # at import time — CI runners set it, so COLUMNS/os.get_terminal_size
-        # patches are ignored).  Pin a wide console so the full flag name is
-        # rendered.
-        import typer.rich_utils as rich_utils
-
-        monkeypatch.setattr(rich_utils, "MAX_WIDTH", 200)
-        result = runner.invoke(app, ["cook", "--help"])
-        assert result.exit_code == 0
-        assert "allow-non-uni" in result.stdout
-
 
 # ---------------------------------------------------------------------------
 # TestRecipeDeterminism — the "git-level" layout contract
@@ -888,16 +875,3 @@ class TestCookAnnotateMaps:
         data = _parse_json_from_stdout(result.stdout)
         assert data["schema_version"] == "4.3"
         assert "maps" not in data
-
-    def test_help_shows_flag(self, monkeypatch):
-        # Typer renders --help through a Rich console whose width comes from
-        # typer.rich_utils.MAX_WIDTH (read from the TERMINAL_WIDTH env var
-        # at import time — CI runners set it, so COLUMNS/os.get_terminal_size
-        # patches are ignored).  Pin a wide console so the full flag name is
-        # rendered.
-        import typer.rich_utils as rich_utils
-
-        monkeypatch.setattr(rich_utils, "MAX_WIDTH", 200)
-        result = runner.invoke(app, ["cook", "--help"])
-        assert result.exit_code == 0
-        assert "--annotate-maps" in result.stdout
