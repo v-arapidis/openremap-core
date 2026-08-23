@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,13 @@ runner = CliRunner()
 
 
 def _pair(patches: dict[int, int]):
-    stock = bytearray(os.urandom(8192))
+    """Random 8 KB stock + tuned variant.
+
+    Seeded (not os.urandom): os.urandom made these tests flaky — if the
+    random stock already contained a patch byte at the target offset, that
+    variant produced no instruction (~0.45% of CI runs, 2026-08-23).
+    """
+    stock = bytearray(random.Random(0).randbytes(8192))
     mod = bytearray(stock)
     for off, val in patches.items():
         mod[off] = val

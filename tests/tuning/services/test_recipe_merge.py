@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-import os
+import random
 
 import pytest
-
 from openremap.core.services.recipes.patcher import ECUPatcher
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 from openremap.core.services.recipes.recipe_merge import MergeConflict, merge_recipes
 
 
 def _pair(patches_a: dict[int, int], patches_b: dict[int, int]) -> tuple[bytes, bytes, bytes]:
-    """Random 8 KB stock with two differently-tuned variants."""
-    stock = bytearray(os.urandom(8192))
+    """Random 8 KB stock with two differently-tuned variants.
+
+    Seeded (not os.urandom): os.urandom made these tests flaky — if the
+    random stock already contained a patch byte at the target offset, that
+    variant produced no instruction and merges expected N but got N-1
+    (~0.45% of CI runs, 2026-08-23).
+    """
+    stock = bytearray(random.Random(0).randbytes(8192))
     mod_a = bytearray(stock)
     mod_b = bytearray(stock)
     for off, val in patches_a.items():

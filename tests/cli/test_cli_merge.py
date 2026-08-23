@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-import os
+import random
 
 from typer.testing import CliRunner
 
@@ -13,8 +13,14 @@ runner = CliRunner()
 
 
 def _triple(patches_a: dict[int, int], patches_b: dict[int, int]):
-    """Random 8 KB stock + two tuned variants."""
-    stock = bytearray(os.urandom(8192))
+    """Random 8 KB stock + two tuned variants.
+
+    Seeded (not os.urandom): os.urandom made these tests flaky — if the
+    random stock already contained a patch byte at the target offset, that
+    variant produced no instruction and merges expected 2 but got 1
+    (~0.8% of CI runs, 2026-08-23).
+    """
+    stock = bytearray(random.Random(0).randbytes(8192))
     mod_a = bytearray(stock)
     mod_b = bytearray(stock)
     for off, val in patches_a.items():
