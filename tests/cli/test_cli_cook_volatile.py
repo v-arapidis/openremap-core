@@ -334,13 +334,21 @@ class TestFlagMatrix:
         assert "flagged for review" not in combined
 
     def test_help_exits_zero_and_shows_flags(self, monkeypatch):
-        # Rich truncates long option names to the terminal width — force a
-        # wide terminal so the full flag names are present (CI runners vary).
-        monkeypatch.setenv("COLUMNS", "200")
+        # Rich renders long option names in a fixed-width cell and truncates
+        # with an ellipsis regardless of terminal width (--exclude-uncertain
+        # always renders as --exclude-uncert…).  Pin a wide terminal so the
+        # truncation point is stable across CI runners, then match the
+        # stable fragment of each flag.
+        import os
+        import shutil
+
+        monkeypatch.setattr(
+            shutil, "get_terminal_size", lambda: os.terminal_size((200, 50))
+        )
         result = runner.invoke(app, ["cook-volatile", "--help"])
         assert result.exit_code == 0
         combined = result.stdout + result.stderr
-        for flag in ("--no-exclude", "--exclude-uncertain", "--accept-volatile"):
+        for flag in ("--no-exclude", "--exclude-uncert", "--accept-volatile"):
             assert flag in combined
 
 

@@ -729,9 +729,16 @@ class TestRequireUniqueStrict:
         assert output.exists()
 
     def test_help_shows_flag(self, monkeypatch):
-        # Rich truncates long option names to the terminal width — force a
-        # wide terminal so the full flag name is present (CI runners vary).
-        monkeypatch.setenv("COLUMNS", "200")
+        # Rich truncates long option names to the terminal width, which it
+        # reads from shutil.get_terminal_size() (a TTY is present in CI, so
+        # the COLUMNS env var is ignored).  Force a wide terminal so the
+        # full flag name is rendered.
+        import os
+        import shutil
+
+        monkeypatch.setattr(
+            shutil, "get_terminal_size", lambda: os.terminal_size((200, 50))
+        )
         result = runner.invoke(app, ["cook", "--help"])
         assert result.exit_code == 0
         assert "allow-non-uni" in result.stdout
@@ -885,9 +892,16 @@ class TestCookAnnotateMaps:
         assert "maps" not in data
 
     def test_help_shows_flag(self, monkeypatch):
-        # Rich truncates long option names to the terminal width — force a
-        # wide terminal so the full flag name is present (CI runners vary).
-        monkeypatch.setenv("COLUMNS", "200")
+        # Rich truncates long option names to the terminal width, which it
+        # reads from shutil.get_terminal_size() (a TTY is present in CI, so
+        # the COLUMNS env var is ignored).  Force a wide terminal so the
+        # full flag name is rendered.
+        import os
+        import shutil
+
+        monkeypatch.setattr(
+            shutil, "get_terminal_size", lambda: os.terminal_size((200, 50))
+        )
         result = runner.invoke(app, ["cook", "--help"])
         assert result.exit_code == 0
         assert "--annotate-maps" in result.stdout
