@@ -75,9 +75,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3"
-version = "0.25.1"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8970a78afe0628a3e3430376fc5fd76b6b45c4d43360ffd6cdd40bdde72b682a"
+checksum = "e069066ca1a60098c2480f93c3fb6244f744a424e4e64b09d2b60d62b2e56c4c"
 dependencies = [
  "indoc",
  "libc",
@@ -92,9 +92,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
-version = "0.25.1"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "458eb0c55e7ece017adeba38f2248ff3ac615e53660d7c71a238d7d2a01c7598"
+checksum = "08adb0997c12c8419ba2598cfa4c6d5e774cd6b476e767137ea86b5cb49a1c07"
 dependencies = [
  "once_cell",
  "target-lexicon",
@@ -102,9 +102,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-ffi"
-version = "0.25.1"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7114fe5457c61b276ab77c5055f206295b812608083644a5c5b2640c3102565c"
+checksum = "e05f79287bbb6ea2ec56ef6c7ef4a370764c66a27b5c3a3e724c51bf4c34a991"
 dependencies = [
  "libc",
  "pyo3-build-config",
@@ -112,9 +112,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros"
-version = "0.25.1"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8725c0a622b374d6cb051d11a0983786448f7785336139c3c94f5aa6bef7e50"
+checksum = "e072d5e0c9c5a9e8e0f049ef8bd617f8a4d622bc0a4b93d1443437ef336d5121"
 dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
@@ -124,9 +124,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros-backend"
-version = "0.25.1"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4109984c22491085343c05b0dbc54ddc405c3cf7b4374fc533f5c3313a572ccc"
+checksum = "faa85d9e7699204b098c7356186203c45228f9dc2730c2bf259d77f1d3991d63"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -148,7 +148,7 @@ dependencies = [
 name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+checksum = "cf54715a573b5c0b02fa23da3c7e415384e4bc461ad5898e5f329b2b0b2e3b7a"
 
 [[package]]
 name = "syn"
