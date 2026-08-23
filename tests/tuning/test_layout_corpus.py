@@ -104,6 +104,8 @@ class TestLayoutCorpus:
     """Invariant contract across 30+ real binaries."""
 
     def test_segmentation_invariants_hold_on_entire_corpus(self) -> None:
+        if not any(_load(rel, min_size) is not None for rel, min_size in CORPUS):
+            pytest.skip("corpus binaries not present")
         tested = 0
         for rel, min_size in CORPUS:
             data = _load(rel, min_size)
@@ -160,6 +162,8 @@ class TestLayoutCorpus:
     def test_high_score_tables_always_fall_in_calibration(self) -> None:
         """For every bin in the corpus, every high-score table offset must
         sit inside a calibration region — never code/erased/mixed."""
+        if not any(_load(rel, min_size) is not None for rel, min_size in CORPUS):
+            pytest.skip("corpus binaries not present")
         checked = 0
         for rel, min_size in CORPUS:
             data = _load(rel, min_size)
@@ -186,6 +190,8 @@ class TestLayoutCorpus:
         """Real ECUs carry ident metadata — most bins must yield >= 1
         ident candidate (no fixed number; just sanity that the detector
         is alive on real data)."""
+        if not any(_load(rel, min_size) is not None for rel, min_size in CORPUS):
+            pytest.skip("corpus binaries not present")
         with_ident = 0
         tested = 0
         for rel, min_size in CORPUS:
