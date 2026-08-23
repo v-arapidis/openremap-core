@@ -336,15 +336,16 @@ class TestFlagMatrix:
     def test_help_exits_zero_and_shows_flags(self, monkeypatch):
         # Rich renders long option names in a fixed-width cell and truncates
         # with an ellipsis regardless of terminal width (--exclude-uncertain
-        # always renders as --exclude-uncert…).  Pin a wide terminal so the
-        # truncation point is stable across CI runners, then match the
-        # stable fragment of each flag.
+        # always renders as --exclude-uncert…).  Force the no-tty path + a
+        # wide COLUMNS so the truncation point is stable across CI runners,
+        # then match the stable fragment of each flag.
         import os
-        import shutil
 
-        monkeypatch.setattr(
-            shutil, "get_terminal_size", lambda: os.terminal_size((200, 50))
-        )
+        def _no_tty(*args, **kwargs):
+            raise OSError("not a tty")
+
+        monkeypatch.setattr(os, "get_terminal_size", _no_tty)
+        monkeypatch.setenv("COLUMNS", "200")
         result = runner.invoke(app, ["cook-volatile", "--help"])
         assert result.exit_code == 0
         combined = result.stdout + result.stderr

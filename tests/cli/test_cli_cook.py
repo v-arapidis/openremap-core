@@ -729,16 +729,17 @@ class TestRequireUniqueStrict:
         assert output.exists()
 
     def test_help_shows_flag(self, monkeypatch):
-        # Rich truncates long option names to the terminal width, which it
-        # reads from shutil.get_terminal_size() (a TTY is present in CI, so
-        # the COLUMNS env var is ignored).  Force a wide terminal so the
-        # full flag name is rendered.
+        # Rich reads the terminal width from os.get_terminal_size() first
+        # (a TTY is present in CI), then falls back to the COLUMNS env var
+        # only when that call fails.  Force the no-tty path + a wide
+        # COLUMNS so the full flag name is rendered regardless of runner.
         import os
-        import shutil
 
-        monkeypatch.setattr(
-            shutil, "get_terminal_size", lambda: os.terminal_size((200, 50))
-        )
+        def _no_tty(*args, **kwargs):
+            raise OSError("not a tty")
+
+        monkeypatch.setattr(os, "get_terminal_size", _no_tty)
+        monkeypatch.setenv("COLUMNS", "200")
         result = runner.invoke(app, ["cook", "--help"])
         assert result.exit_code == 0
         assert "allow-non-uni" in result.stdout
@@ -892,16 +893,17 @@ class TestCookAnnotateMaps:
         assert "maps" not in data
 
     def test_help_shows_flag(self, monkeypatch):
-        # Rich truncates long option names to the terminal width, which it
-        # reads from shutil.get_terminal_size() (a TTY is present in CI, so
-        # the COLUMNS env var is ignored).  Force a wide terminal so the
-        # full flag name is rendered.
+        # Rich reads the terminal width from os.get_terminal_size() first
+        # (a TTY is present in CI), then falls back to the COLUMNS env var
+        # only when that call fails.  Force the no-tty path + a wide
+        # COLUMNS so the full flag name is rendered regardless of runner.
         import os
-        import shutil
 
-        monkeypatch.setattr(
-            shutil, "get_terminal_size", lambda: os.terminal_size((200, 50))
-        )
+        def _no_tty(*args, **kwargs):
+            raise OSError("not a tty")
+
+        monkeypatch.setattr(os, "get_terminal_size", _no_tty)
+        monkeypatch.setenv("COLUMNS", "200")
         result = runner.invoke(app, ["cook", "--help"])
         assert result.exit_code == 0
         assert "--annotate-maps" in result.stdout
