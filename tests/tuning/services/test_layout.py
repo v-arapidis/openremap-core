@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+import random
 import struct
 
 from openremap.core.services.maps.layout import (
@@ -62,8 +63,12 @@ class TestSegmentSynthetic:
         y = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
         map_data = _map_block(x, y, None)
 
-        code = bytearray(os.urandom(sec))
-        cal = bytearray(os.urandom(sec))
+        # Seeded random (not os.urandom) — os.urandom made this test flaky:
+        # the random calibration sector rarely failed to score as
+        # "calibration", failing ~0.5% of runs in CI (2026-08-23).
+        rng = random.Random(0)
+        code = bytearray(rng.randbytes(sec))
+        cal = bytearray(rng.randbytes(sec))
         cal[0 : len(map_data)] = map_data
         data = bytes(code) + bytes(cal) + b"\xFF" * sec
 
