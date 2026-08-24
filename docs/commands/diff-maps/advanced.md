@@ -34,7 +34,8 @@ openremap diff-maps <STOCK> <TUNED> [OPTIONS]
 | `--verbose`, `-v` | off | Show before/after cell grids for each changed map. |
 | `--json` | off | Output as JSON instead of human-readable text. |
 | `--export <dir>` | off | Write a Markdown report (`diff.md`) with before/after grids, changed cells highlighted. |
-| `--region`, `-r` | (whole file) | Restrict scanning to a byte range: `0xSTART-0xEND`. |
+| `--region`, `-r` | (calibration region) | Restrict scanning to a byte range: `0xSTART-0xEND`. Overrides the calibration-region default. |
+| `--whole-file` | off | Scan the whole file instead of only the detected calibration region (shows tables outside it). |
 | `--max-series-tables` | `16` | Max consecutive shared-axis tables to probe (1 = off). |
 | `--recipe <path>` | off | Cross-reference a `.remap` recipe: mark which changed cells each instruction covers and report changed cells NOT in the recipe (untracked changes). |
 | `--annotate <path>` | off | With `--recipe`: write the recipe augmented with a schema 4.4 `maps` layer to this path. |
@@ -43,20 +44,42 @@ openremap diff-maps <STOCK> <TUNED> [OPTIONS]
 
 ## How matching works
 
+Both files are scanned **by default in their detected calibration region**
+(sectors the layout segmenter labels as calibration) — junk tables from
+code/erased sectors are hidden and counted (`stock_tables_hidden` /
+`tuned_tables_hidden` in JSON; a note in the human header).  Use
+`--whole-file` to scan everything.  If no calibration signal is found the
+scan falls back to the whole file.  A wrong layout estimate can therefore
+only change what the *report* shows — never the recipe or patch output,
+and the "changed but not identified" section still covers every changed
+byte in the whole binary.
+
 1. Both files are scanned with the same structural scanner as `scan-maps`.
-2. Tables are matched by **axis fingerprint** — identical X and Y axis value
-   tuples — with offset proximity disambiguation when two tables share axes.
+2. Tables are matched in two passes:
+   - **Exact fingerprint match** — identical X and Y axis breakpoint tuples,
+     with offset proximity disambiguation when two tables share axes.
+   - **Correlation near-match** — when exact matching fails, a stock table
+     with the same shape whose axes are close (breakpoints edited, within
+     ~15% of the axis range) and whose cell grids correlate strongly
+     (Pearson `r ≥ 0.95`) is paired up and flagged `↺ axes changed`.
+     Without this pass, a tuner moving breakpoints would silently drop the
+     map out of the report as if nothing changed there.
 3. Matched pairs are diffed cell-by-cell: `tuned − stock`, plus per-cell
    percentage change.
 
-Maps whose axis breakpoints changed between stock and tuned appear as
-**unmatched** rather than matched — this is intentional. Tuners rarely change
-breakpoints; when they do, the map structure itself has changed.
+Every match carries a **correlation** value (`r`) between its stock and tuned
+grids.  It drives the `⚠ suspicious` flag: near-total cell change is flagged
+only when the grids do *not* correlate (low `r` — probably two different maps
+sharing the same axes).  A heavily retuned map (100% of cells changed but
+`r ≈ 1.0`) is a legitimate retune, not a misalignment.
 
 The report also lists:
 - **Unmatched maps** — only-in-stock / only-in-tuned tables.
 - **Changed-block promotion** — changed bytes in tables the axis scanner
   missed (e.g. flat-Y layouts).
+- **Changed but not identified** — changed byte regions no matched table
+  covers and that are not table-shaped.  Every changed byte in the binary is
+  therefore accounted for: matched map, promoted table, or listed here.
 
 ### Recipe cross-reference (`--recipe`)
 
@@ -104,25 +127,38 @@ openremap diff-maps stock.bin tuned.bin --json
 {
   "stock": "stock.bin",
   "tuned": "tuned.bin",
-  "matched": 342,
-  "unmatched_stock_only": 12,
-  "unmatched_tuned_only": 9,
+  "matched_count": 342,
+  "only_in_stock_count": 12,
+  "only_in_tuned_count": 9,
+  "unidentified_changed_count": 3,
+  "unidentified_changed": [
+    {"offset": 4096, "size": 32}
+  ],
   "groups": [
     {"group": "A", "maps": 2, "cols": 32, "rows": 16, "x_axis": [0, 500, 800, "…"], "y_axis": ["…"]}
   ],
   "matches": [
     {
-      "offset": 227058,
+      "offset_stock": 227058,
       "cols": 32,
       "rows": 16,
       "group": "A",
-      "max_change": 23,
-      "avg_change": 1.9,
-      "pct_changed": 18.3
+      "max_abs": 23,
+      "avg_abs": 1.9,
+      "changed_cells": 180,
+      "total_cells": 512,
+      "correlation": 0.99,
+      "suspicious": false,
+      "near_match": false,
+      "axis_changed": false
     }
   ]
 }
 ```
+
+Near-matched (axis-changed) maps additionally carry `"near_match": true`,
+`"axis_changed": true` and the old/new axis values under `axis_stock` /
+`axis_tuned`.
 
 ---
 
@@ -132,8 +168,9 @@ openremap diff-maps stock.bin tuned.bin --json
   map is fuel, timing, or boost. `--classify` on `scan-maps` gives
   probabilistic labels.
 - Large scans take a few seconds per file; results are deterministic.
-- Changes in flags, checksums, or VIN areas do not appear here — use `cook`
-  for the complete byte-level picture.
+- Changes in flags, checksums, or VIN areas appear as **changed but not
+  identified** regions rather than maps — use `cook` for the complete
+  byte-level picture.
 
 ---
 

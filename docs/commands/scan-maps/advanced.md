@@ -36,12 +36,36 @@ openremap scan-maps <FILE> [OPTIONS]
 |---|---|---|
 | `--top`, `-n` | `20` | Number of top-scoring tables to show. |
 | `--min-score`, `-s` | `0.85` | Minimum table score in `[0, 1]`. Higher = fewer false positives. |
-| `--region`, `-r` | (whole file) | Restrict scanning to a byte range: `0xSTART-0xEND` or `START-END`. |
+| `--region`, `-r` | (calibration region) | Restrict scanning to a byte range: `0xSTART-0xEND` or `START-END`. Overrides the calibration-region default. |
+| `--whole-file` | off | Scan the whole file instead of only the detected calibration region — shows tables outside it. |
 | `--json` | off | Output as JSON instead of human-readable text. |
 | `--max-series-tables` | `16` | Max consecutive shared-axis tables to probe after each anchor. Set to `1` to disable. |
 | `--show-series` | off | Group tables sharing identical X/Y axes with indented `└─` continuation rows. |
 
 ---
+
+## Calibration-region default
+
+By default the scan is limited to the **calibration region** — the flash
+area the layout segmenter labels as calibration (sectors containing
+high-score tables).  Junk tables that the scanner finds in code / erased /
+mixed sectors are hidden and counted (in JSON as `tables_hidden`); the
+human output notes them:
+
+```
+  304 table(s) outside the calibration region hidden — use --whole-file to scan the whole file.
+```
+
+- **`--whole-file`** scans everything (code-sector junk included).
+- **`--region`** overrides the default entirely — an explicit range wins.
+- **No calibration signal** (small / synthetic / unfamiliar binaries) falls
+  back to whole-file behaviour automatically — the default never hides
+  tables where it cannot find a calibration region.
+
+The layout estimate is structural inference (no manufacturer database), so
+it can be wrong on unusual binaries — the fallback and `--whole-file` /
+`--region` overrides keep that harmless: a wrong estimate only changes
+what the report shows, never recipe or patch output.
 
 ## Shared-axis detection
 
@@ -131,6 +155,8 @@ openremap scan-maps ecu.bin --json --top 5
   "file_size": 4194304,
   "axes_count": 15967,
   "tables_count": 1985,
+  "layout_filtered": true,
+  "tables_hidden": 304,
   "tables": [
     {
       "offset": 227058,
@@ -146,7 +172,10 @@ openremap scan-maps ecu.bin --json --top 5
 }
 ```
 
-Axes are capped at 200 in JSON output to keep the payload reasonable.
+`layout_filtered` is true when the calibration-region default applied;
+`tables_hidden` counts tables outside it.  With `--whole-file` both are
+`false` / `0`.  Axes are capped at 200 in JSON output to keep the payload
+reasonable.
 
 ---
 

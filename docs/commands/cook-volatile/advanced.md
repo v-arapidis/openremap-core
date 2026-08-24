@@ -135,6 +135,13 @@ openremap cook-volatile stock.bin stage1.bin --accept-volatile
 | Portability | same-revision, same volatile bytes | other cars of the same SW revision |
 | Recipe section | `maps[]` (optional) | `maps[]` (optional) + `volatile` |
 
+Both commands additionally emit **region tags** on every kept instruction
+(`region` field + `CODE_AREA` flag for edits outside a calibration region —
+advisory, never filters or blocks; see [cook → region tags](../cook/advanced.md))
+and stamp `metadata.portability = "same_file_only"` when
+`--allow-non-unique` was needed (enforced by `tune`/`validate` via
+`ecu.sha256`).
+
 `cook` itself is untouched — `cook-volatile` is a separate command, and
 `cook` output stays byte-identical.
 

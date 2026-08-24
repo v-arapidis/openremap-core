@@ -17,6 +17,7 @@ from typer.testing import CliRunner
 
 from openremap.cli.commands.scan_maps import _parse_region
 from openremap.cli.main import app
+from tests.conftest import make_layout_bin
 
 runner = CliRunner()
 
@@ -298,3 +299,65 @@ class TestScanMapsClassify:
             assert "label" in t
             assert "label_confidence" in t
             assert t["label"] in ("fuel", "timing", "boost", "torque", "duration", "unknown")
+
+
+class TestCalibrationDefault:
+    """scan-maps defaults to the detected calibration region."""
+
+    def test_default_filters_to_calibration(self, tmp_path):
+        """Tables outside the calibration region are hidden by default."""
+        target = tmp_path / "ecu.bin"
+        target.write_bytes(make_layout_bin())
+
+        result = runner.invoke(
+            app, ["scan-maps", str(target), "--min-score", "0.55", "--json"],
+        )
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["layout_filtered"] is True
+        assert out["tables_hidden"] == 3
+        assert out["tables_count"] == 23
+        # every kept table lives in the calibration sector
+        assert all(0x10000 <= t["offset"] < 0x20000 for t in out["tables"])
+
+    def test_whole_file_flag_restores_full_scan(self, tmp_path):
+        """--whole-file shows the code-sector junk tables again."""
+        target = tmp_path / "ecu.bin"
+        target.write_bytes(make_layout_bin())
+
+        result = runner.invoke(
+            app,
+            ["scan-maps", str(target), "--min-score", "0.55", "--whole-file", "--json"],
+        )
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["layout_filtered"] is False
+        assert out["tables_count"] == 26
+        assert any(t["offset"] >= 0x30000 for t in out["tables"])
+
+    def test_human_output_notes_hidden_tables(self, tmp_path):
+        target = tmp_path / "ecu.bin"
+        target.write_bytes(make_layout_bin())
+
+        result = runner.invoke(
+            app, ["scan-maps", str(target), "--min-score", "0.55"],
+        )
+
+        assert result.exit_code == 0
+        assert "outside the calibration region hidden" in result.stdout
+
+    def test_no_calibration_signal_falls_back_to_whole_file(self, tmp_path):
+        """No calibration signal (all-erased bin) -> whole-file behaviour."""
+        target = tmp_path / "ecu.bin"
+        target.write_bytes(_make_bin(4096))
+
+        result = runner.invoke(
+            app, ["scan-maps", str(target), "--json"],
+        )
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["layout_filtered"] is False
+        assert out["tables_hidden"] == 0

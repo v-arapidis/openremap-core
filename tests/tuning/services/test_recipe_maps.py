@@ -6,7 +6,7 @@ import struct
 
 import os
 
-from openremap.core.services.maps.map_hunter import MapTable
+from openremap.core.services.maps.map_hunter import MapTable, scan_map_tables
 from openremap.core.services.recipes.patcher import ECUPatcher
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 from openremap.core.services.recipes.recipe_maps import (
@@ -111,6 +111,21 @@ class TestAttachMaps:
         assert m["x_axis"]["values"] == x
         assert m["y_axis"]["values"] == y
         assert "label" in m and "label_confidence" in m
+
+    def test_attach_maps_accepts_precomputed_tables(self) -> None:
+        """Precomputed scan tables are used instead of a second scan."""
+        x = list(range(500, 500 + 8 * 500, 500))
+        y = [0, 10, 25, 40]
+        cells = [100 + r * 10 + c for r in range(4) for c in range(8)]
+        data = b"\x00" * 32 + _make_2d_table(x, y, cells)
+        table_data_off = 32 + 8 * 2 + 4 * 2
+
+        tables = scan_map_tables(data, min_score=0.55, max_series_tables=16)
+        recipe = _simple_recipe([_instruction(table_data_off)])
+        result = attach_maps(recipe, data, tables=tables)
+
+        assert len(result["maps"]) == 1
+        assert result["maps"][0]["instruction_refs"] == [1]
 
     def test_instruction_outside_all_maps_yields_empty_maps(self) -> None:
         x = list(range(0, 8 * 100, 100))

@@ -112,6 +112,7 @@ Information about the files the recipe was built from.
 | `original_size` | `integer` | Size of the original binary in bytes |
 | `modified_size` | `integer` | Size of the modified binary in bytes |
 | `tune_id` | `string \| null` | Source tune ID (`orst_<32hex>`) for `tune_export`. `null` for `full_cook` |
+| `portability` | `string \| null` | *Optional.* `"same_file_only"` when the recipe contains non-unique context anchors (`cook --allow-non-unique`): `tune`/`validate` refuse it on any binary whose sha256 differs from `ecu.sha256` unless `tune --force` is passed (the mechanical validation phases still run). Absent for portable recipes |
 
 ```json
 "metadata": {
@@ -126,6 +127,10 @@ Information about the files the recipe was built from.
   "tune_id": null
 }
 ```
+
+A same-file-only recipe additionally carries `"portability": "same_file_only"`
+in `metadata` (produced by `cook --allow-non-unique` when non-unique anchors
+are present).
 
 ---
 
@@ -270,6 +275,7 @@ An array of patch instructions. Each instruction describes one contiguous block 
 | `ctx_unique` | `boolean \| null` | `true` when the `ctx + ob` pattern is unique in the original binary |
 | `ctx_expanded` | `boolean \| null` | `true` when the context was auto-expanded beyond `min_context_size` |
 | `description` | `string` | Human-readable summary of the instruction |
+| `region` | `string \| null` | *Optional.* Flash-layout region the edit lands in: `calibration` / `code` / `erased` / `mixed` / `unknown` (structural estimate — advisory only, never filters or blocks; see [cook → region tags](../commands/cook/advanced.md)) |
 | `flags` | `array` | Annotator flags attached to this instruction |
 
 ### Instruction flags
@@ -278,10 +284,15 @@ Each flag is an object with:
 
 | Field | Type | Description |
 |---|---|---|
-| `kind` | `string` | Flag type: `VIN_SUSPECT`, `CHECKSUM_SUSPECT`, `LOW_ENTROPY_CTX` |
+| `kind` | `string` | Flag type: `VIN_SUSPECT`, `CHECKSUM_SUSPECT`, `LOW_ENTROPY_CTX`, `CODE_AREA` |
 | `reason` | `string` | Human-readable explanation of why this instruction was flagged |
 | `confidence` | `float` | Confidence score 0.0–1.0 (was string `HIGH`/`MEDIUM`/`LOW` in 4.2) |
 | `action` | `string` | `WARN`, `SKIP`, or `REVIEW` |
+
+`CODE_AREA` (confidence 1.0) marks an edit outside a calibration region
+(code/erased/mixed flash area) — a portability signal, since code differs
+across ECU revisions.  It is advisory: the recipe patches identically with
+or without it.
 
 ### `ob` and `mb`
 
@@ -300,7 +311,7 @@ All byte strings are uppercase hex with no separators. A 4-byte value is represe
 3. Search the entire original binary for `ctx + ob`.
 4. If entropy < 2.5 bits/byte OR the pattern appears more than once, double the context size (64 → 128 → 256 → 512).
 5. Repeat until both conditions are met, or `max_context_size` is reached.
-6. If `max_context_size` is reached and the anchor is still non-unique: when `require_unique=True` (default), raise a hard error listing the failed instructions. When `require_unique=False` (Force Save), record the non-unique anchors as `cook_warnings` and proceed.
+6. If `max_context_size` is reached and the anchor is still non-unique: when `require_unique=True` (default), raise a hard error listing the failed instructions. When `require_unique=False` (`--allow-non-unique`), record the non-unique anchors as `cook_warnings` and proceed — the recipe is stamped `metadata.portability = "same_file_only"` and `tune`/`validate` enforce it via `ecu.sha256` (see [`metadata.portability`](#metadata)).
 
 Quality metadata (`ctx_entropy`, `ctx_unique`, `ctx_expanded`) is stored per-instruction for downstream tooling.
 

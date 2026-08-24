@@ -43,7 +43,7 @@ The order matters — `ORIGINAL` always comes first, `MODIFIED` second.
 | `--context-size N` | `-c` | `32` | Number of bytes of context to capture before each changed block (8–128). A larger value gives the patcher a better anchor when offsets have shifted. |
 | `--pretty / --compact` | | `--pretty` | Pretty-print the JSON with indentation, or write it as a single compact line. |
 | `--annotate-maps / --no-annotate-maps` | | `--annotate-maps` | Annotate the recipe with a schema 4.4 `maps` layer (map descriptors + instruction refs). On by default; `--no-annotate-maps` emits the lean 4.3 format. |
-| `--allow-non-unique` | | off | Produce the recipe even when context anchors repeat in the stock binary (recipe reliable only on this exact binary). |
+| `--allow-non-unique` | | off | Produce the recipe even when context anchors repeat in the stock binary — the recipe is stamped **same-file-only** (`metadata.portability`), and `tune`/`validate` refuse it on any binary whose sha256 differs from the source (override with `tune --force`). |
 | `--help` | | | Show help and exit. |
 
 ---
@@ -114,6 +114,31 @@ openremap cook stock.bin stage1.bin --compact --output recipe.remap
   and `tune` will not be able to confirm the target is the right ECU.
 - **A read error** — check that both file paths exist and that both files
   end in `.bin` or `.ori`.
+
+### Region tags (advisory)
+
+Every instruction is tagged with the flash-layout region its edit lands in
+(`region` field: `calibration` / `code` / `erased` / `mixed` / `unknown`).
+Edits **outside** a calibration region carry a `CODE_AREA` flag and cook
+prints a warning:
+
+```
+  ⚠  41 instruction(s) outside the calibration region (code/erased/mixed
+     flash area): 0x291703, 0x29174B, 0x291777 … and 35 more
+     These edits may not apply to other revisions of this ECU.
+     Region labels are structural estimates.
+```
+
+This is a portability signal: calibration-table edits usually apply across
+revisions of an ECU; code-area edits often do not.  The tags are **advisory
+only** — they never filter instructions, never block a cook, and `tune`
+ignores them.  The layout is structural inference, so a wrong estimate can
+only produce a wrong tag or warning — never a wrong recipe.  When no
+calibration region is detected, instructions are tagged `unknown` and
+nothing is flagged.  The layout scan is shared with `--annotate-maps` (one
+scan serves both map annotation and region tags), so the default cook adds
+only ~0.2 s on a 4 MB pair; with `--no-annotate-maps` the region tags pay
+for their own scan (~2.5–3 s on a 4 MB binary).
 
 ---
 

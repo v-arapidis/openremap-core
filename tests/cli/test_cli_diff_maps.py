@@ -12,13 +12,21 @@ from __future__ import annotations
 
 import json
 import math
+import random
 import struct
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.commands.diff_maps import _diff_cells, _json_safe
+from openremap.cli.commands.diff_maps import (
+    _axes_similar,
+    _diff_cells,
+    _json_safe,
+    _pearson,
+)
 from openremap.cli.main import app
+from tests.conftest import make_layout_bin
 
 runner = CliRunner()
 
@@ -618,3 +626,393 @@ class TestRecipeCrossReference:
             ["diff-maps", str(sp), str(tp), "--recipe", str(bad)],
         )
         assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# Correlation helpers — unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestPearson:
+    def test_perfect_positive_correlation(self):
+        assert _pearson([1, 2, 3, 4], [2, 4, 6, 8]) == pytest.approx(1.0)
+
+    def test_perfect_negative_correlation(self):
+        assert _pearson([1, 2, 3, 4], [8, 6, 4, 2]) == pytest.approx(-1.0)
+
+    def test_unrelated_series_low_correlation(self):
+        r = _pearson([1, 2, 3, 4, 5], [100, 0, 50, 200, 10])
+        assert r is not None and abs(r) < 0.5
+
+    def test_constant_input_is_none(self):
+        assert _pearson([5, 5, 5], [1, 2, 3]) is None
+
+    def test_length_mismatch_is_none(self):
+        assert _pearson([1, 2], [1, 2, 3]) is None
+
+
+class TestAxesSimilar:
+    def test_identical_axes(self):
+        assert _axes_similar((300, 600, 1000), (300, 600, 1000), 0.15)
+
+    def test_small_breakpoint_shift(self):
+        assert _axes_similar((300, 600, 1000), (280, 590, 990), 0.15)
+
+    def test_completely_different_axis(self):
+        assert not _axes_similar((300, 600, 1000), (10, 20, 30), 0.15)
+
+    def test_different_length(self):
+        assert not _axes_similar((300, 600), (300, 600, 1000), 0.15)
+
+    def test_empty_axis(self):
+        assert not _axes_similar((), (), 0.15)
+
+
+# ---------------------------------------------------------------------------
+# Near-match — tables whose axis breakpoints changed
+# ---------------------------------------------------------------------------
+
+
+class TestNearMatchAxisChanged:
+    """Maps whose axis breakpoints changed pair up via correlation."""
+
+    def _run(self, tmp_path, x_axis, y_axis, func):
+        stock = _make_map_bin(_X, _Y, _surface)
+        tuned = _make_map_bin(x_axis, y_axis, func)
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(tuned)
+        return runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+    def test_axis_shifted_map_is_near_matched(self, tmp_path):
+        """Breakpoints moved a little + a normal retune → matched, flagged."""
+        result = self._run(
+            tmp_path,
+            [v - 20 for v in _X],
+            [v - 2 for v in _Y],
+            lambda xi, yi: _surface(xi, yi) + 12,
+        )
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        near = [m for m in out["matches"] if m.get("near_match")]
+        assert len(near) == 1, f"got {len(near)} near-matches"
+        m = near[0]
+        assert m["axis_changed"] is True
+        assert m["correlation"] >= 0.95
+        assert m["changed_cells"] > 0
+        assert m["axis_stock"]["x"] != m["axis_tuned"]["x"]
+        assert m["axis_stock"]["y"] != m["axis_tuned"]["y"]
+        assert out["only_in_tuned_count"] == 0
+
+    def test_unrelated_cells_do_not_near_match(self, tmp_path):
+        """Similar axes but unrelated grids must stay unmatched."""
+        result = self._run(
+            tmp_path,
+            [v - 20 for v in _X],
+            [v - 2 for v in _Y],
+            lambda xi, yi: 4000 + yi * 300 + xi * 37,
+        )
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert not any(m.get("near_match") for m in out["matches"])
+        assert out["only_in_tuned_count"] >= 1
+
+    def test_completely_different_axes_do_not_near_match(self, tmp_path):
+        """A genuinely different axis (tiny range) must not pair up."""
+        small = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150]
+        result = self._run(
+            tmp_path,
+            small,
+            _Y,
+            lambda xi, yi: _surface(xi, yi) + 12,
+        )
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert not any(m.get("near_match") for m in out["matches"])
+
+    def test_human_output_marks_axis_changed(self, tmp_path):
+        stock = _make_map_bin(_X, _Y, _surface)
+        tuned = _make_map_bin(
+            [v - 20 for v in _X], [v - 2 for v in _Y],
+            lambda xi, yi: _surface(xi, yi) + 12,
+        )
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(tuned)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp)])
+
+        assert result.exit_code == 0
+        assert "axes changed" in result.stdout
+
+    def test_strided_near_match_reads_cells_with_stride(self, tmp_path):
+        """A compound (strided) map with rescaled axes must be diffed with its stride.
+
+        Regression: the near-match pass used to read cells contiguously,
+        mixing the two interleaved map halves (the exact-match path always
+        read strided halves correctly).
+        """
+        x1 = [680, 685, 810, 925, 1045, 1120, 1255, 1280]
+        x2 = [1330, 1531, 1660, 1825, 1970, 2148, 2315, 2365]
+        y = [690, 715, 825, 955, 1070, 1175, 1270, 1310]
+
+        def m1(r, c):
+            return 1000 + r * 80 + c * 30
+        def m2(r, c):
+            return 300 + r * 40 + c * 15
+        def m1_t(r, c):  # tuned: bottom-left enriched (5×4 = 20 cells)
+            return m1(r, c) + (50 if r >= 3 and c <= 3 else 0)
+        def m2_t(r, c):  # tuned: right half enriched (7×4 = 28 cells)
+            return m2(r, c) + (40 if r >= 1 and c >= 4 else 0)
+
+        stock = _make_compound_bin(x1, x2, y, m1, m2)
+        tuned = _make_compound_bin(
+            [v - 20 for v in x1], [v - 20 for v in x2], [v - 2 for v in y],
+            m1_t, m2_t,
+        )
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(tuned)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        near = [m for m in out["matches"] if m.get("near_match")]
+        assert len(near) == 2, f"got {len(near)} near-matches"
+        # both halves are strided; changed counts are computed WITH the stride
+        assert all(m["stride"] == 32 for m in near)
+        counts = sorted(m["changed_cells"] for m in near)
+        assert counts == [20, 28], (
+            f"got {counts} — strided halves were diffed contiguously"
+        )
+
+    def test_many_same_shape_near_matches_pair_correctly(self, tmp_path):
+        """Pre-index: N same-shape maps with rescaled axes each pair with
+        their own stock map (no cross-pairing)."""
+        offsets = [0x400, 0x8000, 0x10000, 0x18000]
+        stock_buf = bytearray(128 * 1024)
+        tuned_buf = bytearray(128 * 1024)
+        for i, base in enumerate(offsets):
+            scale = 1 + i  # distinct axis values per map
+            x = [300 * scale + j * 400 * scale for j in range(8)]
+            y = [10 * scale + j * 15 * scale for j in range(5)]
+            for buf, shift in ((stock_buf, 0), (tuned_buf, -1)):
+                o = base
+                buf[o : o + 16] = struct.pack(
+                    "<8H", *(v + shift * 20 * scale for v in x)
+                )
+                o += 16
+                buf[o : o + 10] = struct.pack(
+                    "<5H", *(v + shift * 2 * scale for v in y)
+                )
+                o += 10
+                for yi in range(5):
+                    for xi in range(8):
+                        struct.pack_into(
+                            "<H", buf, o, 500 + yi * 100 + xi * 30 + i * 50,
+                        )
+                        o += 2
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(bytes(stock_buf))
+        tp.write_bytes(bytes(tuned_buf))
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        near = [m for m in out["matches"] if m.get("near_match")]
+        assert len(near) == len(offsets), f"got {len(near)} near-matches"
+        # one-to-one: every stock table pairs with the tuned table at the
+        # SAME data offset (no cross-pairing between the four maps)
+        assert sorted(m["offset_stock"] for m in near) == sorted(
+            m["offset_tuned"] for m in near
+        )
+        assert all(m["offset_delta"] == 0 for m in near)
+        # axes were detected as changed for every pair
+        assert all(m["axis_changed"] for m in near)
+
+
+# ---------------------------------------------------------------------------
+# Correlation-refined suspicion
+# ---------------------------------------------------------------------------
+
+
+class TestCorrelationSuspicion:
+    """Correlation refines the suspicious flag: retunes ≠ different maps."""
+
+    def test_heavy_retune_is_not_suspicious(self, tmp_path):
+        """100% of cells changed but the grid correlates ~1.0 → same map."""
+        stock = _make_map_bin(_X, _Y, _surface)
+        tuned = _make_map_bin(
+            _X, _Y, lambda xi, yi: int(_surface(xi, yi) * 1.2 + 300),
+        )
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(tuned)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        m = out["matches"][0]
+        # Near-total change (a few cells coincidentally map to the same
+        # int) — enough to trip the old >90% suspicion heuristic.
+        assert m["changed_cells"] / m["total_cells"] > 0.9
+        assert m["correlation"] >= 0.9
+        assert m["suspicious"] is False
+
+    def test_correlation_field_present_on_exact_matches(self, tmp_path):
+        stock = _make_map_bin(_X, _Y, _surface)
+        tuned = _make_map_bin(
+            _X, _Y, lambda xi, yi: _surface(xi, yi) + 12,
+        )
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(tuned)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["matches"][0]["correlation"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Changed but not identified
+# ---------------------------------------------------------------------------
+
+
+class TestUnidentifiedChanged:
+    """Changed bytes outside any matched table are reported explicitly."""
+
+    def _pair(self, tmp_path):
+        stock = _make_map_bin(_X, _Y, _surface)
+        tuned = bytearray(_make_map_bin(
+            _X, _Y, lambda xi, yi: _surface(xi, yi) + 12,
+        ))
+        # Inject a changed region that is not a table: deterministic random
+        # bytes (seeded — never os.urandom, per repo CI rules).  Must sit
+        # INSIDE the 4 KiB buffer — the Rust diff ignores the tail beyond
+        # min(len(original), len(modified)).
+        blob = random.Random(1234).randbytes(32)
+        tuned[0x800 : 0x800 + 32] = blob
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(bytes(tuned))
+        return sp, tp
+
+    def test_unidentified_region_reported_in_json(self, tmp_path):
+        sp, tp = self._pair(tmp_path)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["unidentified_changed_count"] >= 1
+        hit = [
+            r for r in out["unidentified_changed"]
+            if 0x800 <= r["offset"] < 0x800 + 32
+        ]
+        assert hit, f"expected blob at 0x800, got {out['unidentified_changed']}"
+        assert hit[0]["size"] >= 32
+        # The map itself must still be matched, not unidentified.
+        assert any(m["cols"] == len(_X) for m in out["matches"])
+
+    def test_unidentified_section_in_human_output(self, tmp_path):
+        sp, tp = self._pair(tmp_path)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp)])
+
+        assert result.exit_code == 0
+        assert "Changed but not identified" in result.stdout
+
+    def test_clean_pair_has_no_unidentified(self, tmp_path):
+        stock = _make_map_bin(_X, _Y, _surface)
+        tuned = _make_map_bin(
+            _X, _Y, lambda xi, yi: _surface(xi, yi) + 12,
+        )
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(tuned)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["unidentified_changed_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Calibration-region default — layout consumers
+# ---------------------------------------------------------------------------
+
+
+class TestCalibrationDefault:
+    """diff-maps defaults both scans to the detected calibration region."""
+
+    def _pair(self, tmp_path):
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(make_layout_bin(seed=7, map_delta=0))
+        tp.write_bytes(make_layout_bin(seed=7, map_delta=12))
+        return sp, tp
+
+    def test_default_filters_both_files(self, tmp_path):
+        """Code-sector junk tables are hidden; the real map still diffs."""
+        sp, tp = self._pair(tmp_path)
+
+        result = runner.invoke(app, ["diff-maps", str(sp), str(tp), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["stock_tables_hidden"] == 3
+        assert out["tuned_tables_hidden"] == 3
+        assert out["stock_tables"] == 23
+        assert out["matched_count"] == 23
+        # the real calibration map is matched and shows the +12 tune
+        real = [
+            m for m in out["matches"]
+            if 0x11000 <= m["offset_stock"] < 0x12000
+        ]
+        assert real, "real calibration map must be matched"
+        assert real[0]["changed_cells"] > 0
+        # no junk from the code sector
+        assert not any(m["offset_stock"] >= 0x30000 for m in out["matches"])
+
+    def test_whole_file_includes_code_junk(self, tmp_path):
+        sp, tp = self._pair(tmp_path)
+
+        result = runner.invoke(
+            app, ["diff-maps", str(sp), str(tp), "--whole-file", "--json"],
+        )
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["stock_tables_hidden"] == 0
+        assert out["tuned_tables_hidden"] == 0
+        assert out["matched_count"] == 26
+        assert any(m["offset_stock"] >= 0x30000 for m in out["matches"])
+
+    def test_real_pair_hides_code_tables(self, tmp_path):
+        """Corpus-gated: the real EDC17 pair hides tables by default."""
+        base = Path(__file__).parent.parent / "data" / "tune"
+        stock = base / "original.bin"
+        tuned = base / "ALL FILTERS OFF STAGE 1 POWER UP VMAX CANCEL.bin"
+        if not (stock.exists() and tuned.exists()):
+            pytest.skip("tests/data/tune corpus pair missing")
+
+        result = runner.invoke(app, ["diff-maps", str(stock), str(tuned), "--json"])
+
+        assert result.exit_code == 0
+        out = json.loads(result.stdout)
+        assert out["stock_tables_hidden"] > 0
+        assert out["tuned_tables_hidden"] > 0

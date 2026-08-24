@@ -12,6 +12,9 @@ human-readable warning/error string otherwise.  The caller decides whether
 the result is fatal.
 """
 
+from __future__ import annotations
+
+import hashlib
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
@@ -41,6 +44,47 @@ def check_file_size(recipe: dict, actual_size: int) -> Optional[str]:
             f"found {actual_size:,} bytes — possibly a different ECU model."
         )
     return None
+
+
+def check_same_file_only(
+    recipe: dict, target_data: bytes, force: bool = False,
+) -> tuple[bool, str]:
+    """Policy gate for same-file-only recipes (ISSUE-2 middle ground).
+
+    A recipe stamped ``metadata.portability == "same_file_only"`` (produced
+    by ``cook --allow-non-unique`` when non-unique anchors are present) may
+    only be applied to the exact binary it was cooked from: the target's
+    SHA-256 must equal the recipe's ``ecu.sha256``.  ``force`` overrides the
+    refusal — the mechanical phases (strict validation, patcher, post-patch
+    verification) still run and can still abort.
+
+    Returns ``(allowed, message)`` — a non-empty message is informational
+    (warning) when allowed, the refusal text when not.
+    """
+    meta = recipe.get("metadata", {})
+    if meta.get("portability") != "same_file_only":
+        return True, ""
+    expected = recipe.get("ecu", {}).get("sha256")
+    if not expected:
+        return True, (
+            "recipe is stamped same-file-only but carries no source sha256 "
+            "— cannot enforce the guard"
+        )
+    actual = hashlib.sha256(target_data).hexdigest()
+    if actual == expected:
+        return True, ""
+    if force:
+        return True, (
+            "--force: applying a SAME-FILE-ONLY recipe to a binary whose sha256 "
+            "differs from the source — non-unique anchors may patch the wrong "
+            "location"
+        )
+    return False, (
+        "recipe is stamped SAME-FILE-ONLY (non-unique anchors) and the target's "
+        f"sha256 ({actual}) does not match the source ({expected}). It may only "
+        "be applied to the exact binary it was cooked from — pass --force to "
+        "override."
+    )
 
 
 def check_match_key(recipe: dict, data: bytes, filename: str) -> Optional[str]:

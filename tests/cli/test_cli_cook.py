@@ -875,3 +875,100 @@ class TestCookAnnotateMaps:
         data = _parse_json_from_stdout(result.stdout)
         assert data["schema_version"] == "4.3"
         assert "maps" not in data
+
+
+# ---------------------------------------------------------------------------
+# Flash-layout region tags (advisory) — layout consumers
+# ---------------------------------------------------------------------------
+
+
+class TestRegionTags:
+    """cook tags each instruction with its flash-layout region."""
+
+    def _pair(self, tmp_path):
+        from tests.conftest import make_layout_bin
+
+        stock = make_layout_bin(seed=7)
+        tuned = bytearray(make_layout_bin(seed=7, map_delta=12))
+        # inject an edit in the code sector (0x30000-0x40000)
+        tuned[0x34500] ^= 0xFF
+        sp = tmp_path / "stock.bin"
+        tp = tmp_path / "tuned.bin"
+        sp.write_bytes(stock)
+        tp.write_bytes(bytes(tuned))
+        return sp, tp
+
+    def test_cook_tags_instructions_and_warns(self, tmp_path):
+        sp, tp = self._pair(tmp_path)
+        recipe_path = tmp_path / "tune.remap"
+
+        result = runner.invoke(
+            app, ["cook", str(sp), str(tp), "--output", str(recipe_path)],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(recipe_path.read_text())
+        insts = data["instructions"]
+        assert len(insts) == 2, f"got {len(insts)}: {[i['offset_hex'] for i in insts]}"
+
+        code_inst = next(i for i in insts if i["offset"] == 0x34500)
+        assert code_inst["region"] == "code"
+        code_area = [
+            f for f in code_inst["flags"] if f["kind"] == "CODE_AREA"
+        ]
+        assert code_area, "code-area edit must carry the CODE_AREA flag"
+        assert code_area[0]["confidence"] == 1.0
+        assert code_area[0]["action"] == "REVIEW"
+
+        map_inst = next(
+            i for i in insts if 0x11000 <= i["offset"] < 0x12000
+        )
+        assert map_inst["region"] == "calibration"
+        assert not any(f["kind"] == "CODE_AREA" for f in map_inst["flags"])
+
+        # the advisory portability warning is printed
+        assert "outside the calibration region" in result.stderr
+
+    def test_cook_volatile_tags_kept_instructions(self, tmp_path):
+        sp, tp = self._pair(tmp_path)
+        recipe_path = tmp_path / "tune-volatile.remap"
+
+        result = runner.invoke(
+            app,
+            ["cook-volatile", str(sp), str(tp), "--output", str(recipe_path)],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(recipe_path.read_text())
+        assert data["schema_version"] == "4.5"
+        insts = data["instructions"]
+        assert all("region" in i for i in insts)
+        code_inst = next(i for i in insts if i["offset"] == 0x34500)
+        assert code_inst["region"] == "code"
+        assert any(f["kind"] == "CODE_AREA" for f in code_inst["flags"])
+        assert "outside the calibration region" in result.stderr
+
+    def test_real_pair_tags_all_instructions(self, tmp_path):
+        """Corpus-gated: the real EDC17 pair carries region tags."""
+        base = Path(__file__).parent.parent / "data" / "tune"
+        stock = base / "original.bin"
+        tuned = base / "ALL FILTERS OFF STAGE 1 POWER UP VMAX CANCEL.bin"
+        if not (stock.exists() and tuned.exists()):
+            pytest.skip("tests/data/tune corpus pair missing")
+
+        recipe_path = tmp_path / "real.remap"
+        result = runner.invoke(
+            app, ["cook", str(stock), str(tuned), "--output", str(recipe_path)],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(recipe_path.read_text())
+        insts = data["instructions"]
+        assert insts
+        assert all("region" in i for i in insts)
+        risky = sum(
+            1
+            for i in insts
+            if any(f["kind"] == "CODE_AREA" for f in i.get("flags", []))
+        )
+        assert risky > 0, "the real pair must contain non-calibration edits"

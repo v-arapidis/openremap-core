@@ -125,7 +125,7 @@ def _axis_dict(
 # ---------------------------------------------------------------------------
 
 
-def attach_maps(recipe: dict, stock_data: bytes) -> dict:
+def attach_maps(recipe: dict, stock_data: bytes, tables: list | None = None) -> dict:
     """
     Annotate *recipe* with a ``maps`` section and bump it to schema 4.4.
 
@@ -140,16 +140,21 @@ def attach_maps(recipe: dict, stock_data: bytes) -> dict:
                     and also returned.
         stock_data: The original (stock) binary content the recipe was
                     cooked from.
+        tables:     Optional precomputed ``scan_map_tables`` result (same
+                    parameters as the internal default) — pass it to share
+                    one scan between map annotation and other consumers
+                    (``cook`` region tags) instead of scanning twice.
 
     Returns:
         The same recipe dict, now schema 4.4 with a ``maps`` list.
     """
     instructions = recipe.get("instructions", [])
-    tables = scan_map_tables(
-        stock_data,
-        min_score=_SCAN_MIN_SCORE,
-        max_series_tables=_SCAN_MAX_SERIES,
-    )
+    if tables is None:
+        tables = scan_map_tables(
+            stock_data,
+            min_score=_SCAN_MIN_SCORE,
+            max_series_tables=_SCAN_MAX_SERIES,
+        )
 
     # Greedy assignment: tables are visited in descending score order (the
     # scanner returns them sorted); each instruction is claimed by the

@@ -24,6 +24,7 @@ from pathlib import Path
 
 import typer
 
+from openremap.core.services.maps.layout import segment
 from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tables
 
 # ---------------------------------------------------------------------------
@@ -105,15 +106,64 @@ def _parse_region(region: str | None) -> slice | None:
         raise typer.Exit(code=1)
 
 
+def _calibration_spans(data: bytes, tables) -> list[tuple[int, int]]:
+    """Byte spans of the detected calibration region(s), or [] when none.
+
+    The layout segmenter labels 64/16 KB sectors as ``calibration`` when
+    they contain high-score (>= 0.85) tables — the map-density signal.
+    The already-scanned tables are reused, so no second scan happens.
+    An empty result means "no calibration signal" — the caller should
+    fall back to a whole-file scan.
+    """
+    return [
+        (r.start, r.end)
+        for r in segment(data, tables=tables)
+        if r.kind == "calibration"
+    ]
+
+
+def _apply_calibration_filter(data: bytes, result: dict) -> None:
+    """Filter a scan result to the detected calibration region (in place).
+
+    Tables outside the calibration region are dropped and counted in
+    ``tables_hidden``; ``layout_filtered`` records whether the filter
+    applied.  When the segmenter finds no calibration signal the result
+    is left untouched (whole-file fallback).  Axes are deliberately NOT
+    filtered — the axes-count health signal must keep its whole-file
+    meaning.
+    """
+    spans = _calibration_spans(data, result["tables"])
+    if not spans:
+        result["layout_filtered"] = False
+        result["tables_hidden"] = 0
+        return
+
+    def _inside(offset: int) -> bool:
+        return any(s <= offset < e for s, e in spans)
+
+    before = len(result["tables"])
+    result["tables"] = [t for t in result["tables"] if _inside(t.offset)]
+    result["layout_filtered"] = True
+    result["tables_hidden"] = before - len(result["tables"])
+
+
 def _scan_one(
     data: bytes,
     region_slice: slice | None,
     min_score: float,
     max_series_tables: int,
+    layout_default: bool = False,
 ) -> dict:
     """Run axes + table scanning on a single binary.
 
-    Returns a dict with keys: axes, tables, axes_count, tables_count, top_score.
+    With ``layout_default`` (and no explicit ``--region``), the result is
+    filtered to the detected calibration region — junk tables from code /
+    erased sectors are hidden (counted in ``tables_hidden``), and a
+    ``layout_filtered`` flag is recorded.  Without a calibration signal,
+    the whole-file result is returned untouched.
+
+    Returns a dict with keys: axes, tables, axes_count, tables_count,
+    top_score, layout_filtered, tables_hidden.
     """
     axes = scan_map_axes(data, region=region_slice)
     tables = scan_map_tables(
@@ -121,13 +171,17 @@ def _scan_one(
         min_score=min_score, max_series_tables=max_series_tables,
     )
     top_score = max((t.score for t in tables), default=0.0)
-    return {
+    result = {
         "axes": axes,
         "tables": tables,
         "axes_count": len(axes),
         "tables_count": len(tables),
         "top_score": top_score,
     }
+    if layout_default and region_slice is None:
+        _apply_calibration_filter(data, result)
+        result["tables_count"] = len(result["tables"])
+    return result
 
 
 def _health_badge(axes_count: int) -> tuple[str, str]:
@@ -194,6 +248,7 @@ def _print_single_result(
     top: int,
     show_series: bool,
     labels: dict[int, tuple[str, float]] | None = None,
+    tables_hidden: int = 0,
 ) -> None:
     """Print the full human-readable table listing for one file."""
     typer.echo("")
@@ -307,6 +362,16 @@ def _print_single_result(
         )
         typer.echo("")
 
+    if tables_hidden:
+        typer.echo(
+            typer.style(
+                f"  {tables_hidden} table(s) outside the calibration region hidden — "
+                "use --whole-file to scan the whole file.",
+                dim=True,
+            )
+        )
+        typer.echo("")
+
 
 # ---------------------------------------------------------------------------
 # JSON helpers
@@ -329,6 +394,8 @@ def _build_json_result(
         "axes_count": result["axes_count"],
         "tables_count": result["tables_count"],
         "top_score": round(result["top_score"], 4),
+        "layout_filtered": bool(result.get("layout_filtered")),
+        "tables_hidden": result.get("tables_hidden", 0),
         "axes": [
             {"offset": a.offset, "length": a.length, "byte_order": a.byte_order,
              "values": list(a.values[:16])}
@@ -398,8 +465,12 @@ def scan_maps(
     min_score: float = typer.Option(0.85, "--min-score", "-s", help="Minimum table score in [0, 1] (default: 0.85)."),
     region: str | None = typer.Option(
         None, "--region", "-r",
-        help="Restrict scanning to a byte range: '0xSTART-0xEND' or 'START-END' (hex values, 0x optional — e.g. '0x10000-0x80000').",
+        help="Restrict scanning to a byte range: '0xSTART-0xEND' or 'START-END' (hex values, 0x optional — e.g. '0x10000-0x80000'). Overrides the calibration-region default.",
         metavar="RANGE",
+    ),
+    whole_file: bool = typer.Option(
+        False, "--whole-file",
+        help="Scan the whole file (default: only the detected calibration region — use this to see tables outside it).",
     ),
     as_json: bool = typer.Option(False, "--json", help="Output as JSON."),
     max_series_tables: int = typer.Option(
@@ -457,7 +528,10 @@ def scan_maps(
         data = _read_bin(path, "Binary")
         region_slice = _parse_region(region)
 
-        result = _scan_one(data, region_slice, min_score, max_series_tables)
+        result = _scan_one(
+            data, region_slice, min_score, max_series_tables,
+            layout_default=not whole_file,
+        )
         axes = result["axes"]
         tables = result["tables"]
         labels = _classify_for_file(data, tables) if classify else None
@@ -466,7 +540,10 @@ def scan_maps(
             out = _build_json_result(path, data, result, top, labels)
             typer.echo(json.dumps(out, indent=2, ensure_ascii=False))
         else:
-            _print_single_result(path.name, data, axes, tables, top, show_series, labels)
+            _print_single_result(
+                path.name, data, axes, tables, top, show_series, labels,
+                result.get("tables_hidden", 0),
+            )
 
         # CSV export
         if export is not None:
@@ -556,7 +633,10 @@ def scan_maps(
 
         # Scan
         t0 = time.perf_counter()
-        result = _scan_one(data, region_slice, min_score, max_series_tables)
+        result = _scan_one(
+            data, region_slice, min_score, max_series_tables,
+            layout_default=not whole_file,
+        )
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
         # Health classification
@@ -570,6 +650,11 @@ def scan_maps(
 
         badge, colour = _health_badge(ac)
         top_score_str = f"{result['top_score']:.3f}" if result["tables_count"] > 0 else "—"
+        hidden_note = (
+            f" · {result['tables_hidden']} hidden"
+            if result.get("layout_filtered") and result["tables_hidden"]
+            else ""
+        )
 
         # One-line summary (human output only)
         if not as_json:
@@ -577,7 +662,8 @@ def scan_maps(
             badge_styled = typer.style(badge, fg=colour, bold=True)
             typer.echo(
                 f"{label_idx}  {badge_styled}  {display_name}  "
-                f"{ac:,} axes  •  {result['tables_count']:,} tables  •  "
+                f"{ac:,} axes  •  {result['tables_count']:,} tables"
+                f"{hidden_note}  •  "
                 f"top {top_score_str}  •  {_format_size(len(data))}"
                 + timing
             )
@@ -588,6 +674,7 @@ def scan_maps(
                     display_name, data, result["axes"], result["tables"],
                     top, show_series,
                     _classify_for_file(data, result["tables"]) if classify else None,
+                    result.get("tables_hidden", 0),
                 )
 
         # JSON accumulation

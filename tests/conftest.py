@@ -5,6 +5,10 @@ All helpers are plain functions (not pytest fixtures) so tests can
 compose them freely without fixture dependency injection overhead.
 """
 
+import math
+import random
+import struct
+
 
 # ---------------------------------------------------------------------------
 # Binary helpers
@@ -34,6 +38,64 @@ def make_bin_with(size: int, patches: dict) -> bytes:
             buf[offset] = value
         else:
             buf[offset : offset + len(value)] = value
+    return bytes(buf)
+
+
+# ---------------------------------------------------------------------------
+# Flash-layout fixture — distinct sectors the segmenter can label
+# ---------------------------------------------------------------------------
+
+_LAYOUT_X = [300, 600, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000]
+_LAYOUT_Y = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+
+def _layout_surface(xi: int, yi: int) -> int:
+    return (
+        600
+        + yi * 100
+        + int(900 * math.sin(xi / 2.1))
+        + 40 * ((xi * 7 + yi * 13) % 5)
+    )
+
+
+def make_layout_bin(seed: int = 7, map_delta: int = 0) -> bytes:
+    """
+    Build a deterministic 256 KB binary with a clear flash layout.
+
+    Four 64 KB sectors the segmenter labels distinctly:
+        sector 0 (0x000000-0x010000)  random      -> code
+        sector 1 (0x010000-0x020000)  random fill + one real map at
+                                      0x11000     -> calibration
+        sector 2 (0x020000-0x030000)  zeros       -> erased
+        sector 3 (0x030000-0x040000)  random      -> code (may hold
+                                      low-score junk tables)
+
+    ``map_delta`` shifts every cell of the real map (a "tune"), so a
+    stock/tuned pair is ``make_layout_bin(seed, 0)`` / ``make_layout_bin(
+    seed, delta)`` — everything else stays byte-identical.
+    """
+    buf = bytearray(256 * 1024)
+    rng = random.Random(seed)
+    buf[0x00000:0x10000] = rng.randbytes(0x10000)
+    buf[0x10000:0x20000] = rng.randbytes(0x10000)
+    buf[0x30000:0x40000] = rng.randbytes(0x10000)
+
+    off = 0x11000
+    buf[off : off + 2 * len(_LAYOUT_X)] = struct.pack(
+        f"<{len(_LAYOUT_X)}H", *_LAYOUT_X
+    )
+    off += 2 * len(_LAYOUT_X)
+    buf[off : off + 2 * len(_LAYOUT_Y)] = struct.pack(
+        f"<{len(_LAYOUT_Y)}H", *_LAYOUT_Y
+    )
+    off += 2 * len(_LAYOUT_Y)
+    for yi in range(len(_LAYOUT_Y)):
+        for xi in range(len(_LAYOUT_X)):
+            struct.pack_into(
+                "<H", buf, off,
+                max(0, min(65535, _layout_surface(xi, yi) + map_delta)),
+            )
+            off += 2
     return bytes(buf)
 
 

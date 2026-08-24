@@ -18,6 +18,8 @@ import struct
 import time
 from pathlib import Path
 
+from typing import Sequence
+
 import typer
 
 from openremap._rust import find_changed_blocks  # type: ignore[import-untyped]
@@ -79,6 +81,10 @@ def _read_bin(path: Path, label: str) -> bytes:
 # ---------------------------------------------------------------------------
 # Binary data reading (mirrors map_exporter.py pattern)
 # ---------------------------------------------------------------------------
+
+# The pad-search range _best_alignment explores around both guessed
+# offsets — also the coverage slack for "changed but not identified".
+_PAD_SLACK = 4
 
 
 def _read_axis_values(
@@ -216,6 +222,217 @@ def _build_stock_index(
         fp = _axis_fingerprint(data, t)
         index.setdefault(fp, []).append(t)
     return index
+
+
+# ---------------------------------------------------------------------------
+# Correlation & near-match — tables whose axis breakpoints changed
+# ---------------------------------------------------------------------------
+
+# A tuner editing a map's axis values (moving RPM/load breakpoints) makes
+# the exact fingerprint match fail.  These constants bound the second
+# matching pass: axes must stay close (normalised deviation) and the cell
+# grids must correlate strongly.
+_NEAR_MATCH_AXIS_DEV_RATIO = 0.15
+_NEAR_MATCH_CELL_CORR = 0.95
+# A match with >90% changed cells is "suspicious" only when the grids do
+# NOT correlate: a heavily retuned map still looks like itself (high r),
+# while two different maps sharing axes look unrelated (low r).
+_SUSPICIOUS_CORR = 0.7
+
+
+def _pearson(x: Sequence[float], y: Sequence[float]) -> float | None:
+    """Pearson correlation coefficient, or None when undefined.
+
+    Returns None for mismatched lengths, fewer than two points, or a
+    constant input (zero variance) — correlation is meaningless there.
+    """
+    if len(x) != len(y) or len(x) < 2:
+        return None
+    mx = sum(x) / len(x)
+    my = sum(y) / len(y)
+    num = sum((a - mx) * (b - my) for a, b in zip(x, y))
+    dx = sum((a - mx) ** 2 for a in x)
+    dy = sum((b - my) ** 2 for b in y)
+    if dx == 0 or dy == 0:
+        return None
+    return num / (dx * dy) ** 0.5
+
+
+def _axes_similar(
+    a: tuple[int, ...],
+    b: tuple[int, ...],
+    max_dev_ratio: float,
+) -> bool:
+    """Same-length axis tuples whose values stay within a deviation ratio.
+
+    "Changed axes" means the tuner edited the breakpoints, not that this
+    is a different axis: the values remain close.  A correlation check
+    would be useless here — any two monotone sequences correlate ~1.0 —
+    so we use normalised max deviation.  NOTE: the denominator is the
+    larger axis MAXIMUM (``max(max(a), max(b))``), not the value range —
+    for axes with large absolute values but a narrow range the effective
+    tolerance is looser than ``max_dev_ratio`` of the range suggests.
+    The correlation gate (``r >= cell_corr``) is the real safeguard.
+    """
+    if len(a) != len(b) or not a:
+        return False
+    span = max(max(a), max(b))
+    if span == 0:
+        return a == b
+    dev = max(abs(x - y) for x, y in zip(a, b))
+    return dev / span <= max_dev_ratio
+
+
+def _near_match_pass(
+    stock_data: bytes,
+    tuned_data: bytes,
+    stock_tables: list[MapTable],
+    used_stock_offsets: set[int],
+    unmatched_tuned: list[MapTable],
+    axis_dev_ratio: float = _NEAR_MATCH_AXIS_DEV_RATIO,
+    cell_corr: float = _NEAR_MATCH_CELL_CORR,
+) -> tuple[list[MapTable], list[dict]]:
+    """Second matching pass: pair up tables whose axis breakpoints changed.
+
+    Exact fingerprint matching (pass 1) drops a map into the only-in-*
+    lists when the tuner edited its axis values.  Here, a stock table with
+    the same shape whose axes are close and whose cell grid correlates
+    strongly is almost certainly the same map — report it as a match
+    flagged ``near_match``/``axis_changed`` instead of leaving it silent.
+
+    One-to-one: each stock table is consumed at most once, and exact
+    matches (pass 1) always win because this pass only sees tables pass 1
+    could not pair.
+
+    Returns ``(still_unmatched, near_matches)``.
+    """
+    remaining = [
+        t for t in stock_tables if t.offset not in used_stock_offsets
+    ]
+    # Pre-index remaining stock tables by shape — the shape guard below is
+    # exact equality, so only same-shape candidates can ever match.  This
+    # turns the worst case O(unmatched × remaining) into O(unmatched ×
+    # same-shape-candidates): a tune that rescales MANY axes (which makes
+    # the exact pass fail broadly) no longer blows up quadratically.
+    shape_index: dict[tuple, list[MapTable]] = {}
+    for st in remaining:
+        key = (st.cols, st.rows, st.cell_width, st.byte_order, st.stride)
+        shape_index.setdefault(key, []).append(st)
+
+    still_unmatched: list[MapTable] = []
+    near_matches: list[dict] = []
+
+    for tt in unmatched_tuned:
+        best: (
+            tuple[float, MapTable, list[int], list[int], int, int] | None
+        ) = None
+        candidates = shape_index.get(
+            (tt.cols, tt.rows, tt.cell_width, tt.byte_order, tt.stride),
+            (),
+        )
+        for st in candidates:
+            if st.offset in used_stock_offsets:
+                continue
+            if st.x_axis_offset is None or tt.x_axis_offset is None:
+                continue
+
+            sx = _read_axis_values(
+                stock_data, st.x_axis_offset, st.cols, st.byte_order,
+            )
+            tx = _read_axis_values(
+                tuned_data, tt.x_axis_offset, tt.cols, tt.byte_order,
+            )
+            if not _axes_similar(sx, tx, axis_dev_ratio):
+                continue
+            if st.y_axis_offset is not None and st.rows > 1:
+                if tt.y_axis_offset is None:
+                    continue
+                sy = _read_axis_values(
+                    stock_data, st.y_axis_offset, st.rows, st.byte_order,
+                )
+                ty = _read_axis_values(
+                    tuned_data, tt.y_axis_offset, tt.rows, tt.byte_order,
+                )
+                if not _axes_similar(sy, ty, axis_dev_ratio):
+                    continue
+
+            if st.stride is not None:
+                # Compound (strided) tables: mirror the exact-match path —
+                # read each half with its stride and trust the scanner
+                # offsets (the Rust split pass pinned them structurally).
+                stock_cells = _read_cells(
+                    stock_data, st.offset, st.cols, st.rows,
+                    st.cell_width, st.byte_order, st.stride,
+                )
+                tuned_cells = _read_cells(
+                    tuned_data, tt.offset, tt.cols, tt.rows,
+                    tt.cell_width, tt.byte_order, tt.stride,
+                )
+                so, to = st.offset, tt.offset
+            else:
+                stock_cells, tuned_cells, so, to = _best_alignment(
+                    stock_data, tuned_data,
+                    st.offset, tt.offset,
+                    st.cols, st.rows, st.cell_width, st.byte_order,
+                )
+            r = _pearson(stock_cells, tuned_cells)
+            if r is None or r < cell_corr:
+                continue
+            if best is None or r > best[0]:
+                best = (r, st, stock_cells, tuned_cells, so, to)
+
+        if best is None:
+            still_unmatched.append(tt)
+            continue
+
+        r, st, stock_cells, tuned_cells, so, to = best
+        used_stock_offsets.add(st.offset)
+
+        sx = _read_axis_values(
+            stock_data, st.x_axis_offset, st.cols, st.byte_order,
+        )
+        tx = _read_axis_values(
+            tuned_data, tt.x_axis_offset, tt.cols, tt.byte_order,
+        )
+        sy: tuple[int, ...] = ()
+        ty: tuple[int, ...] = ()
+        if st.y_axis_offset is not None and st.rows > 1:
+            sy = _read_axis_values(
+                stock_data, st.y_axis_offset, st.rows, st.byte_order,
+            )
+            ty = _read_axis_values(
+                tuned_data, tt.y_axis_offset, tt.rows, tt.byte_order,
+            )
+
+        diff = _diff_cells(stock_cells, tuned_cells)
+        # A near-match is by definition strongly correlated (r >= cell_corr),
+        # so it can never be the "two different maps sharing axes" case the
+        # suspicious flag describes — always False by construction.
+        suspicious = False
+
+        near_matches.append({
+            "offset_stock": so,
+            "offset_tuned": to,
+            "cols": st.cols,
+            "rows": st.rows,
+            "cell_width": st.cell_width,
+            "byte_order": st.byte_order,
+            "stride": st.stride,
+            "offset_delta": to - so,
+            "realigned": so != st.offset or to != tt.offset,
+            "suspicious": suspicious,
+            "correlation": round(r, 4),
+            "near_match": True,
+            "axis_changed": True,
+            "axis_stock": {"x": list(sx), "y": list(sy)},
+            "axis_tuned": {"x": list(tx), "y": list(ty)},
+            "_fp": (sx, sy),
+            "_stock_table": st,
+            "_tuned_table": tt,
+            **diff,
+        })
+
+    return still_unmatched, near_matches
 
 
 # ---------------------------------------------------------------------------
@@ -488,6 +705,68 @@ def _repeated_row_table(
     return None
 
 
+def _covered_spans(matches: list[dict]) -> list[tuple[int, int]]:
+    """Stock-side byte spans covered by matched tables (inclusive-exclusive).
+
+    Each span is padded by the pad-search slack (±4 bytes — the range
+    ``_best_alignment`` explores), so a matched table's alignment drift
+    never turns its own changed cells into "unidentified" tails.
+    """
+    spans: list[tuple[int, int]] = []
+    for m in matches:
+        cols, rows, cw = m["cols"], m["rows"], m["cell_width"]
+        stride = m.get("stride")
+        if stride is None:
+            span = (m["offset_stock"], m["offset_stock"] + cols * rows * cw)
+        else:
+            span = (
+                m["offset_stock"],
+                m["offset_stock"] + (rows - 1) * stride + cols * cw,
+            )
+        start, end = span
+        spans.append((max(0, start - _PAD_SLACK), end + _PAD_SLACK))
+    return spans
+
+
+def _unidentified_changed_blocks(
+    blocks: list, matches: list[dict],
+) -> list[dict]:
+    """Changed blocks not covered by any matched table.
+
+    These are bytes that differ between stock and tuned but were not
+    recognised as calibration tables — the "changed but not identified"
+    audit gap.  Reporting them makes the diff complete: every changed
+    byte is either a matched map, a promoted table, or listed here.
+
+    Coverage is per-byte: a changed block that straddles a matched
+    table's edge reports only its uncovered sub-ranges rather than being
+    dropped or reported whole.
+    """
+    covered = _covered_spans(matches)
+    out: list[dict] = []
+    for off, size, _ob, _mb in blocks:
+        end = off + size
+        # Subtract covered spans from the block -> uncovered sub-ranges.
+        uncovered: list[tuple[int, int]] = [(off, end)]
+        for ds, de in sorted(covered):
+            if de <= off or ds >= end:
+                continue
+            split: list[tuple[int, int]] = []
+            for us, ue in uncovered:
+                if ds >= ue or de <= us:
+                    split.append((us, ue))
+                else:
+                    if us < ds:
+                        split.append((us, min(ue, ds)))
+                    if ue > de:
+                        split.append((max(us, de), ue))
+            uncovered = split
+        for us, ue in uncovered:
+            if ue > us:
+                out.append({"offset": us, "size": ue - us})
+    return out
+
+
 def _promote_uncovered_changed_blocks(
     stock_data: bytes,
     tuned_data: bytes,
@@ -502,18 +781,7 @@ def _promote_uncovered_changed_blocks(
     breakpoints, constant-value maps).  Build a synthetic match so the
     diff reports it instead of staying silent.
     """
-    covered: list[tuple[int, int]] = []
-    for m in matches:
-        cols, rows, cw = m["cols"], m["rows"], m["cell_width"]
-        stride = m.get("stride")
-        if stride is None:
-            span = (m["offset_stock"], m["offset_stock"] + cols * rows * cw)
-        else:
-            span = (
-                m["offset_stock"],
-                m["offset_stock"] + (rows - 1) * stride + cols * cw,
-            )
-        covered.append(span)
+    covered = _covered_spans(matches)
 
     promoted: list[dict] = []
     for off, size, _ob, _mb in blocks:
@@ -540,6 +808,7 @@ def _promote_uncovered_changed_blocks(
             "offset_delta": 0,
             "realigned": False,
             "suspicious": False,
+            "correlation": None,
             "promoted": True,
             "_fp": ((), ()),
             "_stock_table": None,
@@ -727,6 +996,7 @@ def _export_markdown(
     stock_data: bytes,
     tuned_data: bytes,
     path: Path,
+    unidentified: list[dict] | None = None,
 ) -> None:
     """Write a single self-contained Markdown report.
 
@@ -801,8 +1071,9 @@ def _export_markdown(
         if m.get("suspicious"):
             lines.append("")
             lines.append(
-                "> ⚠ **Suspicious** — near-total cell change.  The grids may "
-                "be misaligned (different maps sharing the same axes)."
+                "> ⚠ **Suspicious** — near-total cell change with weak "
+                "correlation.  The grids may be misaligned (different maps "
+                "sharing the same axes)."
             )
         lines.append("")
 
@@ -870,6 +1141,23 @@ def _export_markdown(
                 )
             )
             lines.append("")
+
+    # ── Changed but not identified ─────────────────────────────────
+    if unidentified:
+        lines.append("## Changed but not identified")
+        lines.append("")
+        lines.append(
+            f"{len(unidentified)} changed region(s) not recognised as "
+            f"calibration tables:"
+        )
+        lines.append("")
+        lines.append(
+            ", ".join(
+                f"`0x{r['offset']:08X}` ({r['size']} B)"
+                for r in unidentified[:50]
+            )
+        )
+        lines.append("")
 
     with open(path, "w") as f:
         f.write("\n".join(lines))
@@ -959,8 +1247,13 @@ def diff_maps(
         None,
         "--region",
         "-r",
-        help="Restrict scanning to a byte range: '0xSTART-0xEND' (hex values, 0x optional).",
+        help="Restrict scanning to a byte range: '0xSTART-0xEND' (hex values, 0x optional). Overrides the calibration-region default.",
         metavar="RANGE",
+    ),
+    whole_file: bool = typer.Option(
+        False,
+        "--whole-file",
+        help="Scan the whole file instead of only the detected calibration region (shows tables outside it).",
     ),
     max_series_tables: int = typer.Option(
         16,
@@ -1014,9 +1307,11 @@ def diff_maps(
 
     stock_result = _scan_one(
         stock_data, region_slice, min_score, max_series_tables,
+        layout_default=not whole_file,
     )
     tuned_result = _scan_one(
         tuned_data, region_slice, min_score, max_series_tables,
+        layout_default=not whole_file,
     )
 
     stock_tables: list[MapTable] = stock_result["tables"]
@@ -1089,10 +1384,16 @@ def diff_maps(
         changed_cells = diff.get("changed_cells", 0)
 
         realigned = so != best.offset or to != tt.offset
+        correlation = _pearson(stock_cells, tuned_cells)
         # After the best alignment, near-total cell change means the grids
         # still don't line up — probably different maps that share axes.
+        # Correlation tells the two cases apart: a heavily retuned map
+        # correlates strongly with its stock grid (same map, new values),
+        # while a different map sharing the axes looks unrelated.
         suspicious = (
-            total_cells > 0 and changed_cells > 0.9 * total_cells
+            total_cells > 0
+            and changed_cells > 0.9 * total_cells
+            and (correlation is None or correlation < _SUSPICIOUS_CORR)
         )
 
         matches.append({
@@ -1106,11 +1407,24 @@ def diff_maps(
             "offset_delta": to - so,
             "realigned": realigned,
             "suspicious": suspicious,
+            "correlation": (
+                round(correlation, 4) if correlation is not None else None
+            ),
             "_fp": fp,
             "_stock_table": best,
             "_tuned_table": tt,
             **diff,
         })
+
+    # ── Near-match pass: tables whose axis breakpoints changed ─────
+    # Exact fingerprint matching is deliberately strict; a tuner editing
+    # a map's axis breakpoints would otherwise silently drop it into the
+    # only-in-* lists.  Correlation-based near-matching pairs those up.
+    unmatched_tuned, near_matches = _near_match_pass(
+        stock_data, tuned_data,
+        stock_tables, used_stock_offsets, unmatched_tuned,
+    )
+    matches.extend(near_matches)
 
     # Unmatched in stock: tables whose offset was never consumed
     unmatched_stock = [
@@ -1126,6 +1440,12 @@ def diff_maps(
             stock_data, tuned_data, changed_blocks, matches,
         )
     )
+
+    # Changed blocks no matched table covers — the "changed but not
+    # identified" audit gap: bytes that differ but were not recognised
+    # as calibration tables.  Every changed byte in the binary is now
+    # accounted for: matched map, promoted table, or listed here.
+    unidentified = _unidentified_changed_blocks(changed_blocks, matches)
 
     # Sort matches by max_abs descending (inf sorts last via key)
     def _sort_key(m: dict) -> float:
@@ -1222,10 +1542,14 @@ def diff_maps(
             "tuned_size": len(tuned_data),
             "stock_tables": len(stock_tables),
             "tuned_tables": len(tuned_tables),
+            "stock_tables_hidden": stock_result.get("tables_hidden", 0),
+            "tuned_tables_hidden": tuned_result.get("tables_hidden", 0),
             "matched_count": len(matches),
             "above_threshold": len(above_threshold),
             "only_in_stock_count": len(unmatched_stock),
             "only_in_tuned_count": len(unmatched_tuned),
+            "unidentified_changed_count": len(unidentified),
+            "unidentified_changed": unidentified[:200],
             "scan_seconds": round(elapsed_scan, 2),
             "groups": groups_summary,
             "matches": json_matches,
@@ -1262,10 +1586,23 @@ def diff_maps(
             f"{len(matches):,} matched  •  "
             f"{len(unmatched_stock)} only-in-stock  •  "
             f"{len(unmatched_tuned)} only-in-tuned  •  "
+            f"{len(unidentified)} unidentified  •  "
             f"scan {elapsed_scan:.1f}s",
             dim=True,
         ),
     )
+    hidden_total = (
+        stock_result.get("tables_hidden", 0)
+        + tuned_result.get("tables_hidden", 0)
+    )
+    if hidden_total:
+        typer.echo(
+            typer.style(
+                f"  ({hidden_total} table(s) outside the calibration region "
+                f"hidden — use --whole-file to scan the whole file)",
+                dim=True,
+            ),
+        )
     typer.echo("")
 
     # Heuristic: if very few maps matched, the files may be unrelated
@@ -1366,7 +1703,12 @@ def diff_maps(
                 f"  ◆ recipe {covered}/{changed}",
                 fg=typer.colors.CYAN,
             )
-        if m.get("promoted"):
+        if m.get("near_match"):
+            marker += typer.style(
+                "  ↺ axes changed (correlation near-match)",
+                fg=typer.colors.YELLOW,
+            )
+        elif m.get("promoted"):
             marker += typer.style(
                 "  ⚑ no-axis table (detected from changed bytes)",
                 fg=typer.colors.YELLOW,
@@ -1374,12 +1716,17 @@ def diff_maps(
             )
         elif m.get("suspicious"):
             marker += typer.style(
-                "  ⚠ suspicious (near-total change — possible misalignment)",
+                "  ⚠ suspicious (grids don't line up — different map?)",
                 fg=typer.colors.RED,
                 bold=True,
             )
         elif m.get("realigned"):
             marker += typer.style("  ↻ realigned", fg=typer.colors.YELLOW, dim=True)
+        corr = m.get("correlation")
+        if m.get("suspicious") and corr is not None:
+            marker += typer.style(
+                f" · r={corr:.2f}", fg=typer.colors.RED, dim=True,
+            )
 
         return (
             f"  0x{m['offset_stock']:08X}  {dim:>8}  {cells:>7}  "
@@ -1430,6 +1777,7 @@ def diff_maps(
             matches, unmatched_stock, unmatched_tuned,
             stock_data, tuned_data,
             export / "diff.md",
+            unidentified,
         )
 
         typer.echo(
@@ -1538,5 +1886,28 @@ def diff_maps(
                         ),
                     )
                 typer.echo("")
+
+    # ── Changed but not identified ─────────────────────────────────
+    if unidentified:
+        typer.echo(
+            typer.style(
+                "  ── Changed but not identified ────────────────────────────",
+                bold=True,
+            ),
+        )
+        typer.echo("")
+        label = typer.style(
+            f"  {len(unidentified)} changed region(s) not recognised as "
+            f"calibration tables:",
+            fg=typer.colors.YELLOW,
+        )
+        preview = ", ".join(
+            f"0x{r['offset']:08X} ({r['size']} B)"
+            for r in unidentified[:8]
+        )
+        if len(unidentified) > 8:
+            preview += f"  … +{len(unidentified) - 8} more"
+        typer.echo(f"{label}  {preview}")
+        typer.echo("")
 
     typer.echo("")

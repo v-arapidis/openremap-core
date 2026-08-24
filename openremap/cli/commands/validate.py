@@ -25,6 +25,7 @@ from typing import Optional
 
 import typer
 
+from openremap.core.services.recipes.preflight import check_same_file_only
 from openremap.core.services.recipes.validate_exists import ECUExistenceValidator, MatchStatus
 from openremap.core.services.recipes.validate_patched import ECUPatchedValidator
 from openremap.core.services.recipes.validate_strict import ECUStrictValidator
@@ -202,6 +203,20 @@ def _run_before(
         )
         raise typer.Exit(code=1)
 
+    # ── Same-file-only policy gate (ISSUE-2) ─────────────────────────
+    gate_ok, gate_msg = check_same_file_only(recipe_dict, target_data)
+    stamped = (
+        recipe_dict.get("metadata", {}).get("portability") == "same_file_only"
+    )
+    report["same_file_only"] = {
+        "stamped": stamped,
+        "allowed": gate_ok,
+        "note": gate_msg,
+    }
+    if stamped and not gate_ok:
+        # a same-file-only recipe on a different binary is never safe to patch
+        report["summary"]["safe_to_patch"] = False
+
     if as_json or output:
         _write_json(report, output, pretty=True)
         return
@@ -220,6 +235,13 @@ def _run_before(
         typer.echo(typer.style("  ✅ Safe to tune", fg=typer.colors.GREEN, bold=True))
     else:
         typer.echo(typer.style("  ❌ NOT safe to tune", fg=typer.colors.RED, bold=True))
+
+    if stamped and not gate_ok:
+        typer.echo("")
+        typer.echo(typer.style(f"  ❌  {gate_msg}", fg=typer.colors.RED, bold=True))
+    elif gate_msg:
+        typer.echo("")
+        typer.echo(typer.style(f"  ⚠  {gate_msg}", fg=typer.colors.YELLOW))
 
     col = 20
     typer.echo("")

@@ -57,8 +57,33 @@ openremap tune <TARGET> <RECIPE> [OPTIONS]
 | `--output PATH` | `-o` | `<target_stem>_tuned<ext>` | Path to write the tuned binary. Defaults to the same folder as the target with `_tuned` appended to the stem. |
 | `--report PATH` | `-r` | | Save the combined three-phase report as a JSON file. Includes Phase 1, Phase 2, and Phase 3 results in a single document. |
 | `--skip-validation` | | off | Skip Phases 1 and 3 (pre-flight and post-tune validation) and apply the recipe directly. Use only in scripted pipelines where you have already validated separately. |
+| `--force` | | off | Override the same-file-only guard: apply a SAME-FILE-ONLY recipe (non-unique anchors) to a binary whose sha256 differs from the source. Loud warning; mechanical validation still runs and can still abort. |
 | `--json` | | off | Print the combined three-phase report as JSON instead of the human-readable output. |
 | `--help` | | | Show help and exit. |
+
+---
+
+## Same-file-only recipes (`--force`)
+
+A recipe cooked with `cook --allow-non-unique` carries the stamp
+`metadata.portability = "same_file_only"` — its anchors are not unique, so
+it is only safe on the exact binary it was cooked from.  `tune` enforces
+this: the target's sha256 must equal the recipe's `ecu.sha256`, otherwise
+tune **refuses** (exit 1):
+
+```
+❌  recipe is stamped SAME-FILE-ONLY (non-unique anchors) and the target's
+    sha256 (…) does not match the source (…). It may only be applied to the
+    exact binary it was cooked from — pass --force to override.
+```
+
+`--force` overrides **only this policy gate** with a loud warning.  The
+mechanical checks are untouched and can still abort: Phase 1 (every `ob` at
+its exact offset), Phase 2 (anchor search), Phase 3 (post-patch write
+verification).  A truly different revision will fail Phase 1 even with
+`--force`; a close variant whose anchors still hold will apply and verify.
+`openremap validate before` reports the same mismatch so you can check
+before forcing.
 
 ---
 

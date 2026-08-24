@@ -26,13 +26,14 @@ stabilisation (bug refinement + third-party OSS integration).
 | Health report (`openremap health`) | ✅ |
 | Subaru support: Denso + Hitachi extractors, 501-ROM corpus | ✅ |
 | Rust migrations (5 hot loops) + domain restructure | ✅ |
+| Diff-maps robustness | ✅ axis-changed near-match (correlation), refined suspicion, "changed but not identified" report (0.7.1) |
+| Layout consumers | ✅ calibration-region default + `--whole-file` (scan/diff-maps) and cook/cook-volatile region tags (0.7.1) |
+| ISSUE-2 | ✅ same-file-only tier: cook stamps `--allow-non-unique` recipes, tune/validate enforce via sha256, `--force` override (0.7.1) |
 
 ## Open
 
 | Item | Notes |
 |---|---|
-| Diff-maps robustness | correlation matching, changed-axis handling |
-| Layout consumers | scan-maps/diff-maps default region; cook region tags |
 | Bundle convention | directory convention + `bundle.toml` |
 | Subaru checksum gaps | 512 KB SH7058 / 2 MB SH72546 table discovery |
 | Cross-firmware relocation | **0.8.0 milestone** — learn (stockA, tunedA) → apply to stockB of a different revision; community plugin tooling |
@@ -43,16 +44,14 @@ stabilisation (bug refinement + third-party OSS integration).
 
 ## Suggested order
 
-1. Diff-maps robustness — the foundation for cross-firmware
-   relocation (the long-term flagship)
-2. Layout consumers
-3. Subaru checksum gaps
-4. Cross-firmware relocation + community plugin tooling (**0.8.0**)
-5. Synthetic corpus generator — reproducible real-like fixtures for
+1. Layout consumers
+2. Subaru checksum gaps
+3. Cross-firmware relocation + community plugin tooling (**0.8.0**)
+4. Synthetic corpus generator — reproducible real-like fixtures for
    everyone (**0.8.0**)
-6. Bundle convention
-7. Modern TUI rework (**0.9.0**)
-8. OpenRemap Harness — desktop app for Windows/macOS/Linux (**1.0.0**)
+5. Bundle convention
+6. Modern TUI rework (**0.9.0**)
+7. OpenRemap Harness — desktop app for Windows/macOS/Linux (**1.0.0**)
 
 ## Docs map
 

@@ -7,6 +7,7 @@ the at-a-glance index.
 
 | Version | Date | Summary | Detail |
 |---|---|---|---|
+| [0.7.1](changelog/0.7.1.md) | unreleased | diff-maps robustness (axis-changed near-match, correlation suspicion, unidentified report), layout consumers (calibration-region default + cook region tags), ISSUE-2 same-file-only tier | [changelog/0.7.1.md](changelog/0.7.1.md) |
 | [0.7.0](changelog/0.7.0.md) | 2026-08-23 | **Milestone** — `cook-volatile` (car-portable recipes, volatile-byte exclusion, schema 4.5), volatile-aware audit, checksum profiles (IronFelix, NefMoto, MS43, GS20/SMG2, Denso), Denso/Hitachi Subaru support, batch map scanning, health report, Rust migrations, domain restructure, docs wiki | [changelog/0.7.0.md](changelog/0.7.0.md) |
 | [0.6.4](changelog/0.6.4.md) | 2026-08-11 | Rust-only entropy (36–75× faster), CI/CD | [changelog/0.6.4.md](changelog/0.6.4.md) |
 | [0.6.3](changelog/0.6.3.md) | 2026-08-11 | Shared-axis map detection, scoring & defaults, dual-backend elimination | [changelog/0.6.3.md](changelog/0.6.3.md) |

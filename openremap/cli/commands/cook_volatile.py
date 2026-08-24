@@ -37,7 +37,13 @@ from typing import Optional
 
 import typer
 
-from openremap.cli.commands.cook import _print_summary, _read_bin
+from openremap.cli.commands.cook import (
+    _print_region_warning,
+    _print_summary,
+    _read_bin,
+    _tag_regions,
+)
+from openremap.core.services.maps.map_hunter import scan_map_tables
 from openremap.core.services.recipes.recipe_builder import (
     ECUDiffAnalyzer,
     compute_fingerprint,
@@ -313,9 +319,15 @@ def cook_volatile(
         recipe["metadata"]["volatile"] = volatile_summary
         recipe["metadata"]["excluded_volatile"] = not no_exclude
 
+        # One structural scan, shared by map annotation and region tags —
+        # never scan the stock binary twice.
+        shared_tables = scan_map_tables(
+            original_data, min_score=0.55, max_series_tables=16,
+        )
+
         if annotate_maps:
             # AFTER filtering — maps[].instruction_refs index the KEPT set.
-            attach_maps(recipe, original_data)
+            attach_maps(recipe, original_data, tables=shared_tables)
             map_count = len(recipe["maps"])
             typer.echo(
                 typer.style(
@@ -329,6 +341,18 @@ def cook_volatile(
         # attach_maps bumps schema to 4.4 (MAPS_SCHEMA_VERSION) — set the
         # volatile schema level AFTER it, so 4.5 always wins.
         recipe["schema_version"] = "4.5"
+
+        # Advisory flash-layout region tags on the KEPT instruction set
+        # (never blocks, never filters).
+        region_summary = _tag_regions(recipe, original_data, shared_tables)
+
+        # Same-file-only stamp: non-unique anchors make the recipe safe only
+        # on the exact binary it was cooked from (enforced by tune/validate
+        # via ecu.sha256, unless the user passes --force).
+        if allow_non_unique and any(
+            "non-unique" in w for w in analyzer.cook_warnings()
+        ):
+            recipe.setdefault("metadata", {})["portability"] = "same_file_only"
     except Exception as exc:
         msg = str(exc)
         if "non-unique context" in msg:
@@ -371,6 +395,9 @@ def cook_volatile(
             f"{len(flagged_findings):,} instruction(s) flagged for review:",
         )
     _print_volatile_summary(excluded_findings, flagged_findings, no_exclude)
+
+    # Advisory code/erased-area portability warning (structural estimates).
+    _print_region_warning(recipe, region_summary)
 
     indent = 2 if pretty else None
     json_content = json.dumps(

@@ -18,7 +18,9 @@ from typing import Optional
 
 import typer
 
+from openremap.core.services.maps.map_hunter import scan_map_tables
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
+from openremap.core.services.recipes.recipe_regions import tag_instruction_regions
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -67,6 +69,44 @@ def _read_bin(path: Path, label: str) -> bytes:
         raise typer.Exit(code=1)
 
     return data
+
+
+def _tag_regions(recipe: dict, original_data: bytes, tables: list | None = None) -> dict:
+    """Advisory flash-layout region tags for recipe instructions.
+
+    Never blocks and never filters: any failure silently degrades to an
+    empty summary so region tagging can never fail a cook.
+    """
+    try:
+        return tag_instruction_regions(recipe, original_data, tables)
+    except Exception:
+        return {"tagged": 0, "risky": 0, "by_region": {}}
+
+
+def _print_region_warning(recipe: dict, summary: dict) -> None:
+    """Print the advisory code/erased-area portability warning (if any)."""
+    if not summary.get("risky"):
+        return
+    risky_offsets: list[str] = []
+    for inst in recipe.get("instructions", []):
+        if any(f.get("kind") == "CODE_AREA" for f in inst.get("flags", [])):
+            risky_offsets.append(
+                f"0x{inst.get('offset_hex', format(inst['offset'], 'X'))}"
+            )
+    preview = ", ".join(risky_offsets[:6])
+    if len(risky_offsets) > 6:
+        preview += f" … and {len(risky_offsets) - 6} more"
+    typer.echo(
+        typer.style(
+            f"\n  ⚠  {summary['risky']} instruction(s) outside the calibration "
+            f"region (code/erased/mixed flash area): {preview}\n"
+            "     These edits may not apply to other revisions of this ECU. "
+            "Region labels are structural estimates.",
+            fg=typer.colors.YELLOW,
+            bold=True,
+        ),
+        err=True,
+    )
 
 
 def _print_summary(recipe: dict, output: Optional[Path]) -> None:
@@ -221,10 +261,16 @@ def cook(
         )
         recipe = analyzer.build_recipe()
 
+        # One structural scan, shared by map annotation and region tags —
+        # never scan the stock binary twice.
+        shared_tables = scan_map_tables(
+            original_data, min_score=0.55, max_series_tables=16,
+        )
+
         if annotate_maps:
             from openremap.core.services.recipes.recipe_maps import attach_maps
 
-            attach_maps(recipe, original_data)
+            attach_maps(recipe, original_data, tables=shared_tables)
             map_count = len(recipe["maps"])
             typer.echo(
                 typer.style(
@@ -234,6 +280,9 @@ def cook(
                 ),
                 err=True,
             )
+
+        # Advisory flash-layout region tags (never blocks, never filters).
+        region_summary = _tag_regions(recipe, original_data, shared_tables)
     except Exception as exc:
         # Includes the size-mismatch hard error from the pre-cook guard and
         # the Guard-3 non-unique-anchor abort.
@@ -289,17 +338,26 @@ def cook(
             w for w in analyzer.cook_warnings() if "non-unique" in w
         ]
         if non_unique_warnings:
+            # Machine-readable stamp: this recipe is only safe on the exact
+            # binary it was cooked from.  tune/validate enforce it via the
+            # recipe's ecu.sha256 (hard refusal on any other file, unless
+            # the user passes --force).
+            recipe.setdefault("metadata", {})["portability"] = "same_file_only"
             typer.echo(
                 typer.style(
                     f"\n  ⚠  {len(non_unique_warnings)} instruction(s) have non-unique "
-                    "anchors — this recipe is only reliable on THIS exact binary. "
-                    "Applying it to a different software revision may patch the "
-                    "wrong location.",
+                    "anchors — this recipe is stamped SAME-FILE-ONLY: it will be "
+                    "rejected unless applied to the exact binary it was cooked from "
+                    "(or --force).",
                     fg=typer.colors.YELLOW,
                     bold=True,
                 ),
                 err=True,
             )
+
+    # Advisory code/erased-area portability warning (region tags are
+    # structural estimates — informational only).
+    _print_region_warning(recipe, region_summary)
 
     # Surface flagged instructions (VIN, checksum suspects, etc.)
     flagged_instructions = [

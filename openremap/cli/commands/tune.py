@@ -22,6 +22,7 @@ Examples:
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Annotated, Optional
@@ -29,6 +30,7 @@ from typing import Annotated, Optional
 import typer
 
 from openremap.core.services.recipes.patcher import ECUPatcher
+from openremap.core.services.recipes.preflight import check_same_file_only
 from openremap.core.services.recipes.validate_patched import ECUPatchedValidator
 from openremap.core.services.recipes.validate_strict import ECUStrictValidator
 
@@ -546,6 +548,18 @@ def tune(
             ),
         ),
     ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help=(
+                "Override the same-file-only guard: apply a SAME-FILE-ONLY recipe "
+                "(non-unique anchors) to a binary whose sha256 differs from the "
+                "source. Loud warning; mechanical validation still runs and can "
+                "still abort."
+            ),
+        ),
+    ] = False,
     as_json: Annotated[
         bool,
         typer.Option(
@@ -586,6 +600,17 @@ def tune(
     target_data = _read_bin(target, "Target")
     recipe_dict = _read_recipe(recipe)
     resolved_output = output or _default_output(target)
+
+    # ── Policy gate: same-file-only recipes ──────────────────────────
+    allowed, gate_msg = check_same_file_only(recipe_dict, target_data, force)
+    if not allowed:
+        typer.echo(
+            typer.style(f"\n  ❌  {gate_msg}", fg=typer.colors.RED, bold=True),
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    if gate_msg:
+        _warn(gate_msg)
 
     typer.echo("")
     typer.echo(
