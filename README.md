@@ -13,6 +13,10 @@ and apply it to another binary of the same family.
 
 Offline-first. No accounts, no telemetry, no data leaves your machine.
 
+OpenRemap began as a final-semester thesis project, presented at
+**SAEK Orestiadas** (v0.4.5), and has been actively developed since
+(current release line: 0.7.x).
+
 🌐 **[openremap.com](https://www.openremap.com)** — full documentation, wiki, and changelog.
 
 ---
