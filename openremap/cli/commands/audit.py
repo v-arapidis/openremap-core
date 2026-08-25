@@ -12,34 +12,18 @@ Examples:
 from __future__ import annotations
 
 import json
+import orjson
 from pathlib import Path
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.recipes.audit import audit
 
 
 def _read_bin(path: Path, label: str) -> bytes:
-    try:
-        data = path.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(
-                f"Error: cannot read {label} '{path.name}': {exc}",
-                fg=typer.colors.RED, bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-    if not data:
-        typer.echo(
-            typer.style(
-                f"Error: {label} '{path.name}' is empty.",
-                fg=typer.colors.RED, bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    """Read + decode a binary file (raw, Intel HEX, or S-Record)."""
+    data, _fmt = load_binary_file(path, label)
     return data
 
 
@@ -84,7 +68,7 @@ def audit_cmd(
     tuned_data = _read_bin(tuned, "tuned")
 
     try:
-        recipe_data = json.loads(recipe.read_text(encoding="utf-8"))
+        recipe_data = orjson.loads(recipe.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         typer.echo(
             typer.style(

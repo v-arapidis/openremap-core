@@ -738,3 +738,79 @@ class TestIdentifySignalsLoop:
         assert result.exit_code == 0
         assert "Bosch" in result.stdout
         assert "EDC17C66" in result.stdout
+
+
+# ===========================================================================
+# VIN candidate field (0.6 floor)
+# ===========================================================================
+
+
+def _bin_with_vin(vin: str, size: int = 0x400) -> bytes:
+    """Deterministic binary with a VIN embedded in an ident-like block."""
+    import random
+
+    blob = bytearray(random.Random(7).randbytes(size))
+    ident = b"IDENT-METADATA-BLOCK  " + vin.encode() + b"  " * 40
+    blob[0x100 : 0x100 + len(ident)] = ident
+    return bytes(blob)
+
+
+class TestIdentifyVinField:
+    def test_high_confidence_vin_shows_in_json(self, tmp_path: Path) -> None:
+        f = tmp_path / "vin.bin"
+        f.write_bytes(_bin_with_vin("WAUZZZ8LXX1234567"))  # scores >= 0.8
+
+        result = runner.invoke(app, ["identify", str(f), "--json"])
+        assert result.exit_code == 0
+        vin = json.loads(result.stdout)["vin"]
+        assert vin is not None
+        assert vin["candidate"] == "WAUZZZ8LXX1234567"
+        assert vin["manufacturer"] == "Audi"
+        assert vin["confidence"] >= 0.6
+
+    def test_high_confidence_vin_shows_in_human_output(self, tmp_path: Path) -> None:
+        f = tmp_path / "vin.bin"
+        f.write_bytes(_bin_with_vin("WAUZZZ8LXX1234567"))
+
+        result = runner.invoke(app, ["identify", str(f)])
+        assert result.exit_code == 0
+        assert "VIN candidate" in result.stdout
+        assert "WAUZZZ8LXX1234567" in result.stdout
+        assert "decoded, unverified" in result.stdout
+
+    def test_no_vin_no_field(self, tmp_path: Path) -> None:
+        f = tmp_path / "plain.bin"
+        f.write_bytes(_ZERO_BIN)  # no VIN candidates
+
+        result = runner.invoke(app, ["identify", str(f), "--json"])
+        assert result.exit_code == 0
+        assert json.loads(result.stdout)["vin"] is None
+
+    def test_no_vin_no_section_in_human_output(self, tmp_path: Path) -> None:
+        f = tmp_path / "plain.bin"
+        f.write_bytes(_ZERO_BIN)
+
+        result = runner.invoke(app, ["identify", str(f)])
+        assert result.exit_code == 0
+        assert "VIN candidate" not in result.stdout
+
+    def test_corpus_golf5_vin_decoded(self, tmp_path: Path) -> None:
+        """Real corpus: the MED9 Golf 5 ROM carries WVWZZZ1KZ7W059972."""
+        import os
+
+        golf = (
+            "tests/data/ECUs/Bosch/MED9/"
+            "VW golf5 2.0TFSI 1K0907115K 0261S02332 380991__1__1.ori"
+        )
+        if not os.path.exists(golf):
+            import pytest
+
+            pytest.skip("MED9 Golf 5 corpus file missing")
+
+        result = runner.invoke(app, ["identify", golf, "--json"])
+        assert result.exit_code == 0
+        vin = json.loads(result.stdout)["vin"]
+        assert vin is not None
+        assert vin["candidate"] == "WVWZZZ1KZ7W059972"
+        assert vin["manufacturer"] == "Volkswagen"
+        assert vin["confidence"] == 0.6

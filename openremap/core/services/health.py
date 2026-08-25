@@ -48,6 +48,7 @@ from openremap.core.services.checksums.nefmoto import (
 from openremap.core.services.identify.confidence import score_identity
 from openremap.core.services.identify.identifier import identify_ecu
 from openremap.core.services.identify.vin_scanner import scan_vins
+from openremap.core.services.vin_decode import decode_vin
 from openremap.core.services.maps.layout import segment
 from openremap.core.services.maps.map_classifier import family_fuel_type
 from openremap.core.services.maps.map_hunter import scan_map_tables
@@ -323,17 +324,24 @@ def _check_vins(data: bytes) -> HealthCheck:
     if not hits:
         return HealthCheck("VINs", "skip", "no high-confidence VIN candidates")
     unique = sorted({h.vin for h in hits})
+    decoded = {v: decode_vin(v).manufacturer for v in unique}
     if len(unique) <= 1:
+        make = decoded.get(unique[0])
+        make_suffix = f" — {make}" if make else ""
         return HealthCheck(
             "VINs",
             "ok",
-            f"single VIN {unique[0]} (mirrored {len(hits)}x)",
+            f"single VIN {unique[0]}{make_suffix} (mirrored {len(hits)}x)",
         )
     return HealthCheck(
         "VINs",
         "warn",
         f"{len(unique)} distinct VIN(s) in one file (cloning/merge artifact?)",
-        [f"{v}: {sum(1 for h in hits if h.vin == v)}x" for v in unique],
+        [
+            f"{v}: {sum(1 for h in hits if h.vin == v)}x"
+            + (f" — {decoded.get(v)}" if decoded.get(v) else "")
+            for v in unique
+        ],
     )
 
 

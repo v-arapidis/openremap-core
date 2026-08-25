@@ -7,7 +7,9 @@ description: Locate VIN candidates in an ECU binary and score them — WMI, chec
 
 Find VIN candidates and score them on structural evidence — never a
 bare claim: WMI whitelist, ISO 3779 check digit, model-year character,
-numeric tail, ident-block context, mirror consensus.
+numeric tail, ident-block context, mirror consensus.  Every candidate is
+also **decoded** (vininfo): WMI → manufacturer, region, country, and
+model years — labelled *decoded, unverified*.
 
 ## Quick start
 

@@ -19,7 +19,10 @@ from typing import Optional
 
 import typer
 
+from openremap.cli.io import CONTAINER_NAMES, load_binary_file
 from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
+from openremap.core.services.identify.vin_scanner import scan_vins
+from openremap.core.services.vin_decode import decode_vin
 from openremap.core.services.identify.identifier import identify_ecu
 
 # ---------------------------------------------------------------------------
@@ -27,6 +30,7 @@ from openremap.core.services.identify.identifier import identify_ecu
 # ---------------------------------------------------------------------------
 
 _LABELS: list[tuple[str, str]] = [
+    ("container", "Container"),
     ("manufacturer", "Manufacturer"),
     ("ecu_family", "ECU Family"),
     ("ecu_variant", "ECU Variant"),
@@ -34,6 +38,8 @@ _LABELS: list[tuple[str, str]] = [
     ("hardware_number", "Hardware Number"),
     ("calibration_id", "Calibration ID"),
     ("match_key", "Match Key"),
+    ("ecu_endian", "Byte Order"),
+    ("ecu_cell_bytes", "Cell Size"),
     ("file_size", "File Size"),
     ("sha256", "SHA-256"),
 ]
@@ -75,6 +81,10 @@ def _format_table(result: dict) -> str:
         value = result.get(key)
         if key == "file_size" and value is not None:
             display = f"{value:,} bytes"
+        elif key == "ecu_cell_bytes" and value is not None:
+            display = f"{value * 8}-bit"
+        elif key == "ecu_endian" and value is not None:
+            display = f"{value}-endian"
         elif value is None:
             display = typer.style("unknown", fg=typer.colors.YELLOW)
         else:
@@ -146,33 +156,18 @@ def identify(
     assessment of how reliably the binary was identified.
     """
     suffix = file.suffix.lower()
-    if suffix not in (".bin", ".ori", ".hex"):
+    if suffix not in (".bin", ".ori", ".hex", ".s19", ".srec", ".mot"):
         typer.echo(
             typer.style(
                 f"  ⚠  Unrecognised extension '{file.suffix}' — proceeding anyway. "
-                "Expected .bin, .ori, or .hex.",
+                "Expected .bin, .ori, .hex, .s19, .srec, or .mot.",
                 fg=typer.colors.YELLOW,
             ),
             err=True,
         )
 
-    try:
-        data = file.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(f"Error reading file: {exc}", fg=typer.colors.RED, bold=True),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    if not data:
-        typer.echo(
-            typer.style(
-                f"Error: '{file.name}' is empty.", fg=typer.colors.RED, bold=True
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    data, fmt_code = load_binary_file(file, "Binary")
+    container = CONTAINER_NAMES.get(fmt_code, fmt_code)
 
     try:
         result = identify_ecu(data=data, filename=file.name)
@@ -187,8 +182,21 @@ def identify(
 
     confidence = score_identity(result, filename=file.name, data=data)
 
+    # --- VIN candidate (optional, high floor) ---
+    # Vehicle identity is orthogonal to ECU identity and NEVER part of the
+    # match key.  Only the top candidate at >= 0.6 is shown (measured on the
+    # real corpus: 2/1871 files qualify — real dealer-flashed VINs; the
+    # 0.2-0.45 lookalike noise stays below the floor).
+    vin_top = None
+    vin_decoded = None
+    vins = scan_vins(data, min_confidence=0.6)
+    if vins:
+        vin_top = vins[0]
+        vin_decoded = decode_vin(vin_top.vin)
+
     if as_json:
         json_out = dict(result)
+        json_out["container"] = container
         json_out["confidence"] = {
             "score": confidence.score,
             "tier": confidence.tier,
@@ -197,6 +205,20 @@ def identify(
             ],
             "warnings": confidence.warnings,
         }
+        json_out["vin"] = (
+            {
+                "candidate": vin_top.vin,
+                "confidence": vin_top.confidence,
+                "manufacturer": vin_decoded.manufacturer,
+                "region": vin_decoded.region,
+                "country": vin_decoded.country,
+                "years": vin_decoded.years,
+                "checksum_valid": vin_decoded.checksum_valid,
+                "decoded": vin_decoded.decoded,
+            }
+            if vin_top is not None
+            else None
+        )
         content = json.dumps(json_out, indent=2)
         _write_output(content, output)
         return
@@ -213,7 +235,7 @@ def identify(
     )
     status_line = "  " + typer.style(status_label, fg=status_colour, bold=True)
 
-    table = _format_table(result)
+    table = _format_table({**result, "container": container})
 
     # --- Confidence section ---
     conf_colour = _TIER_COLOURS.get(confidence.tier, typer.colors.WHITE)
@@ -248,7 +270,33 @@ def identify(
         f"{conf_header}\n{conf_tier_line}\n{conf_signals}{warnings_section}"
     )
 
-    full_output = f"{header}\n{status_line}\n\n{table}\n{confidence_section}\n"
+    # --- VIN candidate section (only when a >= 0.6 candidate exists) ---
+    vin_section = ""
+    if vin_top is not None:
+        vin_header = typer.style("\n  ── VIN candidate " + "─" * 28, bold=True)
+        vin_lines = [f"  {vin_top.vin}  (confidence {vin_top.confidence:.2f})"]
+        if vin_decoded.decoded:
+            bits = []
+            if vin_decoded.manufacturer:
+                bits.append(vin_decoded.manufacturer)
+            if vin_decoded.country:
+                bits.append(vin_decoded.country)
+            if vin_decoded.years:
+                bits.append(str(vin_decoded.years[0]))
+            if bits:
+                vin_lines.append("  " + ", ".join(bits) + " (decoded, unverified)")
+        vin_lines.append(
+            "  "
+            + typer.style(
+                f"check digit {'valid' if vin_decoded.checksum_valid else 'invalid'} (ISO 3779)",
+                dim=True,
+            )
+        )
+        vin_section = f"{vin_header}\n" + "\n".join(vin_lines) + "\n"
+
+    full_output = (
+        f"{header}\n{status_line}\n\n{table}\n{confidence_section}\n{vin_section}"
+    )
 
     if output:
         plain = re.sub(r"\x1b\[[0-9;]*m", "", full_output)

@@ -131,9 +131,30 @@ openremap identify ecu.bin --output result.txt
       { "delta": 10, "label": "ECU variant identified (EDC17C66)" }
     ],
     "warnings": []
+  },
+  "vin": {
+    "candidate": "WVWZZZ1KZ7W059972",
+    "confidence": 0.6,
+    "manufacturer": "Volkswagen",
+    "region": "Europe",
+    "country": "Germany",
+    "years": [2007],
+    "checksum_valid": false,
+    "decoded": true
   }
 }
 ```
+
+### VIN candidate (`vin`)
+
+When the binary contains a VIN candidate scoring **≥ 0.6** (measured on
+the real corpus: 2 of 1,871 files — real dealer-flashed VINs; the
+0.2–0.45 lookalike noise stays below the floor), `identify` reports it as
+a separate, clearly-labelled section and a `vin` JSON field.  Vehicle
+identity is orthogonal to ECU identity and **never** part of the match
+key.  The manufacturer comes from vininfo's public database — shown as
+*decoded, unverified*.  `vin` is `null` when no candidate reaches the
+floor.  The ISO 3779 check digit is the scanner's own computation.
 
 ### Unrecognised ECU
 

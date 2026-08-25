@@ -92,6 +92,9 @@ class TestSyntheticFailures:
         data[0x300 : 0x300 + 17] = vin2
         r = health_report(bytes(data), "vins.bin")
         assert _statuses(r)["VINs"] == "warn"
+        # Reported VINs carry the vininfo-decoded make (WVW → Volkswagen).
+        vin_check = next(c for c in r.checks if c.name == "VINs")
+        assert any("Volkswagen" in d for d in vin_check.details)
 
 
 # ---------------------------------------------------------------------------

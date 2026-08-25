@@ -179,7 +179,7 @@ def workflow() -> None:
     _fail('Any field showing "unknown" — the ECU family may not be supported yet.')
     _note("Open an issue or check CONTRIBUTING.md to add support for it.")
     _fail("File reads as empty or the command errors — check the path and extension.")
-    _note("Only .bin, .ori, and .hex files are accepted.")
+    _note("Only .bin, .ori, .hex, .s19, .srec, and .mot files are accepted.")
 
     # ── STEP 2 — Cook ─────────────────────────────────────────────────────────
     _step("2", "Cook a recipe")
@@ -201,7 +201,7 @@ def workflow() -> None:
     _ok("The ECU block shows the correct Manufacturer · Family and Match Key.")
     _fail("Zero instructions — the two files are identical.")
     _note("Check you passed the stock file first and the tuned file second.")
-    _fail("A read error — check that both paths exist and end in .bin, .ori, or .hex.")
+    _fail("A read error — check that both paths exist and end in .bin, .ori, .hex, .s19, .srec, or .mot.")
 
     # ── STEP 3 — Validate strict ──────────────────────────────────────────────
     _step("3", "Apply the recipe  (validate → apply → verify in one shot)")

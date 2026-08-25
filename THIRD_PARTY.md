@@ -16,6 +16,15 @@ codebase; these projects deserve the credit.
 | [td-d/SubaruDefs](https://github.com/td-d/SubaruDefs) | EcuFlash Subaru defs — checksum table addresses and layout knowledge | community | `openremap/core/services/checksums/denso.py` |
 | [bludgod/RomRaider](https://github.com/bludgod/RomRaider) | The 501-file Subaru factory-ROM corpus | community | `tests/data/ECUs/Subaru/` (gitignored) |
 
+## Used as libraries (runtime dependencies)
+
+| Project | What we use | License | Where it lands |
+|---|---|---|---|
+| [orjson](https://github.com/ijl/orjson) | Fast, spec-strict JSON parsing of recipe files | Apache-2.0 / MIT | recipe-load paths (tune/validate/merge/audit/diff-maps/TUI) |
+| [bincopy](https://github.com/eerimoq/bincopy) | Intel HEX / Motorola S-Record parsing + record checksum validation | MIT | `openremap/core/services/convert.py`, `openremap convert` |
+| [vininfo](https://github.com/idlesign/vininfo) | VIN decoding — WMI → manufacturer/region/country, model years, ISO 3779 check digit | BSD-3-Clause | `openremap/core/services/vin_decode.py` (scan-vins/health/identify) |
+| [rapidfuzz](https://github.com/rapidfuzz/RapidFuzz) | Fuzzy string matching for family-name suggestions | MIT | `families --family` fuzzy lookup |
+
 ## What "port" means here
 
 - We implement the **algorithm** from the documented behaviour and

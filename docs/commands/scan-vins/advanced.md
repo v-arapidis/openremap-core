@@ -70,3 +70,8 @@ openremap scan-vins stock.bin --min-confidence 0.6 --json
   lookalikes (part numbers, serials) score ≤ 0.4 on the measured corpus.
 - Two distinct high-confidence VINs in one file is the classic sign of a
   cloned or merged dump — see also `openremap health`.
+- Every candidate is decoded with **vininfo** (BSD-3): the JSON carries
+  `manufacturer`, `region`, `country`, `years`, `checksum_valid`, and
+  `decoded`; the table appends a dim *— Make, Country, Year (decoded,
+  unverified)* suffix.  Decoding is permissive — unknown WMIs yield
+  `decoded: false` with no guesswork, and malformed input never errors.

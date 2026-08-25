@@ -15,7 +15,9 @@ from pathlib import Path
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.identify.vin_scanner import scan_vins
+from openremap.core.services.vin_decode import decode_vin
 
 
 def scan_vins_cmd(
@@ -48,19 +50,10 @@ def scan_vins_cmd(
     probability-style score (0.0-1.0), NEVER a boolean claim: ECU files
     are full of VIN-shaped serials and calibration IDs.
     """
-    try:
-        data = file.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(
-                f"Error: cannot read '{file.name}': {exc}",
-                fg=typer.colors.RED, bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    data, _fmt = load_binary_file(file, "Binary")
 
     hits = scan_vins(data, min_confidence=min_confidence)
+    decoded = [decode_vin(h.vin) for h in hits]
 
     if as_json:
         out = {
@@ -73,8 +66,14 @@ def scan_vins_cmd(
                     "confidence": h.confidence,
                     "evidence": h.evidence,
                     "mirror_count": h.mirror_count,
+                    "manufacturer": d.manufacturer,
+                    "region": d.region,
+                    "country": d.country,
+                    "years": d.years,
+                    "checksum_valid": d.checksum_valid,
+                    "decoded": d.decoded,
                 }
-                for h in hits
+                for h, d in zip(hits, decoded)
             ],
         }
         typer.echo(json.dumps(out, indent=2, ensure_ascii=False, sort_keys=True))
@@ -103,15 +102,23 @@ def scan_vins_cmd(
         )
     )
     typer.echo(typer.style("  " + "─" * 66, dim=True))
-    for h in hits:
+    for h, d in zip(hits, decoded):
         colour = (
             typer.colors.GREEN
             if h.confidence >= 0.6
             else typer.colors.YELLOW
         )
+        decoded_suffix = ""
+        if d.decoded:
+            decoded_suffix = (
+                f"  — {d.manufacturer}"
+                f"{f', {d.country}' if d.country else ''}"
+                f"{f', {d.years[0]}' if d.years else ''} (decoded, unverified)"
+            )
         typer.echo(
             f"  0x{h.offset:06X}  "
             + typer.style(f"{h.vin:<19}", fg=colour, bold=h.confidence >= 0.6)
             + f"  {h.confidence:>5.2f}  {', '.join(h.evidence)}"
+            + typer.style(decoded_suffix, dim=True)
         )
     typer.echo("")

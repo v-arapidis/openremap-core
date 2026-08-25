@@ -18,6 +18,7 @@ Navigation:
 from __future__ import annotations
 
 import json
+import orjson
 import os
 import pathlib
 import shutil
@@ -55,6 +56,7 @@ from openremap.cli.commands.scan import (
     _safe_folder_name,
 )
 from openremap.core.manufacturers import EXTRACTORS
+from openremap.core.services.convert import decode_image
 from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
 from openremap.core.services.identify.identifier import identify_ecu
 from openremap.core.services.recipes.patcher import ECUPatcher
@@ -87,11 +89,11 @@ def _pick_file(
     if mode == "bin":
         zenity_filter = [
             "--file-filter",
-            "ECU binaries | *.bin *.ori *.hex",
+            "ECU binaries | *.bin *.ori *.hex *.s19 *.srec *.mot",
             "--file-filter",
             "All files | *",
         ]
-        kdialog_filter = "*.bin *.ori *.hex"
+        kdialog_filter = "*.bin *.ori *.hex *.s19 *.srec *.mot"
     elif mode == "json":
         zenity_filter = [
             "--file-filter",
@@ -178,7 +180,7 @@ def _pick_file(
         from tkinter import filedialog
 
         if mode == "bin":
-            filetypes = [("ECU binaries", "*.bin *.ori"), ("All files", "*.*")]
+            filetypes = [("ECU binaries", "*.bin *.ori *.hex *.s19 *.srec *.mot"), ("All files", "*.*")]
         elif mode == "json":
             filetypes = [("Recipe", "*.remap *.openremap *.json"), ("All files", "*.*")]
         else:
@@ -362,12 +364,12 @@ def _pick_save_file(
     else:
         zenity_filter = [
             "--file-filter",
-            "ECU binaries | *.bin *.ori *.hex",
+            "ECU binaries | *.bin *.ori *.hex *.s19 *.srec *.mot",
             "--file-filter",
             "All files | *",
         ]
-        kdialog_filter = "*.bin *.ori *.hex"
-        tk_filetypes = [("ECU binaries", "*.bin *.ori"), ("All files", "*.*")]
+        kdialog_filter = "*.bin *.ori *.hex *.s19 *.srec *.mot"
+        tk_filetypes = [("ECU binaries", "*.bin *.ori *.hex *.s19 *.srec *.mot"), ("All files", "*.*")]
         tk_defaultext = ".bin"
 
     # ── Linux / BSD ───────────────────────────────────────────────────────
@@ -775,6 +777,7 @@ class IdentifyPanel(Vertical):
                 self.post_message(IdentifyFailed(f"Not a file: {path}"))
                 return
             data = path.read_bytes()
+            data = decode_image(data).data
             if not data:
                 self.post_message(IdentifyFailed("File is empty."))
                 return
@@ -1081,6 +1084,7 @@ class ScanPanel(Vertical):
 
             try:
                 data = f.read_bytes()
+                data = decode_image(data).data
                 if not data:
                     rows.append((rel_name, {}, None))
                     classified.append(
@@ -1387,6 +1391,8 @@ class CookPanel(Vertical):
         try:
             original_data = original.read_bytes()
             modified_data = modified.read_bytes()
+            original_data = decode_image(original_data).data
+            modified_data = decode_image(modified_data).data
             analyzer = ECUDiffAnalyzer(
                 original_data=original_data,
                 modified_data=modified_data,
@@ -1726,11 +1732,12 @@ class TunePanel(Vertical):
     ) -> None:
         try:
             target_data = target.read_bytes()
-        except OSError as exc:
+            target_data = decode_image(target_data).data
+        except (OSError, ValueError) as exc:
             self.post_message(TuneFailed(f"Cannot read target: {exc}"))
             return
         try:
-            recipe_dict = json.loads(recipe_path.read_text(encoding="utf-8"))
+            recipe_dict = orjson.loads(recipe_path.read_text(encoding="utf-8"))
         except Exception as exc:
             self.post_message(TuneFailed(f"Cannot read recipe: {exc}"))
             return
@@ -2135,11 +2142,12 @@ class ValidatePanel(Vertical):
     def _do_validate(self, mode: str, bin_path: Path, recipe_path: Path) -> None:
         try:
             bin_data = bin_path.read_bytes()
-        except OSError as exc:
+            bin_data = decode_image(bin_data).data
+        except (OSError, ValueError) as exc:
             self.post_message(ValidateFailed(f"Cannot read binary: {exc}"))
             return
         try:
-            recipe_dict = json.loads(recipe_path.read_text(encoding="utf-8"))
+            recipe_dict = orjson.loads(recipe_path.read_text(encoding="utf-8"))
         except Exception as exc:
             self.post_message(ValidateFailed(f"Cannot read recipe: {exc}"))
             return

@@ -18,6 +18,7 @@ from typing import Optional
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.maps.map_hunter import scan_map_tables
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 from openremap.core.services.recipes.recipe_regions import tag_instruction_regions
@@ -26,7 +27,7 @@ from openremap.core.services.recipes.recipe_regions import tag_instruction_regio
 # Helpers
 # ---------------------------------------------------------------------------
 
-_ALLOWED = (".bin", ".ori", ".hex")
+_ALLOWED = (".bin", ".ori", ".hex", ".s19", ".srec", ".mot")
 
 
 def _check_bin(path: Path, label: str) -> None:
@@ -34,7 +35,7 @@ def _check_bin(path: Path, label: str) -> None:
     if path.suffix.lower() not in _ALLOWED:
         typer.echo(
             typer.style(
-                f"Error: {label} file '{path.name}' must be a .bin, .ori, or .hex file.",
+                f"Error: {label} file '{path.name}' must be a .bin, .ori, .hex, .s19, .srec, or .mot file.",
                 fg=typer.colors.RED,
                 bold=True,
             ),
@@ -44,30 +45,9 @@ def _check_bin(path: Path, label: str) -> None:
 
 
 def _read_bin(path: Path, label: str) -> bytes:
-    """Read binary file contents with user-friendly error handling."""
+    """Read + decode a binary file (raw, Intel HEX, or S-Record)."""
     _check_bin(path, label)
-    try:
-        data = path.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(
-                f"Error reading {label} file: {exc}", fg=typer.colors.RED, bold=True
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    if not data:
-        typer.echo(
-            typer.style(
-                f"Error: {label} file '{path.name}' is empty.",
-                fg=typer.colors.RED,
-                bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
+    data, _fmt = load_binary_file(path, label)
     return data
 
 

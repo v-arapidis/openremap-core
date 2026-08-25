@@ -39,6 +39,27 @@ class TestScanVinsCLI:
         assert out["candidates"][0]["vin"] == "WAUZZZ8LXX1234567"
         assert out["candidates"][0]["confidence"] >= 0.8
 
+    def test_json_includes_decode(self, tmp_path):
+        """Candidates are vininfo-decoded: manufacturer + checksum in JSON."""
+        target = tmp_path / "ecu.bin"
+        target.write_bytes(_bin_with_vin("WAUZZZ8LXX1234567"))
+
+        result = runner.invoke(app, ["scan-vins", str(target), "--json"])
+        assert result.exit_code == 0
+        cand = json.loads(result.stdout)["candidates"][0]
+        assert cand["manufacturer"] == "Audi"  # WAU → Audi (vininfo table)
+        assert isinstance(cand["checksum_valid"], bool)
+        assert cand["decoded"] is True
+
+    def test_human_output_shows_decoded_make(self, tmp_path):
+        target = tmp_path / "ecu.bin"
+        target.write_bytes(_bin_with_vin("WAUZZZ8LXX1234567"))
+
+        result = runner.invoke(app, ["scan-vins", str(target)])
+        assert result.exit_code == 0
+        assert "Audi" in result.stdout
+        assert "decoded, unverified" in result.stdout
+
     def test_min_confidence_filter(self, tmp_path):
         target = tmp_path / "ecu.bin"
         target.write_bytes(_bin_with_vin("WAUZZZ8LXX1234567"))

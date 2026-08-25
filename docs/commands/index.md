@@ -12,6 +12,8 @@ Every command has two pages: a **simple** introduction and an
 | Command | What it does | Simple | Advanced |
 |---|---|---|---|
 | `identify` | Read one binary — manufacturer, family, software, confidence | [index](identify/index.md) | [advanced](identify/advanced.md) |
+| `analyze` | Describe a whole binary — identity, VIN, layout, maps, checksums, health | [index](analyze/index.md) | [advanced](analyze/advanced.md) |
+| `convert` | Normalise HEX / S-Record images to flat bytes | [index](convert/index.md) | [advanced](convert/advanced.md) |
 | `health` | One-shot safety check — checksums, axes, map counts, VINs | [index](health/index.md) | [advanced](health/advanced.md) |
 | `checksum` | Verify known checksum schemes (no correction) | [index](checksum/index.md) | [advanced](checksum/advanced.md) |
 | `scan` | Batch-classify a folder of binaries | [index](scan/index.md) | [advanced](scan/advanced.md) |

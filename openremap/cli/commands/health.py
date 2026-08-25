@@ -22,6 +22,7 @@ from typing import Annotated, Optional
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.health import health_report
 
 _STATUS_COLOURS = {
@@ -54,17 +55,7 @@ def health_cmd(
     ),
 ) -> None:
     """One-shot calibration health check (CI-gateable)."""
-    try:
-        data = file.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(
-                f"Error: cannot read '{file.name}': {exc}",
-                fg=typer.colors.RED, bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    data, _fmt = load_binary_file(file, "Binary")
 
     report = health_report(data, file.name)
 

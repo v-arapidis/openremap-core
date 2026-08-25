@@ -32,7 +32,9 @@ from typing import Optional
 import typer
 
 from openremap.cli.commands import validate
+from openremap.cli.commands.analyze import analyze
 from openremap.cli.commands.cmds import commands
+from openremap.cli.commands.convert import convert
 from openremap.cli.commands.cook import cook
 from openremap.cli.commands.cook_volatile import cook_volatile
 from openremap.cli.commands.families import families
@@ -132,6 +134,25 @@ app.command(
     help="Identify an ECU binary — manufacturer, family, software version, and more.",
     no_args_is_help=True,
 )(identify)
+
+app.command(
+    name="analyze",
+    help=(
+        "Describe a whole ECU binary in one pass: container, identity + "
+        "confidence, VIN, flash layout, maps, checksums, health verdict."
+    ),
+    no_args_is_help=True,
+)(analyze)
+
+app.command(
+    name="convert",
+    help=(
+        "Normalise an ECU binary image to flat bytes: real Intel HEX and "
+        "S-Record files are parsed (addresses + checksums validated), raw "
+        "dumps pass through unchanged."
+    ),
+    no_args_is_help=True,
+)(convert)
 
 app.command(
     name="audit",

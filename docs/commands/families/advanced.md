@@ -180,6 +180,11 @@ The `--family` option accepts the canonical name or any of the listed aliases
 - `openremap families` shows the same families that `openremap identify`
   recognises. If a binary is classified as `unknown`, its ECU family is not
   yet supported — see [CONTRIBUTING.md](../../../CONTRIBUTING.md) to add support.
+- **Fuzzy lookup:** when `--family` matches no name or alias exactly, the
+  five closest names are suggested with scores (rapidfuzz, MIT) — e.g.
+  `families --family edc16c` → `EDC16 — 91%, EDC1 / EDC2 — 90%, …`.  The
+  exit code stays `1` (the request was not fulfilled); a totally unrelated
+  query prints no suggestions.
 - For complete technical details on ident formats, file sizes, and binary
   layouts, see the manufacturer reference pages:
   [Bosch](../../manufacturers/bosch/index.md) · [Siemens](../../manufacturers/siemens/index.md) · [Delphi](../../manufacturers/delphi/index.md) · [Marelli](../../manufacturers/marelli/index.md).

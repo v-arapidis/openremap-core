@@ -24,6 +24,8 @@ from pathlib import Path
 
 import typer
 
+from openremap.cli.io import load_binary_file
+from openremap.core.services.convert import decode_image
 from openremap.core.services.maps.layout import segment
 from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tables
 
@@ -31,7 +33,7 @@ from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tabl
 # Constants
 # ---------------------------------------------------------------------------
 
-VALID_EXTENSIONS = {".bin", ".ori", ".hex"}
+VALID_EXTENSIONS = {".bin", ".ori", ".hex", ".s19", ".srec", ".mot"}
 def _bo_label(byte_order: str) -> str:
     """``'little'`` → ``'LE'``, ``'big'`` → ``'BE'``."""
     return "LE" if byte_order == "little" else "BE"
@@ -43,29 +45,16 @@ def _bo_label(byte_order: str) -> str:
 
 
 def _read_bin(path: Path, label: str) -> bytes:
-    """Read and validate a single ECU binary file."""
+    """Read + decode a binary file (raw, Intel HEX, or S-Record)."""
     if path.suffix.lower() not in VALID_EXTENSIONS:
         typer.echo(
             typer.style(
-                f"Error: {label} file '{path.name}' must be a .bin, .ori, or .hex file.",
+                f"Error: {label} file '{path.name}' must be a .bin, .ori, .hex, .s19, .srec, or .mot file.",
                 fg=typer.colors.RED, bold=True,
             ), err=True,
         )
         raise typer.Exit(code=1)
-    try:
-        data = path.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(f"Error reading file: {exc}", fg=typer.colors.RED, bold=True),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-    if not data:
-        typer.echo(
-            typer.style(f"Error: '{path.name}' is empty.", fg=typer.colors.RED, bold=True),
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    data, _fmt = load_binary_file(path, label)
     return data
 
 
@@ -610,6 +599,20 @@ def scan_maps(
         try:
             data = filepath.read_bytes()
         except OSError as exc:
+            if as_json:
+                json_errors.append({"file": str(filepath), "error": f"READ ERR: {exc}"})
+            else:
+                typer.echo(
+                    f"{label_idx}"
+                    + typer.style("  READ ERR   ", fg=typer.colors.RED)
+                    + f"{display_name}  ({exc})"
+                )
+            continue
+
+        # Decode HEX/SREC → flat image (raw passes through unchanged).
+        try:
+            data = decode_image(data).data
+        except ValueError as exc:
             if as_json:
                 json_errors.append({"file": str(filepath), "error": f"READ ERR: {exc}"})
             else:

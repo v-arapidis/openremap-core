@@ -20,11 +20,13 @@ Deprecated aliases (still work, hidden from --help):
 from __future__ import annotations
 
 import json
+import orjson
 from pathlib import Path
 from typing import Optional
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.recipes.preflight import check_same_file_only
 from openremap.core.services.recipes.validate_exists import ECUExistenceValidator, MatchStatus
 from openremap.core.services.recipes.validate_patched import ECUPatchedValidator
@@ -44,15 +46,15 @@ app = typer.Typer(
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-_ALLOWED_BIN = (".bin", ".ori", ".hex")
+_ALLOWED_BIN = (".bin", ".ori", ".hex", ".s19", ".srec", ".mot")
 
 
 def _read_bin(path: Path, label: str) -> bytes:
-    """Read and validate a binary file."""
+    """Read + decode a binary file (raw, Intel HEX, or S-Record)."""
     if path.suffix.lower() not in _ALLOWED_BIN:
         typer.echo(
             typer.style(
-                f"Error: {label} file '{path.name}' must be a .bin, .ori, or .hex file.",
+                f"Error: {label} file '{path.name}' must be a .bin, .ori, .hex, .s19, .srec, or .mot file.",
                 fg=typer.colors.RED,
                 bold=True,
             ),
@@ -60,28 +62,7 @@ def _read_bin(path: Path, label: str) -> bytes:
         )
         raise typer.Exit(code=1)
 
-    try:
-        data = path.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(
-                f"Error reading {label} file: {exc}", fg=typer.colors.RED, bold=True
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    if not data:
-        typer.echo(
-            typer.style(
-                f"Error: {label} file '{path.name}' is empty.",
-                fg=typer.colors.RED,
-                bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
+    data, _fmt = load_binary_file(path, label)
     return data
 
 
@@ -110,7 +91,7 @@ def _read_recipe(path: Path) -> dict:
         raise typer.Exit(code=1)
 
     try:
-        return json.loads(raw)
+        return orjson.loads(raw)
     except json.JSONDecodeError as exc:
         typer.echo(
             typer.style(

@@ -42,6 +42,7 @@ import typer
 
 from openremap.core.manufacturers import EXTRACTORS
 from openremap.core.manufacturers.base import BaseManufacturerExtractor
+from openremap.core.services.convert import decode_image
 from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
 
 # ---------------------------------------------------------------------------
@@ -50,7 +51,9 @@ from openremap.core.services.identify.confidence import ConfidenceResult, score_
 
 # .hex is accepted because Subaru (Denso/Hitachi) dumps conventionally ship
 # as raw binaries named ".hex" (RomRaider convention) — not Intel HEX text.
-VALID_EXTENSIONS = {".bin", ".ori", ".hex"}
+# Real Intel HEX / S-Record files are decoded by content sniffing after read;
+# the extension only drives the trash classifier.
+VALID_EXTENSIONS = {".bin", ".ori", ".hex", ".s19", ".srec", ".mot"}
 
 DEST_SCANNED = "scanned"
 DEST_SW_MISSING = "sw_missing"
@@ -653,6 +656,17 @@ def scan(
         try:
             data = filepath.read_bytes()
         except OSError as exc:
+            typer.echo(
+                f"{label_idx}"
+                + typer.style("  READ ERR   ", fg=typer.colors.RED)
+                + f"{filepath.name}  ({exc})"
+            )
+            continue
+
+        # --- Decode HEX/SREC → flat image (raw passes through unchanged) ---
+        try:
+            data = decode_image(data).data
+        except ValueError as exc:
             typer.echo(
                 f"{label_idx}"
                 + typer.style("  READ ERR   ", fg=typer.colors.RED)

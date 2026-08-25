@@ -14,7 +14,7 @@ package = true
 
 [project]
 name = "openremap"
-version = "0.7.1"
+version = "0.7.2"
 description = "ECU binary analysis and patching toolkit — diff, validate, and apply tuning recipes to automotive ECU binaries."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -40,8 +40,11 @@ classifiers = [
 dependencies = [
     "typer>=0.15.0",
     "rarfile>=4.2",
-    "pydantic>=2",
     "textual>=0.80",
+    "orjson>=3.10",
+    "bincopy>=20",
+    "vininfo>=1.11",
+    "rapidfuzz>=3.14",
 ]
 
 [project.scripts]

@@ -418,18 +418,31 @@ def _kv(key: str, value: str, key_width: int = 14) -> None:
     typer.echo(f"{k}  {value}")
 
 
+def _normalize(s: str) -> str:
+    """Case-fold + strip separators — the matching key for names/aliases."""
+    return s.lower().replace(" ", "").replace("-", "").replace("_", "").replace(
+        ".", ""
+    ).replace("/", "")
+
+
+#: (normalized choice, family entry) for fuzzy lookup — every family name
+#: and alias, mapped back to its entry.  Built once at import.
+_FUZZY_CHOICES: list[tuple[str, dict]] = [
+    (choice, fam)
+    for fam in _FAMILIES
+    for choice in [fam["name"], *fam["aliases"]]
+]
+_FUZZY_NEEDLES = [choice for choice, _fam in _FUZZY_CHOICES]
+
+
 def _lookup(name: str) -> dict | None:
     """Find a family entry by name or alias (case-insensitive)."""
-    needle = name.lower().replace(" ", "").replace("-", "").replace("_", "")
+    needle = _normalize(name)
     for fam in _FAMILIES:
-        if needle == fam["name"].lower().replace(" ", "").replace("-", "").replace(
-            "/", ""
-        ):
+        if needle == _normalize(fam["name"]):
             return fam
         for alias in fam["aliases"]:
-            if needle == (
-                alias.lower().replace(" ", "").replace("-", "").replace("_", "").replace(".", "").replace("/", "")
-            ):
+            if needle == _normalize(alias):
                 return fam
     return None
 
@@ -593,6 +606,27 @@ def families(
             ),
             err=True,
         )
+        # Fuzzy "did you mean" — rapidfuzz over normalized names/aliases.
+        from rapidfuzz import process
+
+        matches = process.extract(_normalize(family), _FUZZY_NEEDLES, limit=8, score_cutoff=50)
+        seen: list[str] = []
+        suggestions: list[str] = []
+        for _choice, score, idx in matches:
+            fam_name = _FUZZY_CHOICES[idx][1]["name"]
+            if fam_name in seen:
+                continue
+            seen.append(fam_name)
+            suggestions.append(f"{fam_name} — {score:.0f}%")
+            if len(seen) >= 5:
+                break
+        if suggestions:
+            typer.echo(
+                "  "
+                + typer.style("Closest families: ", fg=typer.colors.YELLOW, bold=True)
+                + ", ".join(suggestions),
+                err=True,
+            )
         typer.echo(
             "  Run "
             + typer.style("openremap families", fg=typer.colors.GREEN, bold=True)

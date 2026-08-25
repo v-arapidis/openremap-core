@@ -18,30 +18,13 @@ from pathlib import Path
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.maps.layout import find_ident_blocks, segment
 
 
 def _read_bin(path: Path) -> bytes:
-    try:
-        data = path.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(
-                f"Error: cannot read '{path.name}': {exc}",
-                fg=typer.colors.RED, bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
-    if not data:
-        typer.echo(
-            typer.style(
-                f"Error: '{path.name}' is empty.",
-                fg=typer.colors.RED, bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    """Read + decode a binary file (raw, Intel HEX, or S-Record)."""
+    data, _fmt = load_binary_file(path, "Binary")
     return data
 
 

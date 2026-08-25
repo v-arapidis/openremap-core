@@ -12,10 +12,12 @@ Examples:
 from __future__ import annotations
 
 import json
+import orjson
 from pathlib import Path
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.recipes.recipe_merge import MergeConflict, merge_recipes
 
 _ALLOWED = (".remap", ".json", ".openremap")
@@ -29,7 +31,7 @@ _ALLOWED = (".remap", ".json", ".openremap")
 def _load_recipe(path: Path, label: str) -> dict:
     """Load a recipe dict; exit 1 on unreadable/malformed files."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = orjson.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         typer.echo(
             typer.style(
@@ -127,26 +129,7 @@ def merge(
 
     stock_data: bytes | None = None
     if stock is not None:
-        try:
-            stock_data = stock.read_bytes()
-        except OSError as exc:
-            typer.echo(
-                typer.style(
-                    f"Error: cannot read stock binary '{stock.name}': {exc}",
-                    fg=typer.colors.RED, bold=True,
-                ),
-                err=True,
-            )
-            raise typer.Exit(code=1)
-        if not stock_data:
-            typer.echo(
-                typer.style(
-                    f"Error: '{stock.name}' is empty.",
-                    fg=typer.colors.RED, bold=True,
-                ),
-                err=True,
-            )
-            raise typer.Exit(code=1)
+        stock_data, _fmt = load_binary_file(stock, "Stock")
 
     try:
         merged = merge_recipes(

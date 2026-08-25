@@ -16,6 +16,7 @@ from pathlib import Path
 
 import typer
 
+from openremap.cli.io import load_binary_file
 from openremap.core.services.checksums.checksum import (
     detect_me7_multipoint,
     detect_me7_multipoint_unverified,
@@ -61,17 +62,7 @@ def checksum_cmd(
     stale or stripped checksums and yield no matches (see
     ISSUE-3).
     """
-    try:
-        data = file.read_bytes()
-    except OSError as exc:
-        typer.echo(
-            typer.style(
-                f"Error: cannot read '{file.name}': {exc}",
-                fg=typer.colors.RED, bold=True,
-            ),
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    data, _fmt = load_binary_file(file, "Binary")
 
     matches = sweep(data)
     me7 = verify_me7(data)
