@@ -223,7 +223,7 @@ def find_ident_blocks(data: bytes, *, min_run: int = _ASCII_RUN_MIN) -> list[Reg
     and per-block Shannon entropy run natively in Rust
     (`_rs/src/layout_scan.rs`) — ~30x faster than the previous Python
     regex/Counter loop; parity verified on 1,693 corpus files + synthetic
-    edge cases (2026-08-15, see docs/rust-migration-audit.md).  This
+    edge cases (2026-08-15, see docs/internal/audits/2026-08-15-rust-migration-audit.md).  This
     function only constructs the ``Region`` dataclass objects and applies
     the same rounding the Python implementation used.
     """

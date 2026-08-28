@@ -67,7 +67,7 @@ def crc16_arc(data: bytes, blocks: list[tuple[int, int]], init: int) -> int:
     Runs natively in Rust (`_rs/src/crc16.rs`) — ~80x faster than the
     previous Python byte loop; parity verified against the standard
     check value ("123456789" → 0xBB3D), the MS43 corpus, and synthetic
-    edges (2026-08-15, see docs/rust-migration-audit.md)."""
+    edges (2026-08-15, see docs/internal/audits/2026-08-15-rust-migration-audit.md)."""
     return _rust_crc16_arc(data, [(s, e) for s, e in blocks], init)
 
 

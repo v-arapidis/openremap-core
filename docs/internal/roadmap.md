@@ -22,7 +22,7 @@ stabilisation (bug refinement + third-party OSS integration).
 | `cook-volatile` — car-portable recipes | ✅ schema-4.5 `volatile` section, volatile-aware audit (ISSUE-1 done) |
 | Map tooling: scan-maps, diff-maps, classifier, CSV export | ✅ |
 | Layout segmenter + ident blocks | ✅ |
-| Checksums: ME7, IronFelix, NefMoto, MS43, GS20/SMG2, Denso | ✅ (see [checksum command docs](../commands/checksum/advanced.md)) |
+| Checksums: ME7, IronFelix, NefMoto, MS43, GS20/SMG2, Denso | ✅ (see the [checksum command docs](https://docs.openremap.com/commands/checksum/advanced)) |
 | Health report (`openremap health`) | ✅ |
 | Subaru support: Denso + Hitachi extractors, 501-ROM corpus | ✅ |
 | Rust migrations (5 hot loops) + domain restructure | ✅ |

@@ -33,6 +33,7 @@ from openremap._rust import (  # type: ignore[import-untyped]
     c166_references as _rust_c166_references,
     c166_walk as _rust_c166_walk,
 )
+from openremap.core.arch.spans import SpanIndex
 
 #: Minimum translated references landing inside the data spans before a
 #: DPP window base is trusted.  C166 offsets are 16-bit and dense, so this
@@ -96,11 +97,13 @@ def detect_window(
     references — presence-only: no signal is never a penalty).
     """
     best_w, best_hits = 0, 0
+    span_index = SpanIndex(spans)
+    unique_offsets = set(offsets)
     for w in range(0, file_size, _WINDOW):
         hits = 0
-        for o in set(offsets):
+        for o in unique_offsets:
             f = (o & 0x3FFF) + w
-            if f < file_size and any(s <= f < e for s, e in spans):
+            if f < file_size and f in span_index:
                 hits += 1
         if hits > best_hits:
             best_w, best_hits = w, hits
@@ -161,12 +164,14 @@ def detect_dpp_base(
     is exactly such a coincidence), so the DPP path must only fire when
     one base stands out.
     """
+    span_index = SpanIndex(spans)
+    unique_offsets = set(offsets)
     scores = []
     for b in _DPP_BASE_CANDIDATES:
         hits = 0
-        for o in set(offsets):
+        for o in unique_offsets:
             f = ((dpp[o >> 14] << 14) | (o & 0x3FFF)) - b
-            if 0 <= f < file_size and any(s <= f < e for s, e in spans):
+            if 0 <= f < file_size and f in span_index:
                 hits += 1
         scores.append((hits, b))
     scores.sort(reverse=True)

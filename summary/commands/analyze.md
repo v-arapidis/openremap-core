@@ -58,7 +58,7 @@
 
 ## Expected output
 
-**Human** — sectioned report (see `docs/commands/analyze/advanced.md`);
+**Human** — sectioned report (see the [analyze advanced](https://docs.openremap.com/commands/analyze/advanced) wiki page);
 ident blocks capped at 8 + "… N more"; maps top-5 by score with a
 `⟶code` marker on xref-referenced tables; a "code refs" line under Maps
 (e.g. `code refs: 1,213 reference(s) from 588,466 instructions (tricore,

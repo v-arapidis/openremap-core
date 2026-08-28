@@ -56,6 +56,7 @@ from capstone import (  # type: ignore[import-untyped]
 
 from openremap.core.arch import c166
 from openremap.core.arch.sh import _extract_sh
+from openremap.core.arch.spans import SpanIndex
 from openremap.core.arch.tricore import (
     _extract_tricore,
     _extract_tricore_a0,
@@ -152,13 +153,14 @@ def _detect_base(
     base; ties resolve to the smaller base (identity preferred).
     """
     best_base, best_hits = 0, 0
+    span_index = SpanIndex(spans)
+    unique_targets = set(targets)
     for b in _BASE_CANDIDATES:
         hits = 0
-        for t in set(targets):
+        for t in unique_targets:
             off = t - b
-            if 0 <= off < file_size:
-                if any(s <= off < e for s, e in spans):
-                    hits += 1
+            if 0 <= off < file_size and off in span_index:
+                hits += 1
         if hits > best_hits:
             best_base, best_hits = b, hits
     if best_hits < _MIN_BASE_HITS:

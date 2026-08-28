@@ -1,5 +1,9 @@
 # OpenRemap
 
+🌐 **[openremap.com](https://www.openremap.com)** — the project site: what OpenRemap is, how to install it, and the latest news.
+📚 **[docs.openremap.com](https://docs.openremap.com)** — the wiki: concepts, every command, and per-family references.
+🐙 **[openremap-docs](https://github.com/v-arapidis/openremap-docs)** — the open-source repo behind the docs/wiki — suggestions and contributions welcome.
+
 [![CI](https://github.com/v-arapidis/openremap-core/actions/workflows/ci.yml/badge.svg)](https://github.com/v-arapidis/openremap-core/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/openremap.svg)](https://pypi.org/project/openremap/)
 [![Changelog](https://img.shields.io/badge/-Changelog-blue.svg)](CHANGELOG.md)
@@ -16,8 +20,6 @@ Offline-first. No accounts, no telemetry, no data leaves your machine.
 OpenRemap began as a final-semester thesis project, presented at
 **SAEK Orestiadas** (v0.4.5), and has been actively developed since
 (current release line: 0.7.x).
-
-🌐 **[openremap.com](https://www.openremap.com)** — full documentation, wiki, and changelog.
 
 ---
 
@@ -55,7 +57,7 @@ Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
 
 ## What it is
 
-- **Identify** — 35 extractors across 6 OEMs (Bosch, Siemens, Delphi,
+- **Identify** — 36 extractors across 6 OEMs (Bosch, Siemens, Delphi,
   Magneti Marelli, Denso, Hitachi), each result with a confidence tier
   and the evidence behind it
 - **Health-check** — one command: checksums, axis sanity, map-count
@@ -73,17 +75,21 @@ Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
 
 ## Supported ECUs
 
-6 manufacturers, 35 extractors — from LH-Jetronic (1982) to EDC17 and
-Denso/Hitachi Subaru (2020s). → [Per-family reference](docs/manufacturers/)
+6 manufacturers, 36 extractors — from LH-Jetronic (1982) to EDC17 and
+Denso/Hitachi Subaru (2020s). → [Per-family reference](https://docs.openremap.com/manufacturers/)
 
 ## Documentation
 
-The [wiki](docs/README.md) is organised by domain:
+The wiki is live at **[docs.openremap.com](https://docs.openremap.com)** —
+its content lives in the open-source
+[`v-arapidis/openremap-docs`](https://github.com/v-arapidis/openremap-docs)
+repo.  This repository keeps only repo-internal docs
+([`docs/internal/`](docs/internal/) — audits, roadmaps).
 
-- [Getting started](docs/getting-started/index.md) — install, quick start, CLI, TUI
-- [Concepts](docs/concepts/index.md) — how it works, confidence, evidence, recipe format
-- [Commands](docs/commands/index.md) — every command, simple + advanced
-- [Manufacturers](docs/manufacturers/index.md) — per-OEM, per-family pages
+- [Getting started](https://docs.openremap.com/getting-started/) — install, quick start, CLI, TUI
+- [Concepts](https://docs.openremap.com/concepts/) — how it works, decoders, confidence, evidence, recipe format
+- [Commands](https://docs.openremap.com/commands/) — every command, simple + advanced
+- [Manufacturers](https://docs.openremap.com/manufacturers/) — per-OEM, per-family pages
 
 ## Contributing
 

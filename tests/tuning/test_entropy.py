@@ -128,6 +128,32 @@ class TestCountUniqueInWindow:
         # "AAA" in "AAAAA" — occurs at offsets 0, 1, 2
         assert count_unique_in_window(b"AAAAA", b"AAA", 0, 5) == 3
 
+    # -- limit (early-exit) -------------------------------------------------
+
+    def test_limit_caps_at_two(self):
+        """limit=2 returns 2 once two matches are seen (>= 2 semantics)."""
+        assert count_unique_in_window(b"ABABAB", b"AB", 0, 6, limit=2) == 2
+
+    def test_limit_two_exact_count_below_limit(self):
+        """limit=2 returns the exact count when it is 0 or 1."""
+        assert count_unique_in_window(b"ABCDEF", b"XY", 0, 6, limit=2) == 0
+        assert count_unique_in_window(b"ABCDEF", b"CD", 0, 6, limit=2) == 1
+
+    def test_limit_default_is_exact(self):
+        """No limit keeps the exact count (backward-compatible)."""
+        assert count_unique_in_window(b"ABABAB", b"AB", 0, 6) == 3
+
+    def test_limit_larger_than_count_returns_exact(self):
+        assert count_unique_in_window(b"ABABAB", b"AB", 0, 6, limit=99) == 3
+
+    def test_limit_one_exits_after_first_match(self):
+        assert count_unique_in_window(b"AAAAA", b"AAA", 0, 5, limit=1) == 1
+
+    def test_limit_two_does_not_change_unique_decision(self):
+        """A unique anchor still reports 1 under limit=2 (parity of ==1)."""
+        # "XYZ" appears once — the ==1 vs >1 decision is preserved.
+        assert count_unique_in_window(b"ABCXYZDEF", b"XYZ", 0, 9, limit=2) == 1
+
 
 # ---------------------------------------------------------------------------
 # find_unique_context

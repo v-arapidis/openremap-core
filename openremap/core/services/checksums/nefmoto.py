@@ -259,7 +259,7 @@ def _locate_pattern(
     """Masked byte-pattern scan (step 2, early exit) — runs natively in
     Rust (`_rs/src/nefmoto_scan.rs`), ~370-520x faster than the previous
     Python loop; parity verified on 236 ME7.x corpus files + synthetic
-    edges (2026-08-15, see docs/rust-migration-audit.md)."""
+    edges (2026-08-15, see docs/internal/audits/2026-08-15-rust-migration-audit.md)."""
     return _rust_locate_pattern(
         data, pat, mask, offset,
         -1 if max_offset is None else max_offset,
@@ -360,7 +360,7 @@ def rolling_checksum(
     (checksum & 0xFF)) << 2].  Runs natively in Rust
     (`_rs/src/nefmoto_scan.rs`) — ~200x faster than the previous Python
     byte loop; parity verified on 236 ME7.x corpus files + synthetic
-    edges (2026-08-15, see docs/rust-migration-audit.md)."""
+    edges (2026-08-15, see docs/internal/audits/2026-08-15-rust-migration-audit.md)."""
     return _rust_rolling_checksum(
         data, seed_table_offset,
         [(r.start, r.end) for r in ranges],

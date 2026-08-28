@@ -28,7 +28,7 @@ from openremap.core.manufacturers import get_extractors
 # `crates/studio/src/analysis/endian.rs`.  ~800x faster than the Python
 # byte loop; parity verified against the Python output on 1,693 real
 # corpus files + synthetic edge cases (2026-08-15, see
-# docs/rust-migration-audit.md).
+# docs/internal/audits/2026-08-15-rust-migration-audit.md).
 
 # Maximum bytes to sample (same cap as the Rust backend).
 _MAX_SAMPLE_BYTES = 256 * 1024

@@ -35,7 +35,7 @@ Closed findings (2026-08-15):
 
 The table scan is O(filesize) thanks to prefix sums; ~1 s per 1 MB in
 pure Python — a Rust migration candidate (see
-docs/rust-migration-audit.md).
+docs/internal/audits/2026-08-15-rust-migration-audit.md).
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ def detect_denso(data: bytes) -> DensoChecksumInfo | None:
     natively in Rust (`_rs/src/checksums/denso.rs`) — ~110x faster than
     the original Python byte scan (10 ms vs 1.1 s per 1 MB); parity
     verified on 191 real files + flip-stale cases (2026-08-15, see
-    docs/rust-migration-audit.md).  This wrapper only builds the
+    docs/internal/audits/2026-08-15-rust-migration-audit.md).  This wrapper only builds the
     ``DensoChecksumInfo`` dataclass from the Rust result.
 
     Args:

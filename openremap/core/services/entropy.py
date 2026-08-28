@@ -56,9 +56,17 @@ def count_unique_in_window(
     needle: bytes,
     window_start: int,
     window_end: int,
+    limit: int | None = None,
 ) -> int:
     """Count all (possibly overlapping) occurrences of *needle* within a
-    bounded region of *haystack*.  Returns 0 when *needle* is empty."""
+    bounded region of *haystack*.  Returns 0 when *needle* is empty.
+
+    *limit* (optional) caps the result: the scan stops early once ``count``
+    reaches *limit* and returns *limit* ("at least limit" semantics) instead
+    of the exact count.  Callers that only distinguish "unique (1)" from
+    "ambiguous (>1)" pass ``limit=2`` to skip the full scan; callers that
+    surface the exact count (e.g. warning text) leave it ``None``.
+    """
     if not needle:
         return 0
 
@@ -70,6 +78,8 @@ def count_unique_in_window(
         if p == -1:
             break
         count += 1
+        if limit is not None and count >= limit:
+            return count
         pos = p + 1
 
     return count
@@ -120,7 +130,9 @@ def find_unique_context(
 
         entropy = shannon_entropy(ctx)
         anchor = ctx + ob
-        match_count = count_unique_in_window(data, anchor, 0, len(data))
+        # Cap the scan at 2: this value is only compared against 1 (unique
+        # vs ambiguous), never surfaced, so the early exit is result-identical.
+        match_count = count_unique_in_window(data, anchor, 0, len(data), limit=2)
 
         if entropy >= entropy_threshold and match_count == 1:
             return ctx, actual_size, entropy, match_count

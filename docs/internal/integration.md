@@ -460,7 +460,7 @@ for ext in extractors:
     # BoschEDC15Extractor
     # BoschEDC16Extractor
     # BoschEDC17Extractor
-    # ... (18 Bosch + 6 Siemens + 4 Delphi + 4 Marelli)
+    # ... (18 Bosch + 7 Siemens + 2 Delphi + 4 Marelli + 4 Denso + 1 Hitachi)
 ```
 
 **Checking if a binary is supported without full identification:**

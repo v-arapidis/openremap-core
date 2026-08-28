@@ -303,7 +303,7 @@ def workflow() -> None:
     _sep()
     _body(
         "Quick reference:  openremap commands",
-        "Full reference:   openremap <command> --help   or   docs/cli.md",
+        "Full reference:   openremap <command> --help   or   the wiki (docs.openremap.com)",
     )
     _sep()
     _blank()
