@@ -15,8 +15,8 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from openremap.cli.commands.scan_maps import _parse_region
-from openremap.cli.main import app
+from openremap.core.cli.commands.scan_maps import _parse_region
+from openremap.core.cli.main import app
 from tests.conftest import make_layout_bin
 
 runner = CliRunner()
@@ -154,12 +154,12 @@ class TestBoLabel:
     """Endianness label helper — LE/BE, not truncated words."""
 
     def test_little_endian_label(self):
-        from openremap.cli.commands.diff_maps import _bo_label
+        from openremap.core.cli.commands.diff_maps import _bo_label
 
         assert _bo_label("little") == "LE"
 
     def test_big_endian_label(self):
-        from openremap.cli.commands.diff_maps import _bo_label
+        from openremap.core.cli.commands.diff_maps import _bo_label
 
         assert _bo_label("big") == "BE"
 

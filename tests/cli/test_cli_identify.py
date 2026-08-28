@@ -35,7 +35,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 
 # ---------------------------------------------------------------------------
 # Shared runner
@@ -485,7 +485,7 @@ class TestFormatConfidenceInlineDirect:
 
     def test_returns_string_for_high_tier(self) -> None:
         """_format_confidence_inline returns a non-empty styled string."""
-        from openremap.cli.commands.identify import _format_confidence_inline
+        from openremap.core.cli.commands.identify import _format_confidence_inline
         from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
@@ -503,7 +503,7 @@ class TestFormatConfidenceInlineDirect:
 
     def test_returns_string_for_unknown_tier(self) -> None:
         """_format_confidence_inline handles Unknown tier without error."""
-        from openremap.cli.commands.identify import _format_confidence_inline
+        from openremap.core.cli.commands.identify import _format_confidence_inline
         from openremap.core.services.identify.confidence import ConfidenceResult
 
         cr = ConfidenceResult(score=0, tier="Unknown", signals=[], warnings=[])
@@ -512,7 +512,7 @@ class TestFormatConfidenceInlineDirect:
 
     def test_returns_string_for_suspicious_tier_with_summary(self) -> None:
         """_format_confidence_inline includes summary when signals are present."""
-        from openremap.cli.commands.identify import _format_confidence_inline
+        from openremap.core.cli.commands.identify import _format_confidence_inline
         from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
@@ -550,7 +550,7 @@ class TestIdentifyWithConfidenceWarnings:
         )
 
         with patch(
-            "openremap.cli.commands.identify.score_identity",
+            "openremap.core.cli.commands.identify.score_identity",
             return_value=mock_confidence,
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -578,7 +578,7 @@ class TestIdentifyWithConfidenceWarnings:
         )
 
         with patch(
-            "openremap.cli.commands.identify.score_identity",
+            "openremap.core.cli.commands.identify.score_identity",
             return_value=mock_confidence,
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -629,7 +629,7 @@ class TestIdentifyEcuException:
         f.write_bytes(b"\x00" * 1024)
 
         with patch(
-            "openremap.cli.commands.identify.identify_ecu",
+            "openremap.core.cli.commands.identify.identify_ecu",
             side_effect=RuntimeError("extraction engine crashed"),
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -644,7 +644,7 @@ class TestIdentifyEcuException:
         f.write_bytes(b"\x00" * 1024)
 
         with patch(
-            "openremap.cli.commands.identify.identify_ecu",
+            "openremap.core.cli.commands.identify.identify_ecu",
             side_effect=ValueError("bad binary format"),
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -680,7 +680,7 @@ class TestIdentifySignalsLoop:
         )
 
         with patch(
-            "openremap.cli.commands.identify.score_identity",
+            "openremap.core.cli.commands.identify.score_identity",
             return_value=mock_confidence,
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -725,11 +725,11 @@ class TestIdentifySignalsLoop:
 
         with (
             patch(
-                "openremap.cli.commands.identify.identify_ecu",
+                "openremap.core.cli.commands.identify.identify_ecu",
                 return_value=mock_result,
             ),
             patch(
-                "openremap.cli.commands.identify.score_identity",
+                "openremap.core.cli.commands.identify.score_identity",
                 return_value=mock_confidence,
             ),
         ):

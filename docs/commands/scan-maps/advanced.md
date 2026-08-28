@@ -41,6 +41,7 @@ openremap scan-maps <FILE> [OPTIONS]
 | `--json` | off | Output as JSON instead of human-readable text. |
 | `--max-series-tables` | `16` | Max consecutive shared-axis tables to probe after each anchor. Set to `1` to disable. |
 | `--show-series` | off | Group tables sharing identical X/Y axes with indented `└─` continuation rows. |
+| `--xrefs` | off | **Code-reference signal** — disassemble the code regions (capstone) and give tables whose data is statically referenced by code a small score bonus plus a `⟶code` marker / JSON `xref` evidence. Known families decode directly; unknown families fall through to the CPU-detection cascade (trial-decode, fork-isolated). Adds ~4 s per file on a 4 MB EDC17. |
 
 ---
 
@@ -83,6 +84,42 @@ the anchor — garbage, code, or mismatched-geometry data stops the series.
 
 Use `--max-series-tables 1` to disable this and report only the primary
 table per axis pair.
+
+---
+
+## Code references (`--xrefs`)
+
+The **code-reference (xref) signal** is a positive counterpart to the
+heuristic scoring: instead of only *penalising* suspicious content (e.g.
+address-looking axes), it *rewards* confirmed references.
+
+With `--xrefs`, the code regions of the binary are disassembled with
+**capstone** and every byte offset that a real instruction statically
+references is collected.  A table whose **data block** is referenced by
+code is almost certainly a genuine calibration map:
+
+- its score gets a small bonus (+0.06, capped at 1.0), so it ranks above
+  unreferenced lookalikes;
+- it is marked `⟶code` in the human listing;
+- JSON gains a top-level `xrefs` summary (`status` / `arch` /
+  `base_address` / `reference_count` / …) and an `xref` evidence block on
+  each table (`referenced_by_code`, `data_refs`, `axis_refs`, `insns`).
+
+Safety contract:
+
+- **Presence-only** — a table is never demoted for *lacking* a reference
+  (most ECU code reaches maps through base-register addressing that is
+  not statically resolvable).  Absence proves nothing.
+- **Arch-gated** — supported families only: EDC17 (TriCore
+  `movh.a`+`lea` address materialisation) and Denso/Hitachi SuperH
+  (absolute `mov.l`/`mov.w`).  Everything else skips silently.
+- **Load base auto-detected** — ECU code references physical addresses
+  (EDC17 calibrations live at 0x80000000+) while the file is a linear
+  image; the base is inferred per file from table-data hits, no
+  hardcoded manufacturer knowledge.
+
+Cost: ~4 s per file on a 4 MB EDC17 (capstone decode of ~2.6 MB of code)
+— opt-in for batch scans.
 
 ---
 

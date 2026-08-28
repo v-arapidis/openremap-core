@@ -22,7 +22,7 @@ from __future__ import annotations
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 
 # ---------------------------------------------------------------------------
 # Shared runner

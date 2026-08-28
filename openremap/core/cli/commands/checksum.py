@@ -16,7 +16,7 @@ from pathlib import Path
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.checksums.checksum import (
     detect_me7_multipoint,
     detect_me7_multipoint_unverified,

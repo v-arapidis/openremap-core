@@ -27,7 +27,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 from openremap.core.services.recipes.recipe_builder import check_schema_version
 
 runner = CliRunner()

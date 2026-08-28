@@ -26,7 +26,7 @@ from typing import Optional
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.recipes.preflight import check_same_file_only
 from openremap.core.services.recipes.validate_exists import ECUExistenceValidator, MatchStatus
 from openremap.core.services.recipes.validate_patched import ECUPatchedValidator

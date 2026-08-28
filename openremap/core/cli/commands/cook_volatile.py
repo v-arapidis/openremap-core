@@ -37,7 +37,7 @@ from typing import Optional
 
 import typer
 
-from openremap.cli.commands.cook import (
+from openremap.core.cli.commands.cook import (
     _print_region_warning,
     _print_summary,
     _read_bin,

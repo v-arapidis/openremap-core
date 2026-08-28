@@ -1,7 +1,7 @@
 """Unit tests for the volatile classifier — synthetic fixtures only.
 
 No corpus files, no real binaries — everything runs in well under a
-second.  Real-corpus validation lives in Phase 5 of notes/cook-volatile.md.
+second.  Real-corpus validation lives in Phase 5 of notes/recipes/cook-volatile.md.
 """
 
 from __future__ import annotations

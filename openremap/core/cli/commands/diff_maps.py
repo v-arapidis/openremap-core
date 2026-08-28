@@ -24,11 +24,11 @@ from typing import Sequence
 import typer
 
 from openremap._rust import find_changed_blocks  # type: ignore[import-untyped]
-from openremap.cli.commands.scan_maps import (
+from openremap.core.cli.commands.scan_maps import (
     _parse_region,
     _scan_one,
 )
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.maps.map_hunter import MapTable
 
 # ---------------------------------------------------------------------------

@@ -246,3 +246,13 @@ def find_ident_blocks(data: bytes, *, min_run: int = _ASCII_RUN_MIN) -> list[Reg
             data, min_run
         )
     ]
+
+
+# ---------------------------------------------------------------------------
+# Code regions (feed the arch-domain xref pass — plain (start, end) tuples)
+# ---------------------------------------------------------------------------
+
+
+def code_regions_from_layout(regions) -> list[tuple[int, int]]:
+    """``[(start, end)]`` for regions with kind ``"code"``."""
+    return [(r.start, r.end) for r in regions if r.kind == "code"]

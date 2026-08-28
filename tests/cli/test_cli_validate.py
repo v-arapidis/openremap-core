@@ -31,7 +31,7 @@ import pytest
 from pathlib import Path
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 
 runner = CliRunner()
 
@@ -999,7 +999,7 @@ class TestValidateBeforeException:
         _write_recipe(recipe)
 
         with patch(
-            "openremap.cli.commands.validate.ECUStrictValidator",
+            "openremap.core.cli.commands.validate.ECUStrictValidator",
             side_effect=RuntimeError("validator internal error"),
         ):
             result = runner.invoke(
@@ -1050,7 +1050,7 @@ class TestValidateBeforeFailedResults:
             "failures": [],
         }
 
-        with patch("openremap.cli.commands.validate.ECUStrictValidator") as mock_cls:
+        with patch("openremap.core.cli.commands.validate.ECUStrictValidator") as mock_cls:
             mock_val = mock_cls.return_value
             mock_val.check_file_size.return_value = None
             mock_val.check_match_key.return_value = None
@@ -1104,7 +1104,7 @@ class TestValidateBeforeFailedResults:
             "failures": [],
         }
 
-        with patch("openremap.cli.commands.validate.ECUStrictValidator") as mock_cls:
+        with patch("openremap.core.cli.commands.validate.ECUStrictValidator") as mock_cls:
             mock_val = mock_cls.return_value
             mock_val.check_file_size.return_value = None
             mock_val.check_match_key.return_value = None
@@ -1134,7 +1134,7 @@ class TestValidateCheckException:
         _write_recipe(recipe)
 
         with patch(
-            "openremap.cli.commands.validate.ECUExistenceValidator",
+            "openremap.core.cli.commands.validate.ECUExistenceValidator",
             side_effect=RuntimeError("existence validator crashed"),
         ):
             result = runner.invoke(app, ["validate", "check", str(target), str(recipe)])
@@ -1189,7 +1189,7 @@ class TestValidateAfterException:
         _write_recipe(recipe)
 
         with patch(
-            "openremap.cli.commands.validate.ECUPatchedValidator",
+            "openremap.core.cli.commands.validate.ECUPatchedValidator",
             side_effect=RuntimeError("patched validator crashed"),
         ):
             result = runner.invoke(app, ["validate", "after", str(tuned), str(recipe)])

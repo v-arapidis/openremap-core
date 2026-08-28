@@ -26,6 +26,11 @@ from typing import List, Optional
 
 from openremap.core.services.checksums.checksum import sweep, verify_me7
 from openremap.core.services.checksums.denso import detect_denso
+from openremap.core.services.checksums.ironfelix import (
+    detect_all as detect_ironfelix,
+)
+from openremap.core.services.checksums.ms43 import detect_ms43
+from openremap.core.services.coherence import CoherenceReport, check_coherence
 from openremap.core.services.health import HealthReport, health_report
 from openremap.core.services.identify.confidence import (
     ConfidenceResult,
@@ -33,8 +38,21 @@ from openremap.core.services.identify.confidence import (
 )
 from openremap.core.services.identify.identifier import identify_ecu
 from openremap.core.services.identify.vin_scanner import scan_vins
-from openremap.core.services.maps.layout import Region, find_ident_blocks, segment
+from openremap.core.arch import arch_for_family, decoder_label
+from openremap.core.arch.detect import detect_arch
+from openremap.core.arch.refs import XrefReport, collect_xrefs
+from openremap.core.services.maps.layout import (
+    Region,
+    code_regions_from_layout,
+    find_ident_blocks,
+    segment,
+)
 from openremap.core.services.maps.map_hunter import MapTable, scan_map_axes, scan_map_tables
+from openremap.core.services.maps.xrefs import (
+    _table_spans,
+    adjust_table_scores,
+    xref_evidence,
+)
 from openremap.core.services.vin_decode import DecodedVIN, decode_vin
 
 #: VIN floor — same as ``identify`` (measured: 2/1,871 corpus files qualify).
@@ -58,10 +76,12 @@ class AnalyzeReport:
     vin_confidence: Optional[float]
     endian: str
     cell_bytes: int
+    coherence: Optional[CoherenceReport] = None
     regions: List[Region] = field(default_factory=list)
     ident_blocks: List[Region] = field(default_factory=list)
     tables: List[MapTable] = field(default_factory=list)
     axis_count: int = 0
+    xrefs: Optional[XrefReport] = None
     checksums: Optional[dict] = None
     health: Optional[HealthReport] = None
     fast: bool = False
@@ -85,6 +105,7 @@ class AnalyzeReport:
         top_tables = sorted(self.tables, key=lambda t: t.score, reverse=True)[
             :_MAX_TABLES_JSON
         ]
+        xr = self.xrefs
         return {
             "container": self.container,
             "file_size": self.file_size,
@@ -99,6 +120,9 @@ class AnalyzeReport:
                 ],
                 "warnings": self.confidence.warnings,
             },
+            "coherence": (
+                self.coherence.to_dict() if self.coherence is not None else None
+            ),
             "vin": vin,
             "hardware": {"endian": self.endian, "cell_bytes": self.cell_bytes},
             "layout": {
@@ -118,6 +142,30 @@ class AnalyzeReport:
                     {"start": r.start, "end": r.end} for r in self.ident_blocks
                 ],
             },
+            "xrefs": (
+                {
+                    "status": xr.status,
+                    "skip_reason": xr.skip_reason,
+                    "arch": xr.arch,
+                    "decoder": decoder_label(xr.arch),
+                    "arch_source": (
+                        "declared"
+                        if arch_for_family(
+                            self.identity.get("manufacturer"),
+                            self.identity.get("ecu_family"),
+                        )
+                        is not None
+                        else "detected"
+                    ),
+                    "endian": xr.endian,
+                    "base_address": xr.base_address,
+                    "code_bytes_scanned": xr.code_bytes_scanned,
+                    "insn_count": xr.insn_count,
+                    "reference_count": len(xr.referenced),
+                }
+                if xr is not None
+                else None
+            ),
             "maps": {
                 "axis_count": self.axis_count,
                 "table_count": len(self.tables),
@@ -130,6 +178,7 @@ class AnalyzeReport:
                         "byte_order": t.byte_order,
                         "score": round(t.score, 3),
                         "stride": t.stride,
+                        "xref": xref_evidence(t, xr) if xr is not None else {},
                     }
                     for t in top_tables
                 ],
@@ -169,7 +218,6 @@ def analyze_binary(
     ``skip_maps`` skips only the map scan (keeps checksums + health).
     """
     ident = identify_ecu(data, filename)
-    conf = score_identity(ident, filename=filename, data=data)
 
     vins = scan_vins(data, min_confidence=_VIN_FLOOR)
     vin_top = vins[0] if vins else None
@@ -179,16 +227,49 @@ def analyze_binary(
     ident_blocks: List[Region] = []
     tables: List[MapTable] = []
     axis_count = 0
+    xrefs: Optional[XrefReport] = None
     if not skip_maps and not fast:
         axes = scan_map_axes(data)
         axis_count = len(axes)
         tables = scan_map_tables(data, axes=axes)
         regions = segment(data, tables=tables)
         ident_blocks = find_ident_blocks(data)
+        # Code-reference signal: disassemble the code regions, find tables
+        # whose data is statically referenced by code, and apply the bonus.
+        # Unknown/unmapped families fall through to the CPU-detection
+        # cascade (detect_arch) instead of skipping the pass.
+        arch_info = arch_for_family(
+            ident.get("manufacturer"), ident.get("ecu_family")
+        )
+        codes = code_regions_from_layout(regions)
+        spans = _table_spans(tables)
+        if arch_info is None:
+            xrefs = detect_arch(data, codes, ident.get("ecu_endian"), spans)
+        else:
+            xrefs = collect_xrefs(
+                data,
+                codes,
+                arch_info,
+                ident.get("ecu_endian"),
+                spans=spans,
+            )
+        if xrefs.status == "ok":
+            tables = adjust_table_scores(tables, xrefs)
 
     checksums = None
     if not fast:
         checksums = _summarize_checksums(data)
+
+    # Coherence: cross-check identity vs checksum-detected family vs xref
+    # arch, then feed it into the confidence score.  In ``--fast`` /
+    # ``--skip-maps`` the checksum/xref passes never ran → coherence is
+    # None and ``score_identity`` behaves exactly as before.
+    coherence = None
+    if not fast and not skip_maps:
+        coherence = check_coherence(ident, checksums, xrefs)
+    conf = score_identity(
+        ident, filename=filename, data=data, coherence=coherence
+    )
 
     health = health_report(data, filename) if not fast else None
 
@@ -198,6 +279,7 @@ def analyze_binary(
         container=container,
         identity=ident,
         confidence=conf,
+        coherence=coherence,
         vin=vin_dec,
         vin_confidence=vin_top.confidence if vin_top else None,
         endian=ident.get("ecu_endian", "little"),
@@ -206,6 +288,7 @@ def analyze_binary(
         ident_blocks=ident_blocks,
         tables=tables,
         axis_count=axis_count,
+        xrefs=xrefs,
         checksums=checksums,
         health=health,
         fast=fast,
@@ -213,8 +296,21 @@ def analyze_binary(
 
 
 def _summarize_checksums(data: bytes) -> dict:
-    """Compact checksum summary: swept schemes, ME7 verdict, Denso table."""
-    out: dict = {"schemes": [], "me7": None, "denso": None}
+    """Compact checksum summary: swept schemes + per-detector verdicts.
+
+    Covers the detector inventory mirrored from ``health._check_checksums``:
+    ME7 (verify_me7), MS43 CRC16, Denso descriptor table, IronFelix
+    profiles — so the coherence check sees every family detector.  Additive
+    only: the existing ``schemes``/``me7``/``denso`` keys are unchanged;
+    ``ms43``/``ironfelix`` appear only when the detector fires.
+    """
+    out: dict = {
+        "schemes": [],
+        "me7": None,
+        "denso": None,
+        "ms43": None,
+        "ironfelix": [],
+    }
     for m in sweep(data):
         out["schemes"].append(
             {
@@ -234,4 +330,13 @@ def _summarize_checksums(data: bytes) -> dict:
             "ok": denso.ok,
             "total": len(denso.entries),
         }
+    ms43 = detect_ms43(data)
+    if ms43 is not None:
+        out["ms43"] = {"ok": ms43.ok, "total": ms43.total}
+    iron = detect_ironfelix(data)
+    if iron:
+        out["ironfelix"] = [
+            {"description": p.description, "ok": p.ok, "total": p.total}
+            for p in iron
+        ]
     return out

@@ -24,7 +24,7 @@ from pathlib import Path
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.convert import decode_image
 from openremap.core.services.maps.layout import segment
 from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tables
@@ -229,6 +229,47 @@ def _classify_for_file(data: bytes, tables) -> dict[int, tuple[str, float]]:
     return classify_tables(data, tables, fuel_type=family_fuel_type(family))
 
 
+def _xref_for_file(data: bytes, tables) -> tuple[list, object | None]:
+    """Compute the code-reference signal and return (adjusted, xref report).
+
+    Tables whose data block is statically referenced by code get the xref
+    score bonus; the report is ``None`` only when identity lookup fails or
+    no code regions were found.  Unsupported/unknown families fall through
+    to the CPU-detection cascade instead of skipping the pass.
+    """
+    from openremap.core.arch import arch_for_family
+    from openremap.core.arch.detect import detect_arch
+    from openremap.core.arch.refs import collect_xrefs
+    from openremap.core.services.maps.layout import code_regions_from_layout, segment
+    from openremap.core.services.maps.xrefs import (
+        _table_spans,
+        adjust_table_scores,
+    )
+
+    try:
+        from openremap.core.services.identify.identifier import identify_ecu
+
+        ident = identify_ecu(data=data, filename="<scan>")
+    except Exception:
+        return tables, None
+
+    arch = arch_for_family(ident.get("manufacturer"), ident.get("ecu_family"))
+    regions = segment(data, tables=tables)
+    codes = code_regions_from_layout(regions)
+    if not codes:
+        return tables, None
+    spans = _table_spans(tables)
+    if arch is None:
+        xr = detect_arch(data, codes, ident.get("ecu_endian"), spans)
+    else:
+        xr = collect_xrefs(
+            data, codes, arch, ident.get("ecu_endian"), spans=spans
+        )
+    if xr.status != "ok":
+        return tables, xr
+    return adjust_table_scores(tables, xr), xr
+
+
 def _print_single_result(
     filename: str,
     data: bytes,
@@ -238,8 +279,14 @@ def _print_single_result(
     show_series: bool,
     labels: dict[int, tuple[str, float]] | None = None,
     tables_hidden: int = 0,
+    xref=None,
 ) -> None:
     """Print the full human-readable table listing for one file."""
+    from openremap.core.services.maps.xrefs import data_refs_for_table
+
+    xref_mark = None
+    if xref is not None and xref.status == "ok":
+        xref_mark = typer.style("⟶code", fg=typer.colors.CYAN)
     typer.echo("")
     typer.echo(typer.style(f"  {filename}", fg=typer.colors.CYAN, bold=True))
     typer.echo("")
@@ -302,11 +349,13 @@ def _print_single_result(
                 y_axis = f"0x{t.y_axis_offset:X}" if t.y_axis_offset is not None else "—"
                 prefix = "└─" if idx > 0 else "  "
                 label_str = _label_cell(labels, t)
+                mark = xref_mark if (xref is not None and xref.status == "ok" and data_refs_for_table(t, xref)) else ""
                 typer.echo(
                     f"{prefix} 0x{t.offset:08X}  {dim:>8}  {cells:>6}  "
                     + typer.style(f"{t.score:.3f}", fg=score_colour)
                     + (f"  {label_str:>20}" if labels else "")
                     + f"  0x{t.x_axis_offset:08X}  {y_axis}"
+                    + (f"  {mark}" if mark else "")
                 )
                 shown += 1
         total = shown
@@ -330,12 +379,14 @@ def _print_single_result(
             )
             y_axis = f"0x{t.y_axis_offset:X}" if t.y_axis_offset is not None else "—"
             label_str = _label_cell(labels, t)
+            mark = xref_mark if (xref is not None and xref.status == "ok" and data_refs_for_table(t, xref)) else ""
 
             typer.echo(
                 f"  0x{t.offset:08X}  {dim:>8}  {cells:>6}  "
                 + typer.style(f"{t.score:.3f}", fg=score_colour)
                 + (f"  {label_str:>20}" if labels else "")
                 + f"  0x{t.x_axis_offset:08X}  {y_axis}"
+                + (f"  {mark}" if mark else "")
             )
         total = min(top, len(tables))
 
@@ -373,11 +424,14 @@ def _build_json_result(
     result: dict,
     top: int,
     labels: dict[int, tuple[str, float]] | None = None,
+    xref=None,
 ) -> dict:
     """Build a JSON-serialisable dict for one file."""
+    from openremap.core.services.maps.xrefs import xref_evidence
+
     axes = result["axes"]
     tables = result["tables"]
-    return {
+    out = {
         "file": str(filepath),
         "file_size": len(data),
         "axes_count": result["axes_count"],
@@ -396,10 +450,22 @@ def _build_json_result(
              "x_axis_offset": t.x_axis_offset, "y_axis_offset": t.y_axis_offset,
              "stride": t.stride, "score": t.score,
              "label": (labels or {}).get(t.offset, ("unknown", 0.0))[0],
-             "label_confidence": (labels or {}).get(t.offset, ("unknown", 0.0))[1]}
+             "label_confidence": (labels or {}).get(t.offset, ("unknown", 0.0))[1],
+             "xref": xref_evidence(t, xref) if xref is not None else {}}
             for t in tables[:top]
         ],
     }
+    if xref is not None:
+        out["xrefs"] = {
+            "status": xref.status,
+            "skip_reason": xref.skip_reason,
+            "arch": xref.arch,
+            "base_address": xref.base_address,
+            "code_bytes_scanned": xref.code_bytes_scanned,
+            "insn_count": xref.insn_count,
+            "reference_count": len(xref.referenced),
+        }
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -487,6 +553,10 @@ def scan_maps(
         False, "--classify",
         help="Annotate tables with probabilistic content labels (fuel, timing, boost, torque, duration) from axis shapes and cell trends. No manufacturer catalog needed.",
     ),
+    xrefs: bool = typer.Option(
+        False, "--xrefs",
+        help="Code-reference signal: disassemble the code regions and boost + mark tables whose data is statically referenced by code (capstone; supported families only).",
+    ),
 ) -> None:
     """
     Scan a binary (or a directory of binaries) for plausible calibration
@@ -524,14 +594,19 @@ def scan_maps(
         axes = result["axes"]
         tables = result["tables"]
         labels = _classify_for_file(data, tables) if classify else None
+        xr = None
+        if xrefs:
+            tables, xr = _xref_for_file(data, tables)
+            result["tables"] = tables
+            result["top_score"] = max((t.score for t in tables), default=0.0)
 
         if as_json:
-            out = _build_json_result(path, data, result, top, labels)
+            out = _build_json_result(path, data, result, top, labels, xr)
             typer.echo(json.dumps(out, indent=2, ensure_ascii=False))
         else:
             _print_single_result(
                 path.name, data, axes, tables, top, show_series, labels,
-                result.get("tables_hidden", 0),
+                result.get("tables_hidden", 0), xr,
             )
 
         # CSV export
@@ -642,6 +717,13 @@ def scan_maps(
         )
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
+        # Code-reference signal (opt-in)
+        xr = None
+        if xrefs:
+            _tables, xr = _xref_for_file(data, result["tables"])
+            result["tables"] = _tables
+            result["top_score"] = max((t.score for t in _tables), default=0.0)
+
         # Health classification
         ac = result["axes_count"]
         if ac >= 1000:
@@ -678,6 +760,7 @@ def scan_maps(
                     top, show_series,
                     _classify_for_file(data, result["tables"]) if classify else None,
                     result.get("tables_hidden", 0),
+                    xr,
                 )
 
         # JSON accumulation
@@ -686,6 +769,7 @@ def scan_maps(
                 _build_json_result(
                     filepath, data, result, top,
                     _classify_for_file(data, result["tables"]) if classify else None,
+                    xr,
                 )
             )
 

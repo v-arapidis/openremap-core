@@ -39,10 +39,15 @@ algorithm itself from boot-code disassembly of the factory binary.
 
 from __future__ import annotations
 
-import struct
 from dataclasses import dataclass
 
 from openremap._rust import crc16_arc as _rust_crc16_arc  # type: ignore[import-untyped]
+
+from openremap.core.arch.bytes_io import (
+    u16be_opt as _u16be,
+    u16le_opt as _u16,
+    u32le_opt as _u32le,
+)
 
 # slot layout constants
 _BOOT_SLOT = 0x3C24
@@ -97,18 +102,6 @@ class Ms43Profile:
     @property
     def total(self) -> int:
         return len(self.crcs)
-
-
-def _u16(data: bytes, off: int) -> int | None:
-    if off < 0 or off + 2 > len(data):
-        return None
-    return data[off] | (data[off + 1] << 8)
-
-
-def _u16be(data: bytes, off: int) -> int | None:
-    if off < 0 or off + 2 > len(data):
-        return None
-    return (data[off] << 8) | data[off + 1]
 
 
 def _read_blocks(data: bytes, slot: int, mem_base: int) -> tuple[int, tuple[tuple[int, int], ...]] | None:
@@ -191,9 +184,3 @@ def _check(
         "ok" if expected == stored else "stale",
         stored, expected, init_offset, blocks,
     )
-
-
-def _u32le(data: bytes, off: int) -> int | None:
-    if off < 0 or off + 4 > len(data):
-        return None
-    return struct.unpack_from("<I", data, off)[0]

@@ -15,7 +15,8 @@ probabilistically (`fuel 0.72`).
 ```bash
 openremap scan-maps ecu.bin
 openremap scan-maps ecu.bin --classify
+openremap scan-maps ecu.bin --xrefs   # + code-reference signal (capstone)
 ```
 
 → [scan-maps — advanced](advanced.md) — every flag, regions, CSV export,
-batch mode
+batch mode, code references

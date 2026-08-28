@@ -19,7 +19,7 @@ from typing import Optional
 
 import typer
 
-from openremap.cli.io import CONTAINER_NAMES, load_binary_file
+from openremap.core.cli.io import CONTAINER_NAMES, load_binary_file
 from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
 from openremap.core.services.identify.vin_scanner import scan_vins
 from openremap.core.services.vin_decode import decode_vin

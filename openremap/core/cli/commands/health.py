@@ -22,7 +22,7 @@ from typing import Annotated, Optional
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.health import health_report
 
 _STATUS_COLOURS = {

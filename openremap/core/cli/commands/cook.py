@@ -18,7 +18,7 @@ from typing import Optional
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.maps.map_hunter import scan_map_tables
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 from openremap.core.services.recipes.recipe_regions import tag_instruction_regions

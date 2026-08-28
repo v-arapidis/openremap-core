@@ -31,25 +31,25 @@ from typing import Optional
 
 import typer
 
-from openremap.cli.commands import validate
-from openremap.cli.commands.analyze import analyze
-from openremap.cli.commands.cmds import commands
-from openremap.cli.commands.convert import convert
-from openremap.cli.commands.cook import cook
-from openremap.cli.commands.cook_volatile import cook_volatile
-from openremap.cli.commands.families import families
-from openremap.cli.commands.identify import identify
-from openremap.cli.commands.scan import scan
-from openremap.cli.commands.diff_maps import diff_maps
-from openremap.cli.commands.audit import audit_cmd
-from openremap.cli.commands.checksum import checksum_cmd
-from openremap.cli.commands.health import health_cmd
-from openremap.cli.commands.merge import merge
-from openremap.cli.commands.layout import layout
-from openremap.cli.commands.scan_maps import scan_maps
-from openremap.cli.commands.scan_vins import scan_vins_cmd
-from openremap.cli.commands.tune import tune
-from openremap.cli.commands.workflow import workflow
+from openremap.core.cli.commands import validate
+from openremap.core.cli.commands.analyze import analyze
+from openremap.core.cli.commands.cmds import commands
+from openremap.core.cli.commands.convert import convert
+from openremap.core.cli.commands.cook import cook
+from openremap.core.cli.commands.cook_volatile import cook_volatile
+from openremap.core.cli.commands.families import families
+from openremap.core.cli.commands.identify import identify
+from openremap.core.cli.commands.scan import scan
+from openremap.core.cli.commands.diff_maps import diff_maps
+from openremap.core.cli.commands.audit import audit_cmd
+from openremap.core.cli.commands.checksum import checksum_cmd
+from openremap.core.cli.commands.health import health_cmd
+from openremap.core.cli.commands.merge import merge
+from openremap.core.cli.commands.layout import layout
+from openremap.core.cli.commands.scan_maps import scan_maps
+from openremap.core.cli.commands.scan_vins import scan_vins_cmd
+from openremap.core.cli.commands.tune import tune
+from openremap.core.cli.commands.workflow import workflow
 
 # ---------------------------------------------------------------------------
 # App

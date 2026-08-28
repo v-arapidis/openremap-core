@@ -93,7 +93,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import TYPE_CHECKING, List, Optional, Set
+
+if TYPE_CHECKING:
+    from openremap.core.services.coherence import CoherenceReport
 
 # ---------------------------------------------------------------------------
 # Family field profiles
@@ -598,7 +601,11 @@ def _score_to_tier(score: int) -> str:
 
 
 def score_identity(
-    identity: dict, filename: str = "unknown.bin", data: bytes | None = None
+    identity: dict,
+    filename: str = "unknown.bin",
+    data: bytes | None = None,
+    *,
+    coherence: "CoherenceReport | None" = None,
 ) -> ConfidenceResult:
     """
     Compute an identification confidence score for an ECU binary.
@@ -616,6 +623,12 @@ def score_identity(
                   located inside a printable-ASCII ident block earns a
                   structural bonus (see the module docstring).  Cheap —
                   regex-based, no map scan.
+        coherence: Optional :class:`CoherenceReport` from the analyze
+                  pipeline (identity vs checksum vs arch cross-check).
+                  Agreement earns +10; a hard conflict costs -15 and raises
+                  a "SIGNAL CONFLICT" warning; a stale checksum raises a
+                  warning only; gaps change nothing.  ``None`` (default)
+                  leaves the score exactly as before.
 
     Returns:
         :class:`ConfidenceResult` with ``score`` (identification confidence),
@@ -743,6 +756,41 @@ def score_identity(
     # ── Ident-block cross-check (only when raw bytes were supplied) ─────────
     if data is not None:
         score += _ident_block_cross_check(identity, data, signals)
+
+    # ── Coherence cross-check (identity/checksum/arch agreement) ────────────
+    # Optional evidence from the analyze pipeline.  Cross-signal agreement
+    # earns a bonus; a hard conflict is penalised and warned; a stale
+    # checksum is a warning only (an explanation, not a failure); gaps and
+    # unknown statuses change nothing.
+    if coherence is not None:
+        # Lazy import of the deltas — coherence.py must not be a hard
+        # dependency of this hot path, and importing it here preserves a
+        # clean one-way dependency (coherence.py never imports confidence).
+        from openremap.core.services.coherence import (
+            _AGREE_BONUS,
+            _CONFLICT_PENALTY,
+        )
+
+        if coherence.conflict:
+            score -= _CONFLICT_PENALTY
+            signals.append(
+                ConfidenceSignal(
+                    -_CONFLICT_PENALTY,
+                    "conflicting identity/checksum/arch signals",
+                )
+            )
+            warnings.append("SIGNAL CONFLICT")
+        elif coherence.status == "agree":
+            score += _AGREE_BONUS
+            signals.append(
+                ConfidenceSignal(
+                    +_AGREE_BONUS,
+                    "cross-signal agreement (identity/checksum/arch)",
+                )
+            )
+        elif coherence.status == "stale":
+            warnings.append("CHECKSUM STALE (tuned file)")
+        # gap / n/a → no score change, no warning.
 
     return ConfidenceResult(
         score=score,

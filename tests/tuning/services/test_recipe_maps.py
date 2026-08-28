@@ -6,6 +6,7 @@ import struct
 
 import os
 
+from openremap.core.arch.refs import XrefReport
 from openremap.core.services.maps.map_hunter import MapTable, scan_map_tables
 from openremap.core.services.recipes.patcher import ECUPatcher
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
@@ -126,6 +127,40 @@ class TestAttachMaps:
 
         assert len(result["maps"]) == 1
         assert result["maps"][0]["instruction_refs"] == [1]
+
+    def test_attach_maps_xrefs_evidence(self) -> None:
+        """attach_maps(xrefs=...) embeds the referenced-by-code evidence."""
+        x = list(range(500, 500 + 8 * 500, 500))
+        y = [0, 10, 25, 40]
+        cells = [100 + r * 10 + c for r in range(4) for c in range(8)]
+        data = b"\x00" * 32 + _make_2d_table(x, y, cells)
+        table_data_off = 32 + 8 * 2 + 4 * 2  # prefix + axes
+
+        tables = scan_map_tables(data, min_score=0.55, max_series_tables=16)
+        xr = XrefReport(
+            status="ok", skip_reason=None, arch="tricore", endian="little",
+            base_address=0, code_bytes_scanned=1000, insn_count=50,
+            referenced=frozenset({table_data_off}),
+            refs={table_data_off: (0x5000,)},
+        )
+        recipe = _simple_recipe([_instruction(table_data_off)])
+        result = attach_maps(recipe, data, tables=tables, xrefs=xr)
+
+        m = result["maps"][0]
+        assert m["xref"]["referenced_by_code"] is True
+        assert m["xref"]["data_refs"] == [table_data_off]
+
+    def test_attach_maps_no_xrefs_emits_no_xref_key(self) -> None:
+        """Without xrefs the maps[] entries carry no xref block."""
+        x = list(range(500, 500 + 8 * 500, 500))
+        y = [0, 10, 25, 40]
+        cells = [100 + r * 10 + c for r in range(4) for c in range(8)]
+        data = b"\x00" * 32 + _make_2d_table(x, y, cells)
+        table_data_off = 32 + 8 * 2 + 4 * 2
+
+        recipe = _simple_recipe([_instruction(table_data_off)])
+        result = attach_maps(recipe, data)
+        assert "xref" not in result["maps"][0]
 
     def test_instruction_outside_all_maps_yields_empty_maps(self) -> None:
         x = list(range(0, 8 * 100, 100))

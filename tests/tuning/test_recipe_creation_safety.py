@@ -38,7 +38,7 @@ import pytest
 from typer.testing import CliRunner
 
 from tests.conftest import make_bin_with
-from openremap.cli.main import app as cook_app
+from openremap.core.cli.main import app as cook_app
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 
 

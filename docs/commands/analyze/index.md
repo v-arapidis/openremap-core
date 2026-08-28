@@ -6,8 +6,9 @@ description: Describe a whole ECU binary in one pass — identity, VIN, flash la
 # analyze
 
 One command that describes a whole ECU binary: container + hardware,
-identity + confidence, VIN, flash layout, map discovery, checksums, and
-the health verdict.
+identity + confidence, VIN, flash layout, map discovery, **code
+references** (which maps are read by real instructions — the capstone
+xref signal), checksums, and the health verdict.
 
 `identify` answers *"what ECU is this?"* — `analyze` answers *"tell me
 everything about this dump."*

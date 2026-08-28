@@ -15,7 +15,7 @@ from pathlib import Path
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.identify.vin_scanner import scan_vins
 from openremap.core.services.vin_decode import decode_vin
 

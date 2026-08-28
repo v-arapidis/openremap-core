@@ -1,3 +1,6 @@
+from openremap.core.manufacturers.siemens.ms43.extractor import (
+    SiemensMS43Extractor,
+)
 from openremap.core.manufacturers.siemens.sid801.extractor import (
     SiemensSID801Extractor,
 )
@@ -31,6 +34,23 @@ from openremap.core.manufacturers.base import BaseManufacturerExtractor
 #                            file size: 128 KB vs 256 KB).
 #                            Must come FIRST — strongest positive signatures
 #                            of all Siemens extractors at this size.
+#
+# SiemensMS43Extractor   — MS43 family (2000–2006): BMW E46/M54 petrol ECUs
+#                          (C167-based, the ME9 predecessor).  Exactly
+#                          512 KB (524288 bytes) bins identified by the
+#                          literal "MS43" family string in the ident record
+#                          at 0x3F94 (unique positive anchor) plus the 5WK9
+#                          hardware part prefix and/or the ca43...DAT
+#                          calibration dataset reference, with Bosch and
+#                          other-Siemens exclusions.  Must come immediately
+#                          AFTER Simtec56 — both are 5WK9 Siemens petrol
+#                          families, but their size gates (131072 vs
+#                          524288) are disjoint, so order is
+#                          correctness-safe.  Must come BEFORE EMS2000
+#                          (EMS2000 detects by exclusion).  Relative order
+#                          vs SIMOS/PPD/SID801/SID803 is not
+#                          correctness-critical: sizes + signatures are
+#                          disjoint.
 #
 # SiemensSimosExtractor  — SIMOS family (late 1990s–mid 2000s): VAG petrol
 #                          ECUs (VW/Audi/Skoda/Seat).  Three sub-types by
@@ -101,6 +121,7 @@ from openremap.core.manufacturers.base import BaseManufacturerExtractor
 
 EXTRACTORS: list[BaseManufacturerExtractor] = [
     SiemensSimtec56Extractor(),
+    SiemensMS43Extractor(),
     SiemensSimosExtractor(),
     SiemensPPDExtractor(),
     SiemensSID801Extractor(),
@@ -110,6 +131,7 @@ EXTRACTORS: list[BaseManufacturerExtractor] = [
 
 __all__ = [
     "EXTRACTORS",
+    "SiemensMS43Extractor",
     "SiemensSID801Extractor",
     "SiemensSID803Extractor",
     "SiemensSimtec56Extractor",

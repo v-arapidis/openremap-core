@@ -26,7 +26,7 @@ from importlib.metadata import version as _pkg_version
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 
 # ---------------------------------------------------------------------------
 # Shared runner
@@ -195,7 +195,7 @@ class TestMainBlock:
     def test_main_block_invokes_app(self) -> None:
         """The __main__ block calls app() — patching Typer.__call__ intercepts it."""
         from unittest.mock import patch
-        import openremap.cli.main as _mod
+        import openremap.core.cli.main as _mod
 
         # Pin sys.argv to 2 elements so main() always takes the CLI branch
         # (len > 1), not the TUI branch (len == 1).  When pytest is invoked

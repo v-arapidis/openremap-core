@@ -7,6 +7,7 @@ the at-a-glance index.
 
 | Version | Date | Summary | Detail |
 |---|---|---|---|
+| [0.7.3](changelog/0.7.3.md) | 2026-08-26 | **Code-reference signal + C166 decoder** — capstone xref signal (presence-only, data-driven load-base), Rust C166/ST10 decoder (ME7/EDC15/EDC16/MS43/PPD/SID/Simtec/EMS2000), MS43 identity extractor, CPU-detection cascade for unknown families, coherence check (identity/checksum/xref agreement), TriCore a0 + C166 DPP resolution — decoder coverage 5 → 15 families | [changelog/0.7.3.md](changelog/0.7.3.md) |
 | [0.7.2](changelog/0.7.2.md) | 2026-08-25 | `analyze` command (unified full-picture report), real Intel HEX / S-Record input (content-sniffed, `bincopy`), `convert` command, VIN decoding via `vininfo` (scan-vins/health/identify), fuzzy family lookup via `rapidfuzz`, orjson recipe parsing (loads path), dropped unused `pydantic` | [changelog/0.7.2.md](changelog/0.7.2.md) |
 | [0.7.1](changelog/0.7.1.md) | unreleased | diff-maps robustness (axis-changed near-match, correlation suspicion, unidentified report), layout consumers (calibration-region default + cook region tags), ISSUE-2 same-file-only tier | [changelog/0.7.1.md](changelog/0.7.1.md) |
 | [0.7.0](changelog/0.7.0.md) | 2026-08-23 | **Milestone** — `cook-volatile` (car-portable recipes, volatile-byte exclusion, schema 4.5), volatile-aware audit, checksum profiles (IronFelix, NefMoto, MS43, GS20/SMG2, Denso), Denso/Hitachi Subaru support, batch map scanning, health report, Rust migrations, domain restructure, docs wiki | [changelog/0.7.0.md](changelog/0.7.0.md) |

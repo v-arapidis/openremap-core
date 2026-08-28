@@ -19,7 +19,8 @@ from typing import Optional
 
 import typer
 
-from openremap.cli.io import CONTAINER_NAMES, load_binary_file
+from openremap.core.arch import arch_for_family, decoder_label
+from openremap.core.cli.io import CONTAINER_NAMES, load_binary_file
 from openremap.core.services.analyze import AnalyzeReport, analyze_binary
 
 _IDENTITY_LABELS = [
@@ -76,6 +77,47 @@ def _render(report: AnalyzeReport) -> str:
     for w in report.confidence.warnings:
         lines.append("  " + typer.style(f"⚠  {w}", fg=typer.colors.RED, bold=True))
 
+    # Coherence — one consistency line (identity / checksums / arch must
+    # agree, or explain why).  Green when everything agrees, red on a hard
+    # conflict, neutral otherwise.
+    if report.coherence is not None:
+        coh = report.coherence
+        marks = {
+            "agree": "✓",
+            "stale": "⚠",
+            "gap": "–",
+            "conflict": "✗",
+            "n/a": "?",
+        }
+        bits = "  ".join(
+            f"{c.name.removeprefix('identity_')} {marks.get(c.status, '?')}"
+            for c in coh.checks
+        )
+        colour = {
+            "agree": typer.colors.GREEN,
+            "stale": typer.colors.YELLOW,
+            "gap": typer.colors.BRIGHT_BLACK,
+            "conflict": typer.colors.RED,
+            "n/a": typer.colors.WHITE,
+        }.get(coh.status, typer.colors.WHITE)
+        lines.append(
+            "  "
+            + typer.style(
+                f"Coherence: {bits}", fg=colour, bold=coh.status == "conflict"
+            )
+        )
+        if coh.status == "conflict":
+            for c in coh.checks:
+                if c.status == "conflict":
+                    lines.append(
+                        "  "
+                        + typer.style(
+                            f"  ✗ {c.name}: {c.detail}",
+                            fg=typer.colors.RED,
+                            bold=True,
+                        )
+                    )
+
     # VIN
     if report.vin is not None and report.vin.decoded:
         bits = [b for b in (report.vin.manufacturer, report.vin.country, str(report.vin.years[0]) if report.vin.years else None) if b]
@@ -108,10 +150,42 @@ def _render(report: AnalyzeReport) -> str:
             lines.append(
                 f"  {report.axis_count:,} axis(es)  •  {len(report.tables):,} table(s)"
             )
+            if report.xrefs is not None:
+                xr = report.xrefs
+                if xr.status == "ok":
+                    label = decoder_label(xr.arch) or xr.arch
+                    cascade_detected = (
+                        arch_for_family(
+                            report.identity.get("manufacturer"),
+                            report.identity.get("ecu_family"),
+                        )
+                        is None
+                    )
+                    src = (
+                        typer.style("  · cascade-detected", dim=True)
+                        if cascade_detected
+                        else ""
+                    )
+                    lines.append(
+                        f"  code refs: {len(xr.referenced):,} reference(s) from "
+                        f"{xr.insn_count:,} instructions [{label}] "
+                        f"(base 0x{xr.base_address:X}, "
+                        f"{xr.code_bytes_scanned:,} B code){src}"
+                    )
+                else:
+                    lines.append(
+                        typer.style(
+                            f"  code refs: skipped ({xr.skip_reason})", dim=True
+                        )
+                    )
+            from openremap.core.services.maps.xrefs import xref_evidence
+
             for t in sorted(report.tables, key=lambda t: t.score, reverse=True)[:5]:
+                ev = xref_evidence(t, report.xrefs) if report.xrefs else {}
+                marker = typer.style("  ⟶code", fg=typer.colors.CYAN) if ev.get("referenced_by_code") else ""
                 lines.append(
                     f"    0x{t.offset:06X}  {t.cols}x{t.rows}  "
-                    f"{t.cell_width}-byte cells  score {t.score:.2f}"
+                    f"{t.cell_width}-byte cells  score {t.score:.2f}{marker}"
                 )
 
     # Checksums

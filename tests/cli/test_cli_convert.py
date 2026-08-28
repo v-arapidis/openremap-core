@@ -12,7 +12,7 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 from openremap.core.services.convert import encode_ihex, encode_srec
 
 runner = CliRunner()

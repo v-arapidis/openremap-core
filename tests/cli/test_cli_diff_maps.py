@@ -19,13 +19,13 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.commands.diff_maps import (
+from openremap.core.cli.commands.diff_maps import (
     _axes_similar,
     _diff_cells,
     _json_safe,
     _pearson,
 )
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 from tests.conftest import make_layout_bin
 
 runner = CliRunner()

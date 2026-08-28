@@ -44,7 +44,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 
 runner = CliRunner()
 
@@ -613,7 +613,7 @@ class TestClassifyFileDirect:
     def test_contested_two_claimants(self):
         """Two extractors claiming the same file → DEST_CONTESTED."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_CONTESTED
+        from openremap.core.cli.commands.scan import classify_file, DEST_CONTESTED
 
         ext1 = MagicMock()
         ext1.name = "MockA"
@@ -625,7 +625,7 @@ class TestClassifyFileDirect:
         ext2.__class__.__name__ = "MockBExtractor"
         ext2.can_handle.return_value = True
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext1, ext2]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext1, ext2]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_CONTESTED
@@ -634,7 +634,7 @@ class TestClassifyFileDirect:
     def test_one_claimant_with_match_key_scanned(self):
         """One extractor with match_key → DEST_SCANNED."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_SCANNED
+        from openremap.core.cli.commands.scan import classify_file, DEST_SCANNED
 
         ext = MagicMock()
         ext.name = "MockExt"
@@ -650,7 +650,7 @@ class TestClassifyFileDirect:
             "match_key": "mk_abc123",
         }
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED
@@ -659,7 +659,7 @@ class TestClassifyFileDirect:
     def test_one_claimant_no_match_key_sw_missing(self):
         """One extractor without match_key → DEST_SW_MISSING."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_SW_MISSING
+        from openremap.core.cli.commands.scan import classify_file, DEST_SW_MISSING
 
         ext = MagicMock()
         ext.name = "MockExt"
@@ -675,7 +675,7 @@ class TestClassifyFileDirect:
             "match_key": None,
         }
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SW_MISSING
@@ -683,7 +683,7 @@ class TestClassifyFileDirect:
     def test_one_claimant_extraction_raises_sw_missing(self):
         """One extractor whose extract() raises → DEST_SW_MISSING."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_SW_MISSING
+        from openremap.core.cli.commands.scan import classify_file, DEST_SW_MISSING
 
         ext = MagicMock()
         ext.name = "MockExt"
@@ -691,7 +691,7 @@ class TestClassifyFileDirect:
         ext.can_handle.return_value = True
         ext.extract.side_effect = RuntimeError("extraction crashed")
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SW_MISSING
@@ -700,7 +700,7 @@ class TestClassifyFileDirect:
     def test_one_claimant_cal_id_no_sw_shows_cal_id(self):
         """One extractor with cal_id but no sw_version includes cal_id in detail."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_SCANNED
+        from openremap.core.cli.commands.scan import classify_file, DEST_SCANNED
 
         ext = MagicMock()
         ext.name = "MockExt"
@@ -716,7 +716,7 @@ class TestClassifyFileDirect:
             "match_key": "mk_cal001",
         }
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED
@@ -725,7 +725,7 @@ class TestClassifyFileDirect:
     def test_one_claimant_with_variant_and_hw(self):
         """One extractor with variant and hardware number includes both in detail."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_SCANNED
+        from openremap.core.cli.commands.scan import classify_file, DEST_SCANNED
 
         ext = MagicMock()
         ext.name = "MockExt"
@@ -741,7 +741,7 @@ class TestClassifyFileDirect:
             "match_key": "mk_hw999",
         }
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED
@@ -750,12 +750,12 @@ class TestClassifyFileDirect:
     def test_no_claimants_unknown(self):
         """No extractors claim the file → DEST_UNKNOWN."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_UNKNOWN
+        from openremap.core.cli.commands.scan import classify_file, DEST_UNKNOWN
 
         ext = MagicMock()
         ext.can_handle.return_value = False
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_UNKNOWN
@@ -771,7 +771,7 @@ class TestRenderConfidenceTagDirect:
 
     def test_with_warnings_includes_warning_text(self):
         """A confidence result with warnings includes ⚠ and the warning text."""
-        from openremap.cli.commands.scan import _render_confidence_tag
+        from openremap.core.cli.commands.scan import _render_confidence_tag
         from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
@@ -789,7 +789,7 @@ class TestRenderConfidenceTagDirect:
 
     def test_without_warnings_returns_tier_only(self):
         """A confidence result without warnings returns just the tier label."""
-        from openremap.cli.commands.scan import _render_confidence_tag
+        from openremap.core.cli.commands.scan import _render_confidence_tag
         from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
@@ -811,7 +811,7 @@ class TestBuildReportRowDirect:
 
     def test_with_confidence_populates_confidence_fields(self, tmp_path):
         """Report row includes score/tier/warnings when confidence is not None."""
-        from openremap.cli.commands.scan import (
+        from openremap.core.cli.commands.scan import (
             _build_report_row,
             ScanResult,
             DEST_UNKNOWN,
@@ -847,7 +847,7 @@ class TestBuildReportRowDirect:
 
     def test_without_confidence_fields_are_none(self, tmp_path):
         """Report row has None confidence fields when confidence is None."""
-        from openremap.cli.commands.scan import (
+        from openremap.core.cli.commands.scan import (
             _build_report_row,
             ScanResult,
             DEST_TRASH,
@@ -876,7 +876,7 @@ class TestWriteReportDirect:
 
     def test_csv_report_has_headers_and_data(self, tmp_path):
         """Writing to a .csv path produces a valid CSV with headers."""
-        from openremap.cli.commands.scan import _write_report
+        from openremap.core.cli.commands.scan import _write_report
 
         report_path = tmp_path / "report.csv"
         rows = [{"filename": "a.bin", "destination": "unknown", "manufacturer": None}]
@@ -890,7 +890,7 @@ class TestWriteReportDirect:
 
     def test_csv_empty_rows_produces_empty_file(self, tmp_path):
         """Empty rows list produces an empty CSV file."""
-        from openremap.cli.commands.scan import _write_report
+        from openremap.core.cli.commands.scan import _write_report
 
         report_path = tmp_path / "report.csv"
         _write_report([], report_path)
@@ -901,7 +901,7 @@ class TestWriteReportDirect:
     def test_unsupported_extension_falls_back_to_json(self, tmp_path):
         """An unsupported extension (e.g. .xyz) falls back to JSON output."""
         import json as _json
-        from openremap.cli.commands.scan import _write_report
+        from openremap.core.cli.commands.scan import _write_report
 
         report_path = tmp_path / "report.xyz"
         rows = [{"filename": "test.bin", "destination": "unknown"}]
@@ -919,7 +919,7 @@ class TestSafeFolderNameDirect:
 
     def test_windows_illegal_chars_replaced(self):
         """Characters illegal on Windows are replaced with underscores."""
-        from openremap.cli.commands.scan import _safe_folder_name
+        from openremap.core.cli.commands.scan import _safe_folder_name
 
         result = _safe_folder_name("folder/with:*?<>|chars")
         assert "/" not in result
@@ -928,21 +928,21 @@ class TestSafeFolderNameDirect:
 
     def test_empty_string_returns_unknown(self):
         """An empty (or all-special) string falls back to 'unknown'."""
-        from openremap.cli.commands.scan import _safe_folder_name
+        from openremap.core.cli.commands.scan import _safe_folder_name
 
         assert _safe_folder_name("") == "unknown"
         assert _safe_folder_name("///") == "unknown"
 
     def test_consecutive_underscores_collapsed(self):
         """Multiple consecutive underscores are collapsed to one."""
-        from openremap.cli.commands.scan import _safe_folder_name
+        from openremap.core.cli.commands.scan import _safe_folder_name
 
         result = _safe_folder_name("folder__name")
         assert "__" not in result
 
     def test_normal_name_unchanged(self):
         """A safe name passes through without modification."""
-        from openremap.cli.commands.scan import _safe_folder_name
+        from openremap.core.cli.commands.scan import _safe_folder_name
 
         assert _safe_folder_name("Bosch") == "Bosch"
         assert _safe_folder_name("EDC17C66") == "EDC17C66"
@@ -953,7 +953,7 @@ class TestOrganizedDestDirDirect:
 
     def test_non_organizable_destinations_return_base(self, tmp_path):
         """CONTESTED, UNKNOWN, TRASH destinations stay flat in base_dest."""
-        from openremap.cli.commands.scan import (
+        from openremap.core.cli.commands.scan import (
             _organized_dest_dir,
             ScanResult,
             DEST_CONTESTED,
@@ -976,7 +976,7 @@ class TestOrganizedDestDirDirect:
     def test_scanned_result_gets_manufacturer_family_subdir(self, tmp_path):
         """A SCANNED result produces base/Manufacturer/Family sub-path."""
         from unittest.mock import MagicMock
-        from openremap.cli.commands.scan import (
+        from openremap.core.cli.commands.scan import (
             _organized_dest_dir,
             ScanResult,
             DEST_SCANNED,
@@ -1005,7 +1005,7 @@ class TestSafeMoveDirect:
 
     def test_move_without_collision(self, tmp_path):
         """Moving a file with no naming conflict works normally."""
-        from openremap.cli.commands.scan import safe_move
+        from openremap.core.cli.commands.scan import safe_move
 
         src_dir = tmp_path / "src"
         dest_dir = tmp_path / "dest"
@@ -1023,7 +1023,7 @@ class TestSafeMoveDirect:
 
     def test_move_with_collision_appends_counter(self, tmp_path):
         """When dest already has same name, a counter suffix is appended."""
-        from openremap.cli.commands.scan import safe_move
+        from openremap.core.cli.commands.scan import safe_move
 
         src_dir = tmp_path / "src"
         dest_dir = tmp_path / "dest"
@@ -1124,7 +1124,7 @@ class TestScanCLIUncoveredPaths:
         ext2.__class__.__name__ = "MockBExtractor"
         ext2.can_handle.return_value = True
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext1, ext2]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext1, ext2]):
             result = runner.invoke(app, ["scan", str(tmp_path)])
 
         assert result.exit_code == 0
@@ -1155,7 +1155,7 @@ class TestScanCLIUncoveredPaths:
     def test_scan_organize_shows_subpath_in_detail(self, tmp_path):
         """--organize with a scanned file appends the sub-path to detail (line 671)."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import ScanResult, DEST_SCANNED
+        from openremap.core.cli.commands.scan import ScanResult, DEST_SCANNED
 
         test_file = tmp_path / "test.bin"
         test_file.write_bytes(_make_bin(1024))
@@ -1178,7 +1178,7 @@ class TestScanCLIUncoveredPaths:
         )
 
         with patch(
-            "openremap.cli.commands.scan.classify_file",
+            "openremap.core.cli.commands.scan.classify_file",
             return_value=mock_result,
         ):
             result = runner.invoke(app, ["scan", str(tmp_path), "--organize"])
@@ -1191,7 +1191,7 @@ class TestScanCLIUncoveredPaths:
     def test_scan_organize_move_creates_nested_dirs(self, tmp_path):
         """--move --organize creates nested manufacturer/family directories (lines 686-692)."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import ScanResult, DEST_SCANNED
+        from openremap.core.cli.commands.scan import ScanResult, DEST_SCANNED
 
         test_file = tmp_path / "test.bin"
         test_file.write_bytes(_make_bin(1024))
@@ -1214,7 +1214,7 @@ class TestScanCLIUncoveredPaths:
         )
 
         with patch(
-            "openremap.cli.commands.scan.classify_file",
+            "openremap.core.cli.commands.scan.classify_file",
             return_value=mock_result,
         ):
             result = runner.invoke(app, ["scan", str(tmp_path), "--move", "--organize"])
@@ -1233,7 +1233,7 @@ class TestScanCLIUncoveredPaths:
         report_file = tmp_path / "report.json"
 
         with patch(
-            "openremap.cli.commands.scan._write_report",
+            "openremap.core.cli.commands.scan._write_report",
             side_effect=OSError("disk full"),
         ):
             result = runner.invoke(
@@ -1255,7 +1255,7 @@ class TestScanCLIUncoveredPaths:
         ext_bad.__class__.__name__ = "BadExtractor"
         ext_bad.can_handle.side_effect = RuntimeError("extractor internal crash")
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext_bad]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext_bad]):
             result = runner.invoke(app, ["scan", str(tmp_path)])
 
         # Scan should complete successfully even when an extractor raises
@@ -1266,7 +1266,7 @@ class TestScanCLIUncoveredPaths:
     def test_classify_scanned_no_sw_no_cal_uses_sw_none(self):
         """One extractor with match_key but no sw and no cal → 'sw: None' in detail (line 183)."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import classify_file, DEST_SCANNED
+        from openremap.core.cli.commands.scan import classify_file, DEST_SCANNED
 
         ext = MagicMock()
         ext.name = "MockExt"
@@ -1282,7 +1282,7 @@ class TestScanCLIUncoveredPaths:
             "match_key": "mk_abc",  # key present → SCANNED
         }
 
-        with patch("openremap.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED
@@ -1324,7 +1324,7 @@ class TestScanCLIUncoveredPaths:
     def test_scan_confidence_tag_shown_for_scanned_file(self, tmp_path):
         """Confidence tag (including warnings) is shown for SCANNED files (lines 688-692)."""
         from unittest.mock import MagicMock, patch
-        from openremap.cli.commands.scan import ScanResult, DEST_SCANNED
+        from openremap.core.cli.commands.scan import ScanResult, DEST_SCANNED
         from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
@@ -1359,11 +1359,11 @@ class TestScanCLIUncoveredPaths:
 
         with (
             patch(
-                "openremap.cli.commands.scan.classify_file",
+                "openremap.core.cli.commands.scan.classify_file",
                 return_value=mock_scan_result,
             ),
             patch(
-                "openremap.cli.commands.scan.score_identity",
+                "openremap.core.cli.commands.scan.score_identity",
                 return_value=mock_confidence,
             ),
         ):

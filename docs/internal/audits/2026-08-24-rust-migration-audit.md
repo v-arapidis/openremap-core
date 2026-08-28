@@ -8,7 +8,7 @@ corpus as the previous audit; the previous document's verdicts that no
 longer hold are called out explicitly.
 
 Companion to: `2026-08-15-rust-migration-audit.md` (completed items),
-`AGENTS.md` § Rust backend, `notes/report.md`.
+`AGENTS.md` § Rust backend, `notes/state/report.md`.
 
 ---
 

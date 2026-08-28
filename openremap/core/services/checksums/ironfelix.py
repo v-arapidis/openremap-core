@@ -39,8 +39,17 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 
-from openremap._rust import checksum_compute
-
+from openremap.core.arch.bytes_io import (
+    crc32 as _crc32,
+    crc32_cont as _crc32_cont,
+    find_all as _find_all,
+    sum16le as _sum16le,
+    sum8 as _sum8,
+    sumb_pages as _sumb_pages,
+    u16be as _u16be,
+    u16le as _u16le,
+    u32le as _u32le,
+)
 from openremap.core.services.checksums.checksum import (
     detect_me7,
     detect_me7_multipoint,
@@ -98,74 +107,8 @@ class IronFelixProfile:
 
 
 # ---------------------------------------------------------------------------
-# Helpers (all reads little-endian u16/u32 unless noted)
+# Result/bounds helpers
 # ---------------------------------------------------------------------------
-
-
-def _u16le(data: bytes, off: int) -> int:
-    return struct.unpack_from("<H", data, off)[0]
-
-
-def _u16be(data: bytes, off: int) -> int:
-    return struct.unpack_from(">H", data, off)[0]
-
-
-def _u32le(data: bytes, off: int) -> int:
-    return struct.unpack_from("<I", data, off)[0]
-
-
-def _sum8(data: bytes, s: int, e_incl: int) -> int:
-    """IronFelix SummInt8 — byte sum into a u32, end INCLUSIVE.
-
-    Note: the Rust ``sum8`` algo masks to 8 bits; the reference
-    accumulates the full u32 byte sum, so use CPython's C-speed
-    ``sum()`` over the slice instead.
-    """
-    return sum(data[s : e_incl + 1]) & 0xFFFFFFFF
-
-
-def _sum16le(data: bytes, s: int, e_excl: int) -> int:
-    """IronFelix SummInt16Intel — LE u16 words, u32 accumulator.
-
-    End EXCLUSIVE with the reference's C-loop semantics: words start at
-    even offsets i < end and read bytes i and i+1, so an odd region
-    length pairs the trailing byte with the byte AT ``end`` (the
-    reference reads one byte past the region).  A missing final byte
-    reads as 0.  (The Rust ``sum16le_acc32`` algo handles odd tails
-    differently, so this stays in Python.)
-    """
-    total = 0
-    for i in range(s, e_excl, 2):
-        word = data[i]
-        if i + 1 < len(data):
-            word |= data[i + 1] << 8
-        total = (total + word) & 0xFFFFFFFF
-    return total
-
-
-def _sumb_pages(data: bytes, s: int, e_excl: int) -> int:
-    """IronFelix SummBlock — for every 0x2000 page in [s, e_excl): first
-    u16 LE word + last u16 LE word, u32 accumulator."""
-    total = 0
-    i = s
-    while i < e_excl:
-        total += _u16le(data, i) + _u16le(data, i + 0x1FFE)
-        i += 0x2000
-    return total & 0xFFFFFFFF
-
-
-def _crc32(data: bytes, s: int, e_incl: int) -> int:
-    """IronFelix CalcCRC32 — CRC-32/IEEE over [s, e_incl] (end inclusive)."""
-    return checksum_compute(data, [(10, 0xFFFFFFFF, s, e_incl + 1)])[0] ^ 0xFFFFFFFF
-
-
-def _crc32_cont(data: bytes, s: int, e_incl: int, prev: int) -> int:
-    """IronFelix CalcCRC32Cont — continue a finished CRC over the next
-    zone (end inclusive)."""
-    return (
-        checksum_compute(data, [(10, prev ^ 0xFFFFFFFF, s, e_incl + 1)])[0]
-        ^ 0xFFFFFFFF
-    )
 
 
 def _ok(
@@ -210,15 +153,6 @@ _REC_SIG2 = bytes.fromhex("F0545C2520545C2520545C45F0")
 _REC_SIG3 = bytes.fromhex("F0740871F0582075F2F4")
 
 _ME7_BASE = 0x800000
-
-
-def _find_all(data: bytes, needle: bytes, start: int = 0) -> list[int]:
-    out: list[int] = []
-    off = data.find(needle, start)
-    while off != -1:
-        out.append(off)
-        off = data.find(needle, off + 1)
-    return out
 
 
 def _me7xx_subtype(data: bytes) -> int | None:

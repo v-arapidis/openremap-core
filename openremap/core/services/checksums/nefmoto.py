@@ -32,6 +32,8 @@ from openremap._rust import (  # type: ignore[import-untyped]
     rolling_checksum as _rust_rolling_checksum,
 )
 
+from openremap.core.arch.bytes_io import u16le as _u16le
+
 # ---------------------------------------------------------------------------
 # Pattern resources (from NefMotoOpenSource/Checksum/Resources/*.bin)
 # ---------------------------------------------------------------------------
@@ -128,10 +130,6 @@ def _parse_instruction(data: bytes, offset: int) -> tuple[str | None, int]:
     if hit is not None:
         return hit
     return (None, 2)
-
-
-def _u16le(data: bytes, off: int) -> int:
-    return data[off] | (data[off + 1] << 8)
 
 
 def _data3_subswitch(data: bytes, off: int) -> tuple[int, int] | None:

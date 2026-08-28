@@ -10,11 +10,12 @@ codebase; these projects deserve the credit.
 |---|---|---|---|
 | [ME7Sum](https://github.com/b-stefanski/ME7Sum) | Bosch ME7 main + multipoint checksum scheme | GPL | `openremap/core/services/checksums/checksum.py`, Rust sweep |
 | [IronFelix](https://github.com/weichengl/ironfelix) | ME7.XX / M3.x / M7.9.7 / M7.9.8 / ME7.4.5 / Samand checksum profiles | GPL | `openremap/core/services/checksums/ironfelix.py` |
-| [NefMoto Open Source](https://nefmoto.com/) | ME7 rolling / multirange checksum detection (firmware-code-driven) | GPL / community | `openremap/core/services/checksums/nefmoto.py` |
+| [NefMoto Open Source](https://nefmoto.com/) | ME7 rolling / multirange checksum detection (firmware-code-driven) + the 6-form C166 parser that seeds the Rust xref decoder's size table | GPL / community | `openremap/core/services/checksums/nefmoto.py`, `openremap/_rs/src/arch/c166.rs` (size-table seed) |
 | [RomRaider](https://github.com/RomRaider/RomRaider) | `RomChecksum.java` descriptor-table algorithm (basis of the Denso Subaru scheme) | GPL v2 | `openremap/core/services/checksums/denso.py` |
 | [MS4X Wiki](https://www.ms4x.net) | GS20 / SMG2 TCU checksum corrector algorithm (decompiled community tool) | community | `openremap/core/services/checksums/ironfelix.py` (GS20/SMG2) |
 | [td-d/SubaruDefs](https://github.com/td-d/SubaruDefs) | EcuFlash Subaru defs — checksum table addresses and layout knowledge | community | `openremap/core/services/checksums/denso.py` |
 | [bludgod/RomRaider](https://github.com/bludgod/RomRaider) | The 501-file Subaru factory-ROM corpus | community | `tests/data/ECUs/Subaru/` (gitignored) |
+| [mumbel/Ghidra_C166](https://github.com/mumbel/Ghidra_C166) | C166/ST10 instruction encodings consulted to verify the Rust xref decoder's size table (dev-time oracle only — Ghidra is never a runtime dependency; no SLEIGH code is copied) | Apache-2.0 | `openremap/_rs/src/arch/c166.rs` (+ the public Infineon/Siemens ST10/C166 instruction-set manuals) |
 
 ## Used as libraries (runtime dependencies)
 
@@ -24,6 +25,7 @@ codebase; these projects deserve the credit.
 | [bincopy](https://github.com/eerimoq/bincopy) | Intel HEX / Motorola S-Record parsing + record checksum validation | MIT | `openremap/core/services/convert.py`, `openremap convert` |
 | [vininfo](https://github.com/idlesign/vininfo) | VIN decoding — WMI → manufacturer/region/country, model years, ISO 3779 check digit | BSD-3-Clause | `openremap/core/services/vin_decode.py` (scan-vins/health/identify) |
 | [rapidfuzz](https://github.com/rapidfuzz/RapidFuzz) | Fuzzy string matching for family-name suggestions | MIT | `families --family` fuzzy lookup |
+| [capstone](https://github.com/capstone-engine/capstone) | Code-region disassembly for the code-reference (xref) map signal — statically-resolvable absolute references (TriCore `movh.a`+`lea`, SuperH absolute `mov.l/mov.w`, x86 `[abs]`) | BSD-3-Clause | `openremap/core/services/maps/xrefs.py` (analyze / scan-maps --xrefs / recipe `maps[]` xref evidence) |
 
 ## What "port" means here
 

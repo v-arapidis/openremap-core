@@ -8,6 +8,7 @@
 
 use pyo3::prelude::*;
 
+mod arch;
 mod checksums;
 mod identify;
 mod maps;
@@ -18,6 +19,10 @@ mod recipes;
 fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Endianness ───────────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(identify::endian::detect_endian, m)?)?;
+
+    // ── C166 / ST10 ──────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(arch::c166::c166_references, m)?)?;
+    m.add_function(wrap_pyfunction!(arch::c166::c166_walk, m)?)?;
 
     // ── Layout ───────────────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(maps::layout_scan::find_ident_blocks, m)?)?;

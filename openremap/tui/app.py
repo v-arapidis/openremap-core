@@ -43,7 +43,7 @@ from textual.widgets import (
     Static,
 )
 
-from openremap.cli.commands.scan import (
+from openremap.core.cli.commands.scan import (
     DEST_CONTESTED,
     DEST_SCANNED,
     DEST_SW_MISSING,

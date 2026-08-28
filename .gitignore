@@ -42,6 +42,7 @@ openremap/_rs/target/
 *.swo
 .DS_Store
 Thumbs.db
+ghidra/
 
 # ---- Plans and Fixes ----------------------------------------
 fix.md

@@ -30,7 +30,7 @@ from typing import Annotated, Optional
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.recipes.patcher import ECUPatcher
 from openremap.core.services.recipes.preflight import check_same_file_only
 from openremap.core.services.recipes.validate_patched import ECUPatchedValidator

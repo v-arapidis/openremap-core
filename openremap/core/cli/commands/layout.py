@@ -18,7 +18,7 @@ from pathlib import Path
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.maps.layout import find_ident_blocks, segment
 
 

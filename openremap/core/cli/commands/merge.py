@@ -17,7 +17,7 @@ from pathlib import Path
 
 import typer
 
-from openremap.cli.io import load_binary_file
+from openremap.core.cli.io import load_binary_file
 from openremap.core.services.recipes.recipe_merge import MergeConflict, merge_recipes
 
 _ALLOWED = (".remap", ".json", ".openremap")

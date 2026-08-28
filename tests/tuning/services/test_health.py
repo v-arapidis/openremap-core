@@ -106,7 +106,7 @@ class TestHealthCli:
     @pytest.mark.skipif(not HAS_ME71, reason="ME7.1 corpus missing")
     def test_cli_json_gate(self):
         from typer.testing import CliRunner
-        from openremap.cli.main import app
+        from openremap.core.cli.main import app
 
         f = DATA / "ECUs" / "Bosch" / "ME7.1" / "8D0907551M-0001.bin"
         result = CliRunner().invoke(app, ["health", str(f), "--json"])
@@ -119,7 +119,7 @@ class TestHealthCli:
     @pytest.mark.skipif(not HAS_ME71, reason="ME7.1 corpus missing")
     def test_cli_flipped_file_exits_one(self, tmp_path):
         from typer.testing import CliRunner
-        from openremap.cli.main import app
+        from openremap.core.cli.main import app
 
         data = bytearray((DATA / "ECUs" / "Bosch" / "ME7.1" / "8D0907551M-0001.bin").read_bytes())
         data[0x40000] ^= 0xFF
@@ -134,7 +134,7 @@ class TestHealthCli:
 
     def test_cli_missing_file_error(self):
         from typer.testing import CliRunner
-        from openremap.cli.main import app
+        from openremap.core.cli.main import app
 
         result = CliRunner().invoke(app, ["health", "/nonexistent/x.bin"])
         assert result.exit_code == 2  # click validates the path argument

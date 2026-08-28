@@ -38,7 +38,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 
 runner = CliRunner()
@@ -570,7 +570,7 @@ class TestTuneWarnDirect:
 
     def test_warn_executes_without_error(self):
         """Calling _warn exercises line 158 without error."""
-        from openremap.cli.commands.tune import _warn
+        from openremap.core.cli.commands.tune import _warn
 
         _warn("test size mismatch warning")  # just calling it is enough for coverage
 
@@ -592,7 +592,7 @@ class TestTunePhase1Warnings:
         recipe_file.write_text(json.dumps(recipe))
 
         with patch(
-            "openremap.cli.commands.tune.ECUStrictValidator",
+            "openremap.core.cli.commands.tune.ECUStrictValidator",
             side_effect=RuntimeError("validator crashed"),
         ):
             result = runner.invoke(app, ["tune", str(target_file), str(recipe_file)])
@@ -688,7 +688,7 @@ class TestTunePhase2Mocked:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatcher") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatcher") as mock_cls:
             mock_cls.return_value.apply_all.side_effect = ValueError("recipe rejected")
             result = runner.invoke(
                 app,
@@ -720,7 +720,7 @@ class TestTunePhase2Mocked:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatcher") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatcher") as mock_cls:
             mock_cls.return_value.apply_all.side_effect = ValueError("no anchor found")
             result = runner.invoke(
                 app,
@@ -754,7 +754,7 @@ class TestTunePhase2Mocked:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatcher") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatcher") as mock_cls:
             mock_cls.return_value.apply_all.side_effect = ValueError("no anchor found")
             result = runner.invoke(
                 app,
@@ -787,7 +787,7 @@ class TestTunePhase2Mocked:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatcher") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatcher") as mock_cls:
             mock_patcher = mock_cls.return_value
             mock_patcher.apply_all.return_value = original
             mock_patcher.to_dict.return_value = {
@@ -830,7 +830,7 @@ class TestTunePhase2Mocked:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatcher") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatcher") as mock_cls:
             mock_patcher = mock_cls.return_value
             mock_patcher.apply_all.return_value = original
             mock_patcher.to_dict.return_value = {
@@ -885,7 +885,7 @@ class TestTunePhase3Mocked:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatchedValidator") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatchedValidator") as mock_cls:
             mock_val = mock_cls.return_value
             mock_val.check_file_size.return_value = None
             mock_val.check_match_key.return_value = None
@@ -939,7 +939,7 @@ class TestTunePhase3Mocked:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatchedValidator") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatchedValidator") as mock_cls:
             mock_cls.return_value.verify_all.side_effect = RuntimeError(
                 "validator crash"
             )
@@ -1055,7 +1055,7 @@ class TestTunePhase1MatchKeyWarn:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUStrictValidator") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUStrictValidator") as mock_cls:
             mock_val = mock_cls.return_value
             mock_val.check_file_size.return_value = None
             mock_val.check_match_key.return_value = (
@@ -1108,7 +1108,7 @@ class TestTunePhase2GeneralException:
         target_file.write_bytes(original)
         recipe_file.write_text(json.dumps(recipe))
 
-        with patch("openremap.cli.commands.tune.ECUPatcher") as mock_cls:
+        with patch("openremap.core.cli.commands.tune.ECUPatcher") as mock_cls:
             mock_cls.return_value.apply_all.side_effect = RuntimeError(
                 "unexpected patcher failure"
             )

@@ -125,7 +125,12 @@ def _axis_dict(
 # ---------------------------------------------------------------------------
 
 
-def attach_maps(recipe: dict, stock_data: bytes, tables: list | None = None) -> dict:
+def attach_maps(
+    recipe: dict,
+    stock_data: bytes,
+    tables: list | None = None,
+    xrefs=None,
+) -> dict:
     """
     Annotate *recipe* with a ``maps`` section and bump it to schema 4.4.
 
@@ -144,6 +149,11 @@ def attach_maps(recipe: dict, stock_data: bytes, tables: list | None = None) -> 
                     parameters as the internal default) — pass it to share
                     one scan between map annotation and other consumers
                     (``cook`` region tags) instead of scanning twice.
+        xrefs:      Optional ``XrefReport`` from
+                    ``arch.refs.collect_xrefs``.  When provided and
+                    ``status == "ok"``, each map entry gains an ``xref``
+                    evidence block (referenced-by-code offsets/instructions).
+                    Purely informational — the patcher ignores it.
 
     Returns:
         The same recipe dict, now schema 4.4 with a ``maps`` list.
@@ -178,27 +188,30 @@ def attach_maps(recipe: dict, stock_data: bytes, tables: list | None = None) -> 
         claimed.update(refs)
 
         label, label_confidence = classify_table(stock_data, table, fuel_type)
-        maps.append(
-            {
-                "id": f"m{len(maps) + 1}",
-                "offset": table.offset,
-                "cols": table.cols,
-                "rows": table.rows,
-                "cell_width": table.cell_width,
-                "byte_order": table.byte_order,
-                "stride": table.stride,
-                "x_axis": _axis_dict(
-                    stock_data, table.x_axis_offset, table.cols, table.byte_order
-                ),
-                "y_axis": _axis_dict(
-                    stock_data, table.y_axis_offset, table.rows, table.byte_order
-                ),
-                "score": round(table.score, 3),
-                "label": label,
-                "label_confidence": round(label_confidence, 2),
-                "instruction_refs": refs,
-            }
-        )
+        entry: dict = {
+            "id": f"m{len(maps) + 1}",
+            "offset": table.offset,
+            "cols": table.cols,
+            "rows": table.rows,
+            "cell_width": table.cell_width,
+            "byte_order": table.byte_order,
+            "stride": table.stride,
+            "x_axis": _axis_dict(
+                stock_data, table.x_axis_offset, table.cols, table.byte_order
+            ),
+            "y_axis": _axis_dict(
+                stock_data, table.y_axis_offset, table.rows, table.byte_order
+            ),
+            "score": round(table.score, 3),
+            "label": label,
+            "label_confidence": round(label_confidence, 2),
+            "instruction_refs": refs,
+        }
+        if xrefs is not None and getattr(xrefs, "status", None) == "ok":
+            from openremap.core.services.maps.xrefs import xref_evidence
+
+            entry["xref"] = xref_evidence(table, xrefs)
+        maps.append(entry)
 
     recipe["schema_version"] = MAPS_SCHEMA_VERSION
     recipe["maps"] = maps

@@ -22,7 +22,7 @@ import pytest
 from pathlib import Path
 from typer.testing import CliRunner
 
-from openremap.cli.main import app
+from openremap.core.cli.main import app
 
 runner = CliRunner()
 
@@ -648,7 +648,7 @@ class TestCookReadAndWriteErrors:
         modified.write_bytes(b"\x01" * 1024)
 
         with patch(
-            "openremap.cli.commands.cook.ECUDiffAnalyzer",
+            "openremap.core.cli.commands.cook.ECUDiffAnalyzer",
             side_effect=RuntimeError("diff engine crashed"),
         ):
             result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])
