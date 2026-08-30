@@ -55,6 +55,10 @@ from capstone import (  # type: ignore[import-untyped]
 )
 
 from openremap.core.arch import c166
+from openremap.core.arch import mcs51
+from openremap.core.arch import mcs96
+from openremap.core.arch.motorola import _extract_m680x, _extract_m68k
+from openremap.core.arch.ppc import _extract_ppc
 from openremap.core.arch.sh import _extract_sh
 from openremap.core.arch.spans import SpanIndex
 from openremap.core.arch.tricore import (
@@ -127,6 +131,9 @@ _EXTRACTORS = {
     "tricore": _extract_tricore,
     "sh": _extract_sh,
     "x86": _extract_x86,
+    "m680x": _extract_m680x,
+    "m68k": _extract_m68k,
+    "ppc": _extract_ppc,
 }
 
 
@@ -207,6 +214,16 @@ def collect_xrefs(
         # C166/ST10 — decoded in Rust (`_rs/src/arch/c166.rs`), DPP-window
         # translation in `core/arch/c166.py` (no capstone mapping exists).
         return _collect_c166(data, regions, spans or [], base_address)
+
+    if arch_key == "8051":
+        # MCS-51/8051 — decoded in Rust (`_rs/src/arch/mcs51.rs`), identity-
+        # mapped (address == file offset); no capstone mapping exists.
+        return _collect_mcs51(data, regions, spans or [], base_address)
+
+    if arch_key == "mcs96":
+        # MCS-96/8096 — decoded in Rust (`_rs/src/arch/mcs96.rs`), identity-
+        # mapped (address == file offset); no capstone mapping exists.
+        return _collect_mcs96(data, regions, spans or [], base_address)
 
     mode = base_mode | _endian_mode(arch_key, endian)
     try:
@@ -367,6 +384,89 @@ def _collect_c166(
         arch="c166",
         endian="little",
         base_address=base_address,
+        code_bytes_scanned=code_bytes,
+        insn_count=insn_count,
+        referenced=frozenset(referenced),
+        refs={off: tuple(addrs) for off, addrs in refs.items()},
+    )
+
+
+# ---------------------------------------------------------------------------
+# MCS-51 / 8051 (Rust decoder, identity-mapped)
+# ---------------------------------------------------------------------------
+
+
+def _collect_mcs51(
+    data: bytes,
+    regions: list[tuple[int, int]],
+    spans: list[tuple[int, int]],
+    base_address: int | None,
+) -> XrefReport:
+    """8051: Rust-decoded ``MOV DPTR, #data16`` references (identity-mapped).
+
+    The 8051's only 16-bit data reference is the ``MOV DPTR, #data16``
+    immediate — the table base the following ``MOVC``/``MOVX`` read from.
+    The address space is flat, so address == file offset (no DPP window or
+    load-base translation, unlike C166/TriCore).  References outside the
+    file (external-data-space DPTR values) are dropped — presence-only.
+    """
+    raw, insn_count = mcs51.collect_references(data, regions)
+    code_bytes = sum(e - s for s, e in regions)
+
+    referenced: set[int] = set()
+    refs: dict[int, list[int]] = {}
+    for addr, insn_addr in raw:
+        if 0 <= addr < len(data):
+            referenced.add(addr)
+            refs.setdefault(addr, []).append(insn_addr)
+
+    return XrefReport(
+        status="ok",
+        skip_reason=None,
+        arch="8051",
+        endian="little",
+        base_address=0,
+        code_bytes_scanned=code_bytes,
+        insn_count=insn_count,
+        referenced=frozenset(referenced),
+        refs={off: tuple(addrs) for off, addrs in refs.items()},
+    )
+
+
+# ---------------------------------------------------------------------------
+# MCS-96 / 8096 (Rust decoder, identity-mapped)
+# ---------------------------------------------------------------------------
+
+
+def _collect_mcs96(
+    data: bytes,
+    regions: list[tuple[int, int]],
+    spans: list[tuple[int, int]],
+    base_address: int | None,
+) -> XrefReport:
+    """8096: Rust-decoded ``ld #imm16`` / ``ljmp`` / ``lcall`` references.
+
+    The 8096 reaches data through a register file + offset, so the 16-bit
+    data references are the ``ld reg,#imm16`` immediates and the
+    ``ljmp``/``lcall`` absolute targets.  Flat address space (address ==
+    file offset); references outside the file are dropped — presence-only.
+    """
+    raw, insn_count = mcs96.collect_references(data, regions)
+    code_bytes = sum(e - s for s, e in regions)
+
+    referenced: set[int] = set()
+    refs: dict[int, list[int]] = {}
+    for addr, insn_addr in raw:
+        if 0 <= addr < len(data):
+            referenced.add(addr)
+            refs.setdefault(addr, []).append(insn_addr)
+
+    return XrefReport(
+        status="ok",
+        skip_reason=None,
+        arch="mcs96",
+        endian="little",
+        base_address=0,
         code_bytes_scanned=code_bytes,
         insn_count=insn_count,
         referenced=frozenset(referenced),

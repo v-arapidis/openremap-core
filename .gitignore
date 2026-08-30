@@ -44,6 +44,9 @@ openremap/_rs/target/
 Thumbs.db
 ghidra/
 
+# ── Dev scratch / oracle harnesses (never committed) ──────────────────────────
+_scratch/
+
 # ---- Plans and Fixes ----------------------------------------
 fix.md
 todo.md

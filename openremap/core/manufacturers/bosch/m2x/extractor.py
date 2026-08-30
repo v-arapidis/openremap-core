@@ -5,7 +5,8 @@ Implements BaseManufacturerExtractor for the Bosch Motronic M2.x family:
   M2.9  — VW/Audi 4-cylinder and VR6 petrol engines (~1993–1999)
            e.g. Golf ABA 2.0 8V, Golf VR6, Passat VR6, Audi A4 1.8
 
-These are Motorola MC68000 / MC68HC16-based ECUs, sitting between the
+These are 8051-based ECUs (the reset vector is an 8051 LJMP table),
+sitting between the
 older M1.x/M3.x generation and the ME7 generation.
 
 Binary structure (all M2.x, 64KB = 0x10000 bytes):

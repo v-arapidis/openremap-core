@@ -5,7 +5,8 @@ Covers the Bosch Motronic M4.x family:
   M4.3   — Volvo 850 / 960 / S70 / V70 petrol ECUs (1994–1998), 64KB dumps
   M4.4   — Volvo S60 / S70 / V70 / S80 petrol ECUs (1998–2002), 128KB dumps
 
-These are Motorola 68xxx-based ECUs used predominantly in Volvo vehicles.
+These are 8051-based ECUs (the reset vector is an 8051 LJMP table),
+used predominantly in Volvo vehicles.
 The binary structure shares heritage with other early Bosch Motronic families
 but has key differences:
 

@@ -30,6 +30,7 @@ cannot follow — fall back to the window search unchanged.
 from __future__ import annotations
 
 from openremap._rust import (  # type: ignore[import-untyped]
+    c166_disasm as _rust_c166_disasm,
     c166_references as _rust_c166_references,
     c166_walk as _rust_c166_walk,
 )
@@ -83,6 +84,21 @@ def walk(data: bytes, regions: list[tuple[int, int]]) -> list[tuple[int, int]]:
     return [
         (int(off), int(size))
         for off, size in _rust_c166_walk(data, [(s, e) for s, e in regions])
+    ]
+
+
+def disasm(
+    data: bytes, regions: list[tuple[int, int]]
+) -> list[tuple[int, int, str, str]]:
+    """``(insn_offset, length, mnemonic, operands)`` for every instruction.
+
+    The phrasebook rendering the pseudo-decompiler consumes — mnemonic +
+    readable operands for the common forms (register / direct-memory /
+    immediate), ``DB 0xXX`` for the rest.  Not the full ISA.
+    """
+    return [
+        (int(off), int(size), str(m), str(op))
+        for off, size, m, op in _rust_c166_disasm(data, [(s, e) for s, e in regions])
     ]
 
 

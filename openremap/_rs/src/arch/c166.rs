@@ -113,6 +113,201 @@ pub fn c166_walk(data: &[u8], regions: Vec<(i64, i64)>) -> Vec<(u32, u8)> {
     out
 }
 
+/// Mnemonic for the first byte of a C166 instruction — the common forms
+/// (the checksum/map-access 80% use case).  Unknown opcodes render as
+/// ``DB`` (data byte).  This is the phrasebook, not the full ISA: the
+/// register/immediate arithmetic and move forms, the direct-memory forms,
+/// and the control-transfer forms.
+fn mnemonic(b0: u8) -> &'static str {
+    if b0 & 0x0F == 0x0D {
+        return "JMPR";
+    }
+    match b0 {
+        0x00 | 0x02 | 0x04 | 0x06 | 0x08 => "ADD",
+        0x10 | 0x12 | 0x14 | 0x16 | 0x18 => "ADDC",
+        0x20 | 0x22 | 0x24 | 0x26 | 0x28 => "SUB",
+        0x40 | 0x42 | 0x46 | 0x48 => "CMP",
+        0x41 | 0x43 | 0x47 | 0x49 => "CMPB",
+        0x84 | 0x88 | 0x94 | 0x98 | 0xA8 | 0xB8 | 0xC4 | 0xC8 | 0xD4 | 0xD8 | 0xE0 | 0xE6 | 0xE8 | 0xF0 | 0xF2 | 0xF6 => "MOV",
+        0x89 | 0x99 | 0xA4 | 0xA9 | 0xB4 | 0xB9 | 0xC9 | 0xD9 | 0xE1 | 0xE4 | 0xE7 | 0xE9 | 0xF1 | 0xF3 | 0xF4 | 0xF7 => "MOVB",
+        0xDA => "CALLS",
+        0xFA => "JMPS",
+        0xEA => "JMPA",
+        0x9C => "JMPI",
+        0xCC => "NOP",
+        0xCB => "RET",
+        0xDB => "RETS",
+        0xFB => "RETI",
+        0xD7 | 0xDC => "EXTP",
+        _ => "DB",
+    }
+}
+
+/// EXTP/EXTS/EXTPR/EXTSR — the 0xD7/0xDC opcode's actual name is selected
+/// by the two high bits of the second byte (``op1415``).
+fn exts_name(b0: u8, b1: u8) -> &'static str {
+    match (b1 >> 6) & 0x3 {
+        0 => "EXTS",
+        2 => "EXTSR",
+        3 => "EXTPR",
+        _ => "EXTP",
+    }
+}
+
+/// Word-register operand from the low nibble of the second byte.
+fn rw(b1: u8) -> String {
+    format!("R{}", b1 & 0x0F)
+}
+
+/// Word-register operand from the high nibble of the second byte.
+fn rw_hi(b1: u8) -> String {
+    format!("R{}", b1 >> 4)
+}
+
+/// Byte-register operand from the low nibble of the second byte.
+fn rb(b1: u8) -> String {
+    format!("RB{}", b1 & 0x0F)
+}
+
+/// Byte-register operand from the high nibble of the second byte.
+fn rb_hi(b1: u8) -> String {
+    format!("RB{}", b1 >> 4)
+}
+
+/// Register/SFR operand (``reg0815``) — a word register when the high
+/// nibble of the second byte is ``0xF`` (then the register is the low
+/// nibble), else a special-function register addressed by the whole byte
+/// (SLEIGH ``reg0815_w``: ``r0811 & op1215=0xF`` vs the sfr/esfr arms).
+fn reg8(b1: u8) -> String {
+    if b1 >> 4 == 0xF {
+        format!("R{}", b1 & 0x0F)
+    } else {
+        format!("SFR 0x{:02X}", b1)
+    }
+}
+
+/// Byte-register/SFR operand (``reg0815_b``) — same register-vs-SFR split
+/// as :func:`reg8`, for the byte forms.
+fn rb8(b1: u8) -> String {
+    if b1 >> 4 == 0xF {
+        format!("RB{}", b1 & 0x0F)
+    } else {
+        format!("SFR 0x{:02X}", b1)
+    }
+}
+
+/// 16-bit immediate/memory operand at bytes ``off+2..off+3`` (little-endian).
+fn imm16(data: &[u8], off: usize) -> String {
+    format!("0x{:04X}", u16::from_le_bytes([data[off + 2], data[off + 3]]))
+}
+
+/// The shared ``op2`` second operand of the 2-byte arithmetic forms
+/// (``CMP/CMPB/SUB/ADD/ADDC 0x?8``): a register when bit 3 of the second
+/// byte is set, else a 3-bit immediate (nefmoto's `_data3_subswitch`).
+fn op2(b1: u8) -> String {
+    if b1 & 0x08 != 0 {
+        format!("R{}", b1 & 0x0F)
+    } else {
+        format!("#0x{:X}", b1 & 0x07)
+    }
+}
+
+/// Decode the operands of a C166 instruction into a readable string.
+///
+/// Operand encodings are read from the Ghidra_C166 SLEIGH spec
+/// (`c166.slaspec`): ``op0007`` = first byte, ``op0811``/``op1215`` = the
+/// low/high nibble of the second byte, ``mem/data1631`` = the 16-bit
+/// little-endian word at bytes 2–3.  Not the full ISA — register + direct
+/// memory + immediate forms (the phrasebook use case).
+fn operands(data: &[u8], off: usize, b0: u8, size: usize) -> String {
+    if b0 & 0x0F == 0x0D {
+        // JMPR cc, rel — render the absolute target (rel is signed).
+        let rel = data[off + 1] as i8 as i32;
+        let target = off as i32 + 2 + rel;
+        return format!("0x{:04X}", target.max(0) as u32);
+    }
+    let b1 = data[off + 1];
+    match b0 {
+        // MOV word forms
+        0xE0 => format!("{}, #0x{:X}", rw(b1), b1 >> 4),
+        0xF0 => format!("{}, {}", rw_hi(b1), rw(b1)),
+        0xD4 => format!("{}, [{} + #{}]", rw_hi(b1), rw(b1), imm16(data, off)),
+        0x98 => format!("{}, [{}+]", rw_hi(b1), rw(b1)),
+        0xA8 => format!("{}, [{}]", rw_hi(b1), rw(b1)),
+        0x88 => format!("[-{}], {}", rw(b1), rw_hi(b1)),
+        0xC4 => format!("[{} + #{}], {}", rw(b1), imm16(data, off), rw_hi(b1)),
+        0xB8 => format!("[{}], {}", rw(b1), rw_hi(b1)),
+        0xD8 => format!("[{}+], [{}]", rw(b1), rw_hi(b1)),
+        0xE8 => format!("[{}], [{}+]", rw(b1), rw_hi(b1)),
+        0xC8 => format!("[{}], [{}]", rw(b1), rw_hi(b1)),
+        0x84 => format!("[{}], {}", rw(b1), imm16(data, off)),
+        0x94 => format!("{}, [{}]", imm16(data, off), rw(b1)),
+        0xF6 => format!("{}, {}", imm16(data, off), reg8(b1)),
+        0xE6 => format!("{}, #{}", reg8(b1), imm16(data, off)),
+        0xF2 => format!("{}, {}", reg8(b1), imm16(data, off)),
+        // MOVB byte forms
+        0xE1 => format!("{}, #0x{:X}", rb(b1), b1 >> 4),
+        0xF1 => format!("{}, {}", rb_hi(b1), rb(b1)),
+        0xF4 => format!("{}, [{} + #{}]", rb_hi(b1), rw(b1), imm16(data, off)),
+        0x99 => format!("{}, [{}+]", rb_hi(b1), rw(b1)),
+        0xA9 => format!("{}, [{}]", rb_hi(b1), rw(b1)),
+        0x89 => format!("[-{}], {}", rw(b1), rb_hi(b1)),
+        0xE4 => format!("[{} + #{}], {}", rw(b1), imm16(data, off), rb_hi(b1)),
+        0xB9 => format!("[{}], {}", rw(b1), rb_hi(b1)),
+        0xD9 => format!("[{}+], [{}]", rw_hi(b1), rw(b1)),
+        0xE9 => format!("[{}], [{}+]", rw_hi(b1), rw(b1)),
+        0xC9 => format!("[{}], [{}]", rw_hi(b1), rw(b1)),
+        0xA4 => format!("[{}], {}", rw(b1), imm16(data, off)),
+        0xB4 => format!("{}, [{}]", imm16(data, off), rw(b1)),
+        0xF7 => format!("{}, {}", imm16(data, off), rb8(b1)),
+        0xE7 => format!("{}, #{}", rb8(b1), imm16(data, off)),
+        0xF3 => format!("{}, {}", rb8(b1), imm16(data, off)),
+        // arithmetic 2-byte forms: Rwn, op2
+        0x00 | 0x10 | 0x20 | 0x40 => format!("{}, {}", rw_hi(b1), op2(b1)),
+        0x41 => format!("{}, {}", rb_hi(b1), op2(b1)),
+        0x08 | 0x18 | 0x28 | 0x48 => format!("{}, {}", rw_hi(b1), op2(b1)),
+        0x49 => format!("{}, {}", rb_hi(b1), op2(b1)),
+        // arithmetic 4-byte forms
+        0x04 | 0x14 | 0x24 => format!("{}, {}", imm16(data, off), reg8(b1)),
+        0x02 | 0x12 | 0x22 | 0x42 => format!("{}, {}", reg8(b1), imm16(data, off)),
+        0x06 | 0x16 | 0x26 | 0x46 => format!("{}, #{}", reg8(b1), imm16(data, off)),
+        0x43 => format!("{}, {}", rb8(b1), imm16(data, off)),
+        0x47 => format!("{}, #{}", rb8(b1), imm16(data, off)),
+        // control transfer
+        0xDA | 0xFA => format!("0x{:02X}:0x{:04X}", b1, u16::from_le_bytes([data[off + 2], data[off + 3]])),
+        0xEA => format!("0x{:04X}", u16::from_le_bytes([data[off + 2], data[off + 3]])),
+        0x9C => format!("[{}]", rw(b1)),
+        0xCC | 0xCB | 0xDB | 0xFB => String::new(),
+        0xD7 => format!("#0x{:02X}, #0x{:X}", b1, (b1 >> 4) & 0x3),
+        0xDC => format!("{}, #0x{:X}", rw(b1), (b1 >> 4) & 0x3),
+        // data byte / unknown
+        _ => format!("0x{:02X}", b0),
+    }
+}
+
+/// Disassemble the instruction stream of the C166 code regions.
+///
+/// Returns ``(insn_file_offset, length, mnemonic, operands)`` for every
+/// decoded instruction — the phrasebook rendering the pseudo-decompiler
+/// consumes.  Operand strings are readable but not full-ISA (register +
+/// direct-memory + immediate forms); unknown opcodes render as ``DB 0xXX``.
+#[pyfunction]
+pub fn c166_disasm(data: &[u8], regions: Vec<(i64, i64)>) -> Vec<(u32, u8, String, String)> {
+    let mut out: Vec<(u32, u8, String, String)> = Vec::new();
+    for_each_insn(data, &regions, |off, size| {
+        let b0 = data[off];
+        let b1 = data[off + 1];
+        let mnem = if b0 == 0xD7 || b0 == 0xDC { exts_name(b0, b1) } else { mnemonic(b0) };
+        out.push((
+            off as u32,
+            size as u8,
+            mnem.to_string(),
+            operands(data, off, b0, size),
+        ));
+    });
+    out
+}
+
 /// Run *f* for every decoded instruction in the code regions.
 ///
 /// Shared walk used by `c166_references` and `c166_walk`: same size table,
@@ -251,5 +446,76 @@ mod tests {
         );
         // region clipping: truncated tail instruction is dropped
         assert_eq!(c166_walk(&d, vec![(0, 9)]), vec![(0, 4), (4, 2)]);
+    }
+
+    #[test]
+    fn disasm_renders_moves_and_arithmetic() {
+        // MOV R0, 0x1234  (F2 F0 34 12: reg0815 high-nibble=0xF) + ADD R5, #6 (06 F5 06 00)
+        let d = [0xF2, 0xF0, 0x34, 0x12, 0x06, 0xF5, 0x06, 0x00];
+        let out = c166_disasm(&d, vec![(0, 8)]);
+        assert_eq!(
+            out,
+            vec![
+                (0, 4, "MOV".to_string(), "R0, 0x1234".to_string()),
+                (4, 4, "ADD".to_string(), "R5, #0x0006".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn disasm_renders_register_and_indirect_forms() {
+        // MOV R3, R1 (F0 31: Rn=hi nibble, Rm=lo nibble) + MOV R7, [R2] (A8 72)
+        // + MOV [R4], 0x00B3 (84 04 B3 00: Rn=lo nibble)
+        let d = [0xF0, 0x31, 0xA8, 0x72, 0x84, 0x04, 0xB3, 0x00];
+        let out = c166_disasm(&d, vec![(0, 8)]);
+        assert_eq!(
+            out,
+            vec![
+                (0, 2, "MOV".to_string(), "R3, R1".to_string()),
+                (2, 2, "MOV".to_string(), "R7, [R2]".to_string()),
+                (4, 4, "MOV".to_string(), "[R4], 0x00B3".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn disasm_renders_byte_forms_and_branches() {
+        // MOVB RB3, 0x12 (E7 F3 12 00) + JMPR cc, -2 (2D FE)
+        let d = [0xE7, 0xF3, 0x12, 0x00, 0x2D, 0xFE];
+        let out = c166_disasm(&d, vec![(0, 6)]);
+        assert_eq!(
+            out,
+            vec![
+                (0, 4, "MOVB".to_string(), "RB3, #0x0012".to_string()),
+                (4, 2, "JMPR".to_string(), "0x0004".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn disasm_sfr_operands() {
+        // MOV DPP0, #0x0004 (E6 00 04 00) — reg0815 with high-nibble != 0xF
+        // is an SFR, not a register.
+        let d = [0xE6, 0x00, 0x04, 0x00];
+        let out = c166_disasm(&d, vec![(0, 4)]);
+        assert_eq!(out, vec![(0, 4, "MOV".to_string(), "SFR 0x00, #0x0004".to_string())]);
+    }
+
+    #[test]
+    fn disasm_unknown_opcode_is_data_byte() {
+        // 0x90 is not in the phrasebook table -> DB 0x90
+        let d = [0x90, 0x91];
+        let out = c166_disasm(&d, vec![(0, 2)]);
+        assert_eq!(out, vec![(0, 2, "DB".to_string(), "0x90".to_string())]);
+    }
+
+    #[test]
+    fn disasm_extp_exts_names() {
+        // EXTP #page (D7 with op1415=1) vs EXTS (D7 with op1415=0)
+        // op1415 = high 2 bits of byte 1; 0x40 -> 1, 0x00 -> 0
+        let d = [0xD7, 0x40, 0x00, 0x00, 0xD7, 0x00, 0x00, 0x00];
+        let out = c166_disasm(&d, vec![(0, 8)]);
+        assert_eq!(out[0].2, "EXTP");
+        assert_eq!(out[1].2, "EXTS");
     }
 }

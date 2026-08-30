@@ -16,6 +16,9 @@ codebase; these projects deserve the credit.
 | [td-d/SubaruDefs](https://github.com/td-d/SubaruDefs) | EcuFlash Subaru defs — checksum table addresses and layout knowledge | community | `openremap/core/services/checksums/denso.py` |
 | [bludgod/RomRaider](https://github.com/bludgod/RomRaider) | The 501-file Subaru factory-ROM corpus | community | `tests/data/ECUs/Subaru/` (gitignored) |
 | [mumbel/Ghidra_C166](https://github.com/mumbel/Ghidra_C166) | C166/ST10 instruction encodings consulted to verify the Rust xref decoder's size table (dev-time oracle only — Ghidra is never a runtime dependency; no SLEIGH code is copied) | Apache-2.0 | `openremap/_rs/src/arch/c166.rs` (+ the public Infineon/Siemens ST10/C166 instruction-set manuals) |
+| [8051Enthusiast/at51](https://github.com/8051Enthusiast/at51) | 8051 instruction-boundary oracle — our `mcs51_walk` matched its decoder 100% on the measured corpus subset (dev-time oracle only; the opcode table is written from the public Intel MCS-51 ISA, no code copied) | MIT | `openremap/_rs/src/arch/mcs51.rs` |
+| [mmastrac/i8051](https://github.com/mmastrac/i8051) | 8051 reference oracle for cross-checking the size table (dev-time oracle only) | MIT | `openremap/_rs/src/arch/mcs51.rs` |
+| [MAME](https://github.com/mamedev/mame) (`src/devices/cpu/mcs96/mcs96ops.lst`) | The MCS-96 size table is derived from its opcode list (oracle only, no code copied; cross-checked against Ghidra's MCS96 disassembler) | BSD-3-Clause | `openremap/_rs/src/arch/mcs96.rs` |
 
 ## Used as libraries (runtime dependencies)
 

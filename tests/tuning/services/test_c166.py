@@ -240,8 +240,8 @@ def test_collect_xrefs_c166_dpp_falls_back_to_window():
 
 
 def test_arch_for_family_c166_families():
-    for family in ("ME7", "ME7.1.1", "ME9", "EDC15", "EDC16", "MS43",
-                   "PPD1.1", "SID803", "Simtec56", "EMS2000"):
+    for family in ("ME7", "ME7.1.1", "ME9", "EDC15", "MS43",
+                   "PPD1.1", "SID803", "EMS2000"):
         info = arch_for_family("Bosch" if family.startswith(("ME", "EDC")) else "Siemens", family)
         assert info is not None, family
         assert info[0] == "c166", family

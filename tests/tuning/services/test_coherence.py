@@ -237,10 +237,11 @@ def test_arch_none_is_gap():
 
 
 def test_arch_cascade_on_unmapped_family_is_gap_not_conflict():
-    # SIMOS has no arch-table entry; the cascade detected TriCore.  Positive
-    # (a gap being filled) but not an identity↔arch agreement.
+    # Multec (unknown CPU) has no arch-table entry; the cascade detected
+    # TriCore.  Positive (a gap being filled) but not an identity↔arch
+    # agreement.
     rep = check_coherence(
-        _ident(family="SIMOS", manufacturer="Siemens"),
+        _ident(family="Multec", manufacturer="Delphi"),
         _cs(),
         _xr(arch="tricore"),
     )

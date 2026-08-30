@@ -1,7 +1,9 @@
 # OpenRemap
 
 🌐 **[openremap.com](https://www.openremap.com)** — the project site: what OpenRemap is, how to install it, and the latest news.
+
 📚 **[docs.openremap.com](https://docs.openremap.com)** — the wiki: concepts, every command, and per-family references.
+
 🐙 **[openremap-docs](https://github.com/v-arapidis/openremap-docs)** — the open-source repo behind the docs/wiki — suggestions and contributions welcome.
 
 [![CI](https://github.com/v-arapidis/openremap-core/actions/workflows/ci.yml/badge.svg)](https://github.com/v-arapidis/openremap-core/actions/workflows/ci.yml)
@@ -77,6 +79,40 @@ Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
 
 6 manufacturers, 36 extractors — from LH-Jetronic (1982) to EDC17 and
 Denso/Hitachi Subaru (2020s). → [Per-family reference](https://docs.openremap.com/manufacturers/)
+
+## Decoders & CPU coverage
+
+To extract code references and read routines, OpenRemap decodes the ECU's
+CPU directly — no manufacturer lookup needed. Decoders power the
+code-reference signal, CPU auto-detection, and the `routine` command's
+pseudo-decompiler. Two backends cover the supported families:
+
+- **Rust-native decoders** — written from scratch for CPUs that the capstone
+  disassembly library does not support (C166/ST10, 8051, MCS-96), each
+  verified against an independent oracle: Ghidra's SLEIGH spec (C166), the
+  `at51` disassembler (8051 — 100% agreement on ~312k real instruction
+  boundaries), and MAME's opcode tables + Ghidra (MCS-96).
+- **Capstone-backed decoders** — the mature disassembly library, used for
+  TriCore, SuperH, x86, M680X, 68K and PowerPC.
+
+| CPU | Decoder | ECU families |
+|---|---|---|
+| C166 / ST10 | Rust | ME7, ME9, EDC15, MS43, PPD, SID801/803, EMS2000, M5.x, ME1.5.5 |
+| 8051 (MCS-51) | Rust | M1.8, M2.x, MP9, M4.x, Mono-Motronic, SIMOS, Simtec56 |
+| MCS-96 (8096) | Rust | EDC1, EDC3 |
+| TriCore | capstone | EDC16, EDC17, MED9, MED17 |
+| SuperH | capstone | SH7055, SH7058, SH72531, SH72546 |
+| M680X (68HC11 / 6800) | capstone | M1.3, M1.7, M3.x, MP3.x, MP7.2, LH-Jetronic |
+| 68K (68000 / CPU32) | capstone | M1.5.5, M1.55, IAW 4LV |
+| PowerPC | capstone | MJD 6JF |
+| x86 | capstone | (generic code — bootloaders etc.) |
+
+Every mapping above is evidence-backed: an internal audit established each
+family's CPU from reset-vector header bytes and independent decoder
+evidence, and corrected several extractor docstrings along the way (M2.x /
+MP9 / M4.x are 8051, not 68xxx; EDC16 / MED9 are TriCore, not C166). Denso
+EE20 is believed to be SuperH per community docs, but there is no corpus
+binary to verify against yet.
 
 ## Documentation
 

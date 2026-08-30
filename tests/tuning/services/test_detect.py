@@ -147,6 +147,20 @@ def test_detect_arch_rejects_candidate_below_insn_gate():
     assert xr.skip_reason == "no_arch_detected"
 
 
+def test_detect_arch_skips_c166_without_dpp_init():
+    # c166's window fallback accepts garbage on any dense binary, so the
+    # detect path requires the real C166 boot signature (a DPP0–3 init).
+    # Data without it (8051 / M68K / TriCore code) must skip the c166
+    # candidate rather than false-positive as "c166".
+    data = _padded(b"\x90" * 100)  # dense NOPs — no E6 DPP-init pattern
+    xr = detect_arch(
+        data, [(0, 100)], "little", _GOOD_SPANS,
+        candidates=[("c166", 0, 0, False)],
+    )
+    assert xr.status == "skipped"
+    assert xr.skip_reason == "no_arch_detected"
+
+
 def test_detect_arch_first_match_wins():
     # The cascade returns the FIRST acceptable candidate's report.  Over
     # x86 code bytes the tricore decoder yields no span hits, so it is the
@@ -249,19 +263,21 @@ def test_accepts_passes_at_the_bar():
 
 
 def test_cascade_candidates_order_and_no_x86():
-    # c166 (fastest/most likely) → TriCore → SuperH SH-2 → SH-2A; x86 is a
-    # test-only fallback and must stay out of the production cascade.
-    assert [c[0] for c in _CASCADE_CANDIDATES] == ["c166", "tricore", "sh", "sh"]
+    # capstone-first (TriCore → SuperH SH-2 → SH-2A) then c166 LAST — its
+    # Rust decoder false-positives on foreign code, so it is gated on a
+    # boot DPP init; x86 is a test-only fallback and must stay out.
+    assert [c[0] for c in _CASCADE_CANDIDATES] == ["tricore", "sh", "sh", "c166"]
     assert all(c[0] != "x86" for c in _CASCADE_CANDIDATES)
-    assert _CASCADE_CANDIDATES[2][2] == CS_MODE_SH2  # SH-2 base mode
-    assert _CASCADE_CANDIDATES[3][2] == CS_MODE_SH2A  # SH-2A base mode
+    assert _CASCADE_CANDIDATES[1][2] == CS_MODE_SH2  # SH-2 base mode
+    assert _CASCADE_CANDIDATES[2][2] == CS_MODE_SH2A  # SH-2A base mode
+    assert _CASCADE_CANDIDATES[3][0] == "c166"  # c166 last
 
 
 def test_arch_for_family_table_untouched():
     # Regression guard for the "cascade is a separate fallback, the table
     # is NOT modified" contract.
-    assert arch_for_family("Siemens", "SIMOS") is None
-    assert arch_for_family("Bosch", "M1.3") is None
+    assert arch_for_family("Bosch", "M2.9") is not None  # 8051 — served
+    assert arch_for_family("Denso", "EE20") is None  # SuperH candidate, no corpus
     assert arch_for_family("Bosch", "EDC17") is not None  # table still works
 
 
@@ -272,7 +288,7 @@ def test_arch_for_family_table_untouched():
 _DATA = Path("tests/data")
 _SIMOS = _DATA / "ECUs/Siemens/SIMOS"
 _M13 = _DATA / "ECUs/Bosch/M1.3"
-_ALLOWED_ARCH = {"c166", "tricore", "sh"}
+_ALLOWED_ARCH = {"c166", "tricore", "sh", "m680x", "m68k", "ppc", "8051", "mcs96"}
 _ALLOWED_SKIPS = {"no_arch_detected", "no_code_regions"}
 
 
@@ -287,25 +303,24 @@ def _assert_soft_outcome(xr) -> None:
         assert xr.skip_reason in _ALLOWED_SKIPS
 
 
-def test_simos_cascade_detects_or_skips_cleanly():
+def test_simos_8051_decodes_cleanly():
     if not _SIMOS.is_dir():
         pytest.skip("SIMOS corpus absent")
     bins = sorted(_SIMOS.glob("*.bin"))
     if not bins:
         pytest.skip("no SIMOS .bin files present")
-    from openremap.core.arch.detect import detect_arch
+    from openremap.core.arch.refs import collect_xrefs
     from openremap.core.services.identify.identifier import identify_ecu
     from openremap.core.services.maps.layout import code_regions_from_layout, segment
     from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tables
-    from openremap.core.services.maps.xrefs import _table_spans
 
     data = bins[0].read_bytes()
     ident = identify_ecu(data, bins[0].name)
-    assert arch_for_family(ident.get("manufacturer"), ident.get("ecu_family")) is None
+    info = arch_for_family(ident.get("manufacturer"), ident.get("ecu_family"))
+    assert info is not None and info[0] == "8051"  # served by the 8051 decoder
     tables = scan_map_tables(data, axes=scan_map_axes(data))
     codes = code_regions_from_layout(segment(data, tables=tables))
-    spans = _table_spans(tables)
-    xr = detect_arch(data, codes, ident.get("ecu_endian"), spans)
+    xr = collect_xrefs(data, codes, info, ident.get("ecu_endian"))
     _assert_soft_outcome(xr)
 
 

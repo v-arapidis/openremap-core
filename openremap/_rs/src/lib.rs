@@ -23,6 +23,15 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── C166 / ST10 ──────────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(arch::c166::c166_references, m)?)?;
     m.add_function(wrap_pyfunction!(arch::c166::c166_walk, m)?)?;
+    m.add_function(wrap_pyfunction!(arch::c166::c166_disasm, m)?)?;
+
+    // ── MCS-51 / 8051 ────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(arch::mcs51::mcs51_references, m)?)?;
+    m.add_function(wrap_pyfunction!(arch::mcs51::mcs51_walk, m)?)?;
+
+    // ── MCS-96 / 8096 ────────────────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(arch::mcs96::mcs96_references, m)?)?;
+    m.add_function(wrap_pyfunction!(arch::mcs96::mcs96_walk, m)?)?;
 
     // ── Layout ───────────────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(maps::layout_scan::find_ident_blocks, m)?)?;

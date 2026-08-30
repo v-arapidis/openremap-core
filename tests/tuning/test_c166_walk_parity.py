@@ -50,11 +50,9 @@ _C166_BINS = [
     "ECUs/Bosch/ME7",
     "ECUs/Bosch/ME9",
     "ECUs/Bosch/EDC15",
-    "ECUs/Bosch/EDC16",
     "ECUs/Siemens/MS43",
     "ECUs/Siemens/PPD1.1",
     "ECUs/Siemens/SID803",
-    "ECUs/Siemens/Simtec56",
 ]
 
 

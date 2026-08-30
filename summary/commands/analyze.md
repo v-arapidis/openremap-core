@@ -31,12 +31,14 @@
    - **xrefs (code-reference signal)**: `arch/__init__.py::arch_for_family`
      (family → arch tuple) → `code_regions_from_layout(regions)` →
      `collect_xrefs(data, codes, arch, endian, spans=…)`
-     (`core/arch/refs.py`; capstone disassembly, statically-resolvable
+     (`core/arch/refs.py`; capstone disassembly for tri/sh/m680x/m68k/ppc
+     plus Rust decoders for c166/8051/mcs96, statically-resolvable
      references only, data-driven load-base detection).  When
      `arch_for_family` returns `None` (unknown family), falls through to
      `core/arch/detect.py::detect_arch(data, codes, endian, spans)` — the
-     CPU-detection cascade (trial-decodes c166/tricore/sh, first whose
-     references hit table spans wins, fork-isolated against decoder crashes)
+     CPU-detection cascade (capstone-first: tricore → sh → sh2a, then
+     `c166` last and only with a boot DPP-init; fork-isolated against
+     decoder crashes)
      → `adjust_table_scores(tables, xr)` re-ranks with the bonus when
      ``status == "ok"``
    - checksums: `checksums/checksum.py::sweep` + `verify_me7`,

@@ -86,12 +86,21 @@ def test_arch_for_family_denso_and_hitachi_sh():
         assert info[0] == "sh", fam
 
 
+def test_arch_for_family_tricore_families():
+    # EDC17/MED17 (known) + EDC16/MED9 (Ghidra oracle verdict, census §4) —
+    # all TriCore, decoded via capstone.
+    for fam in ("EDC16", "EDC17", "MED17", "MED9"):
+        info = arch_for_family("Bosch", fam)
+        assert info is not None, fam
+        assert info[0] == "tricore", fam
+
+
 def test_arch_for_family_unsupported_is_none():
-    # ME7/EDC16/MS43 are C166 (Phase 2) — now supported; use families with
-    # no verified disassembly mapping instead.
+    # Families with no verified disassembly mapping.  (EDC16/MED9 are TriCore
+    # and the 8051/MCS-96 families are served by the Rust decoder.)
     assert arch_for_family("Delphi", "Multec") is None
     assert arch_for_family("Marelli", "IAW") is None
-    assert arch_for_family("Siemens", "SIMOS") is None  # TriCore, Phase 3
+    assert arch_for_family("Denso", "EE20") is None  # SuperH candidate, no corpus
     assert arch_for_family("SomeOEM", "EDC17") is not None  # family drives
 
 
@@ -102,6 +111,44 @@ def test_arch_for_family_missing_family_is_none():
 
 def test_arch_for_family_case_insensitive():
     assert arch_for_family("bosch", "edc17") == arch_for_family("Bosch", "EDC17")
+
+
+def test_arch_for_family_m680x_families():
+    # arch census (notes/arch/census.md): M1.x/M3.x/MP3/MP7 are 68HC11,
+    # LH-Jetronic is 6800/6802.
+    for fam in ("M1.3", "M1.7", "M1.x", "M3.1", "M3.3", "MP3.2", "MP7.2", "LH-Jetronic"):
+        info = arch_for_family("Bosch", fam)
+        assert info is not None, fam
+        assert info[0] == "m680x", fam
+
+
+def test_arch_for_family_m68k_and_ppc():
+    assert arch_for_family("Bosch", "M1.5.5")[0] == "m68k"
+    assert arch_for_family("Bosch", "M1.55")[0] == "m68k"
+    assert arch_for_family("Marelli", "IAW 4LV")[0] == "m68k"
+    assert arch_for_family("Marelli", "MJD 6JF")[0] == "ppc"
+
+
+def test_arch_for_family_8051_mapped():
+    # 8051 families are served by the Rust decoder (census §6-C) — not None.
+    for fam in ("M1.8", "M2.9", "MP9", "M4.3", "Mono-Motronic"):
+        info = arch_for_family("Bosch", fam)
+        assert info is not None and info[0] == "8051", fam
+    for fam in ("SIMOS", "Simtec56"):
+        info = arch_for_family("Siemens", fam)
+        assert info is not None and info[0] == "8051", fam
+
+
+def test_arch_for_family_mcs96_mapped():
+    # EDC1 (8096) is served by the Rust decoder (census §6-C) — not None.
+    info = arch_for_family("Bosch", "EDC1")
+    assert info is not None and info[0] == "mcs96"
+
+
+def test_arch_for_family_unknown_unmapped():
+    # EE20 (SuperH candidate, no corpus) and unknown families stay unmapped.
+    assert arch_for_family("Denso", "EE20") is None
+    assert arch_for_family("Bosch", "Multec") is None
 
 
 # ---------------------------------------------------------------------------

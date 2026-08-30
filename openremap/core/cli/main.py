@@ -46,6 +46,7 @@ from openremap.core.cli.commands.checksum import checksum_cmd
 from openremap.core.cli.commands.health import health_cmd
 from openremap.core.cli.commands.merge import merge
 from openremap.core.cli.commands.layout import layout
+from openremap.core.cli.commands.routine import routine
 from openremap.core.cli.commands.scan_maps import scan_maps
 from openremap.core.cli.commands.scan_vins import scan_vins_cmd
 from openremap.core.cli.commands.tune import tune
@@ -228,6 +229,18 @@ app.command(
     help="Locate VIN candidates in an ECU binary and score them.",
     no_args_is_help=True,
 )(scan_vins_cmd)
+
+app.command(
+    name="routine",
+    help=(
+        "Read a code routine as readable pseudo-code (no Ghidra needed).\n\n"
+        "Decodes the instruction stream around a file offset and renders each "
+        "instruction as one line — a phrasebook decompiler, not full C. "
+        "Decoder is picked from the ECU family (Rust C166 or capstone), "
+        "override with --arch."
+    ),
+    no_args_is_help=True,
+)(routine)
 
 app.command(
     name="scan-maps",

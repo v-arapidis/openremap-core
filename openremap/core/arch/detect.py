@@ -16,8 +16,9 @@ references inside the data spans).  Do NOT tighten any gate into a penalty
 
 Risk note (handoff plan §7 + a discovery): a wrong arch whose garbage
 references happen to hit spans could in principle false-positive — bounded
-by the presence-only contract and mitigated by raising ``_MIN_SPAN_HITS``
-or reordering ``_CASCADE_CANDIDATES``, never by penalising absence.
+by the presence-only contract and mitigated by the ``c166`` DPP-init gate
+(``detect_arch`` rejects c166 without a boot DPP init) and by ordering the
+cascade capstone-first, never by penalising absence.
 Second discovery: capstone's SuperH **SH-2A** decoder has a known
 out-of-bounds read on crafted bytecode (GHSA-gf2c-xwcp-hvf4 /
 CVE-2026-55894; e.g. ``33 51 e5 31``, found in a real 32 KB Bosch M1.3
@@ -46,6 +47,7 @@ from capstone import (  # type: ignore[import-untyped]
     CS_MODE_SH2A,
 )
 
+from openremap.core.arch import c166
 from openremap.core.arch.refs import XrefReport, collect_xrefs
 
 # ---------------------------------------------------------------------------
@@ -54,16 +56,19 @@ from openremap.core.arch.refs import XrefReport, collect_xrefs
 
 #: Ordered candidate decoders — first-match-wins.  Tuple shape ==
 #: ``arch_for_family`` output: (arch_key, capstone_arch, base_mode,
-#: accepts_endian_flag).  c166 first (Rust decoder, fastest, the most
-#: common "could serve it" CPU for unknown families), then TriCore, then
-#: SuperH (SH-2, then SH-2A).  x86 is deliberately EXCLUDED — it is a
-#: test-only generic fallback with absolute addressing that false-positives
-#: on arbitrary binaries.
+#: accepts_endian_flag).  capstone arches first (TriCore, then SuperH
+#: SH-2 → SH-2A): their reference extractors are precise (movh.a+lea pairs,
+#: absolute mov.l), so they do not false-positive on foreign code.  c166 is
+#: LAST — its Rust decoder emits references on *any* dense binary and its
+#: window search would accept that garbage, so it is additionally gated on
+#: a boot DPP init (see the ``detect_arch`` loop).  x86 is deliberately
+#: EXCLUDED — it is a test-only generic fallback with absolute addressing
+#: that false-positives on arbitrary binaries.
 _CASCADE_CANDIDATES: list[tuple[str, int, int, bool]] = [
-    ("c166", 0, 0, False),
     ("tricore", CS_ARCH_TRICORE, 0, False),
     ("sh", CS_ARCH_SH, CS_MODE_SH2, True),
     ("sh", CS_ARCH_SH, CS_MODE_SH2A, True),
+    ("c166", 0, 0, False),
 ]
 
 #: Minimum valid instructions before a trial decode counts as plausible
@@ -191,8 +196,10 @@ def detect_arch(
 
     Tries each candidate decoder via :func:`collect_xrefs` and returns the
     FIRST whose report clears :func:`_accepts` (no double-decode at the
-    call site — the winning report carries the decoded references).  When
-    no candidate clears the gates, returns ``XrefReport(status="skipped",
+    call site — the winning report carries the decoded references).  The
+    ``c166`` candidate is additionally gated on a boot DPP init (its window
+    search would otherwise accept foreign code).  When no candidate clears
+    the gates, returns ``XrefReport(status="skipped",
     skip_reason="no_arch_detected")``.
 
     ``candidates`` is a private test hook — production callers leave it
@@ -204,6 +211,13 @@ def detect_arch(
         return _skip("no_arch_detected")  # nothing to gate on → conservative
     cands = _CASCADE_CANDIDATES if candidates is None else candidates
     for arch_info in cands:
+        if arch_info[0] == "c166" and c166.find_dpp_init(data) is None:
+            # The C166 Rust decoder emits references on any dense binary and
+            # its window search would accept that garbage, so the *detect*
+            # path requires the real C166 boot signature (a DPP0–3 init) —
+            # 8051 / M68K / TriCore code has none.  (Known C166 families
+            # never reach here; they map through ``arch_for_family``.)
+            continue
         xr = _trial_collect(data, code_regions, arch_info, endian, spans)
         if xr is not None and _accepts(xr, spans):
             return xr

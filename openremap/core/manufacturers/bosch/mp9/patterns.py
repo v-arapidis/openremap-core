@@ -7,7 +7,8 @@ Covers the Bosch Motronic MP 9.0 family:
              e.g. Seat Ibiza 1.4, VW Polo 1.4, Skoda Felicia 1.3
              64KB (0x10000) dumps
 
-These are Motorola 68HC11-based ECUs — the Motronic MP 9.0 generation sits
+These are 8051-based ECUs (the reset vector is an 8051 LJMP table) — the
+Motronic MP 9.0 generation sits
 between the earlier M1.x/M2.x and the later ME7 families.
 
 Binary structure:

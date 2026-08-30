@@ -6,7 +6,7 @@ binaries — 64 KB dumps from VW/Seat/Skoda 1.0–1.6L engines (1996–2002).
 
 Binary layout (64 KB = 0x10000 bytes):
 
-    0x0000 – 0xFBFF   Code + calibration data (Motorola 68HC11)
+    0x0000 – 0xFBFF   Code + calibration data (8051)
     ~0xFC3C            Ident block: HW + SW + OEM part + family label
     ~0xFCBF            Slash-delimited metadata (family, DAMOS, date)
     ~0xFEE8            Printable ASCII lookup table (always last)
