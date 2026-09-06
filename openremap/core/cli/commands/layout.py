@@ -18,8 +18,8 @@ from pathlib import Path
 
 import typer
 
+from openremap.api.commands.layout import layout_binary
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.maps.layout import find_ident_blocks, segment
 
 
 def _read_bin(path: Path) -> bytes:
@@ -60,29 +60,17 @@ def layout(
       ident        readable ASCII metadata block (exact byte range)
     """
     data = _read_bin(file)
-    regions = segment(data)
-    ident = find_ident_blocks(data, min_run=min_run)
+    result = layout_binary(data, file.name, min_run=min_run)
+    regions = result["regions"]
+    ident = result["ident_blocks"]
 
     if as_json:
         out = {
             "file": str(file),
-            "file_size": len(data),
-            "regions": [
-                {
-                    "start": r.start,
-                    "end": r.end,
-                    "size": r.size,
-                    "kind": r.kind,
-                    "fill_byte": r.fill_byte,
-                    "fill_ratio": r.fill_ratio,
-                    "mean_entropy": r.mean_entropy,
-                    "tables_high_conf": r.tables_high_conf,
-                    "confidence": r.confidence,
-                }
-                for r in regions
-            ],
+            "file_size": result["file_size"],
+            "regions": regions,
             "ident_blocks": [
-                {"start": b.start, "end": b.end, "size": b.size}
+                {"start": b["start"], "end": b["end"], "size": b["size"]}
                 for b in ident
             ],
         }
@@ -116,20 +104,20 @@ def layout(
     }
     for r in regions:
         fill = (
-            f"0x{r.fill_byte:02X}"
-            if r.fill_byte is not None
+            f"0x{r['fill_byte']:02X}"
+            if r["fill_byte"] is not None
             else "—"
         )
         typer.echo(
-            f"  0x{r.start:06X}  0x{r.end:06X}  {r.size:>8,}  "
-            + typer.style(f"{r.kind:>12}", fg=colour[r.kind], bold=True)
-            + f"  {fill:>6}  {r.mean_entropy:>5.2f}  {r.tables_high_conf:>5d}  {r.confidence:>5.2f}"
+            f"  0x{r['start']:06X}  0x{r['end']:06X}  {r['size']:>8,}  "
+            + typer.style(f"{r['kind']:>12}", fg=colour[r['kind']], bold=True)
+            + f"  {fill:>6}  {r['mean_entropy']:>5.2f}  {r['tables_high_conf']:>5d}  {r['confidence']:>5.2f}"
         )
 
     for b in ident:
         typer.echo(
-            f"  0x{b.start:06X}  0x{b.end:06X}  {b.size:>8,}  "
+            f"  0x{b['start']:06X}  0x{b['end']:06X}  {b['size']:>8,}  "
             + typer.style(f"{'ident':>12}", fg=typer.colors.CYAN, bold=True)
-            + f"  {'—':>6}  {b.mean_entropy:>5.2f}  {b.tables_high_conf:>5d}  {b.confidence:>5.2f}"
+            + f"  {'—':>6}  {b['mean_entropy']:>5.2f}  {b['tables_high_conf']:>5d}  {b['confidence']:>5.2f}"
         )
     typer.echo("")

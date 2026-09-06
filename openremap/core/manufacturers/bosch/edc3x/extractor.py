@@ -191,6 +191,7 @@ from openremap.core.manufacturers.base import (
     BaseManufacturerExtractor,
     DetectionStrength,
 )
+from openremap.core.manufacturers.bosch._vag import find_vag_part_number
 
 # ---------------------------------------------------------------------------
 # Supported file sizes
@@ -647,6 +648,12 @@ class BoschEDC3xExtractor(BaseManufacturerExtractor):
                 ecu_variant = f"split-ROM-{chip_type}"
                 # Store the chip part number as a reference
                 oem_part = chip_part
+
+        # When none of the ident parsers produced an OEM part number, fall
+        # back to the shared letter-guarded VAG scan (e.g. "3B0907401" in a
+        # Passat AFB dump).
+        if oem_part is None:
+            oem_part = find_vag_part_number(data)
 
         result["oem_part_number"] = oem_part
         result["hardware_number"] = hardware_number

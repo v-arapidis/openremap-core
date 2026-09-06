@@ -1,0 +1,20 @@
+# identify_cook — reference workflow: identify both binaries, then cook.
+# Demonstrates multi-step linear composition + $input.* plumbing + `as` binding.
+
+name = "identify_cook"
+description = "Identify both binaries, then cook a recipe in one call."
+
+[[steps]]
+call = "identify"
+params = { path = "$input.original_path" }
+as = "original_id"
+
+[[steps]]
+call = "identify"
+params = { path = "$input.modified_path" }
+as = "modified_id"
+
+[[steps]]
+call = "cook"
+params = { original_path = "$input.original_path",
+           modified_path = "$input.modified_path" }

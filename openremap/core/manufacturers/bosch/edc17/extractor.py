@@ -593,9 +593,14 @@ class BoschExtractor(BaseManufacturerExtractor):
         Returns the first match found.
         bosch_hw_alt is intentionally excluded — it's a hardware number,
         not an OEM part number.
+
+        VAG hits must contain at least one letter — the pattern's trailing
+        group is optional, so without the guard a digit-only run (HW/SW
+        number) could otherwise slip through.
         """
         for key in ("vag_part_number", "mercedes_part_number", "bmw_part_number"):
-            hit = self._first_hit(raw_hits, key)
-            if hit:
+            for hit in raw_hits.get(key, []):
+                if key == "vag_part_number" and not re.search(r"[A-Z]", hit):
+                    continue
                 return hit
         return None

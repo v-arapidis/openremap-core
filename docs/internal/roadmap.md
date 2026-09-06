@@ -35,7 +35,7 @@ stabilisation (bug refinement + third-party OSS integration).
 | Item | Notes |
 |---|---|
 | Bundle convention | directory convention + `bundle.toml` |
-| Subaru checksum gaps | 512 KB SH7058 / 2 MB SH72546 table discovery |
+| Subaru checksum gaps | 512 KB SH7055 / 2 MB SH72546 table discovery |
 | Cross-firmware relocation | **0.8.0 milestone** — learn (stockA, tunedA) → apply to stockB of a different revision; community plugin tooling |
 | Synthetic corpus generator | **0.8.0 milestone** — build reproducible real-like stock+tuned `.bin` fixtures from scratch (headers, axes, maps, checksums), so anyone can generate a synthetic corpus without real ROMs (replaces the private `tests/data/` + `benchmarks/`, which stay gitignored) |
 | ISSUE-2 | Guard-3 strictness on non-unique anchors — decision |

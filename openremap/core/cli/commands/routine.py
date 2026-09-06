@@ -21,12 +21,8 @@ from typing import Optional
 
 import typer
 
-from openremap.core.arch import arch_for_family
-from openremap.core.arch.pseudocode import render_routine
+from openremap.api.commands.routine import routine_binary
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.identify.identifier import identify_ecu
-
-_ARCH_KEYS = ("c166", "tricore", "sh", "x86", "m680x", "m68k", "ppc")
 
 
 def _parse_offset(text: str) -> int:
@@ -76,31 +72,16 @@ def routine(
     off = _parse_offset(offset)
     data, _fmt = load_binary_file(file, "Binary")
 
-    key = arch
-    if key is None:
-        ident = identify_ecu(data=data, filename=file.name)
-        info = arch_for_family(ident.get("manufacturer"), ident.get("ecu_family"))
-        if info is None:
-            fam = ident.get("ecu_family") or "unknown"
-            typer.echo(
-                typer.style(
-                    f"No decoder for family '{fam}' — pass --arch to force one "
-                    f"(supported: {', '.join(_ARCH_KEYS)}).",
-                    fg=typer.colors.YELLOW,
-                ),
-                err=True,
-            )
-            raise typer.Exit(code=1)
-        key = info[0]
-
-    if key not in _ARCH_KEYS:
-        typer.echo(
-            typer.style(f"Unsupported arch {key!r}.", fg=typer.colors.RED, bold=True),
-            err=True,
+    try:
+        result = routine_binary(
+            data, file.name, off, arch=arch, before=before, after=after
         )
+    except ValueError as exc:
+        typer.echo(typer.style(str(exc), fg=typer.colors.RED, bold=True), err=True)
         raise typer.Exit(code=1)
 
-    lines = render_routine(data, off, arch=key, before=before, after=after)
+    key = result["arch"]
+    lines = result["lines"]
     typer.echo(f"\n  {file.name}  @ 0x{off:X}  ({key})\n")
     for line in lines:
         if line.startswith(">>"):

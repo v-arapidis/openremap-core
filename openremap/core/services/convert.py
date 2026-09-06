@@ -43,6 +43,15 @@ _LOOKS_LIKE = {
 }
 
 
+#: Friendly display names for the container format code ("ihex" / "srec" /
+#: "binary") — single home, shared by the CLI and the API layer.
+CONTAINER_NAMES: dict[str, str] = {
+    "ihex": "Intel HEX",
+    "srec": "Motorola S-Record",
+    "binary": "raw binary",
+}
+
+
 @dataclass
 class DecodeResult:
     """Result of decoding a binary-image file."""
@@ -142,3 +151,28 @@ def encode_srec(data: bytes, base: int = 0) -> str:
     bf = bincopy.BinFile()
     bf.add_binary(data, address=base)
     return bf.as_srec()
+
+
+#: Friendly display names for the decoded container format (single home,
+#: shared by the CLI and the API layer).
+FORMAT_NAMES = {"ihex": "Intel HEX", "srec": "Motorola S-Record", "binary": "raw binary"}
+
+
+def convert_image(raw: bytes, *, force: str | None = None) -> dict:
+    """Decode *raw* and return the summary + decoded bytes (base64).
+
+    Pure bytes-in / dict-out — the ``convert`` RPC handler does the path I/O.
+    """
+    import base64
+
+    result = decode_image(raw, force=force)
+    return {
+        "format": result.format,
+        "format_name": FORMAT_NAMES[result.format],
+        "size": len(result.data),
+        "address_min": result.address_min,
+        "address_max": result.address_max,
+        "segments": result.segments,
+        "warnings": result.warnings,
+        "data_b64": base64.b64encode(result.data).decode(),
+    }

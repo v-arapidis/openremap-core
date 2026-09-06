@@ -22,8 +22,8 @@ from typing import Annotated, Optional
 
 import typer
 
+from openremap.api.composite.health import health_binary
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.health import health_report
 
 _STATUS_COLOURS = {
     "ok": typer.colors.GREEN,
@@ -57,26 +57,10 @@ def health_cmd(
     """One-shot calibration health check (CI-gateable)."""
     data, _fmt = load_binary_file(file, "Binary")
 
-    report = health_report(data, file.name)
+    payload = health_binary(data, file.name)
 
     if as_json:
-        payload = {
-            "file": str(file),
-            "file_size": report.file_size,
-            "family": report.family,
-            "manufacturer": report.manufacturer,
-            "confidence_tier": report.confidence_tier,
-            "healthy": report.healthy,
-            "checks": [
-                {
-                    "name": c.name,
-                    "status": c.status,
-                    "message": c.message,
-                    "details": c.details,
-                }
-                for c in report.checks
-            ],
-        }
+        payload["file"] = str(file)
         content = json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True)
         if output is not None:
             try:
@@ -93,30 +77,30 @@ def health_cmd(
                 raise typer.Exit(code=1)
         else:
             typer.echo(content)
-        raise typer.Exit(code=0 if report.healthy else 1)
+        raise typer.Exit(code=0 if payload["healthy"] else 1)
 
     typer.echo("")
     typer.echo(typer.style("  OpenRemap — Calibration Health", bold=True))
-    ident = report.family or "Unknown"
-    status_colour = typer.colors.GREEN if report.healthy else typer.colors.RED
+    ident = payload["family"] or "Unknown"
+    status_colour = typer.colors.GREEN if payload["healthy"] else typer.colors.RED
     typer.echo(
         typer.style(
-            f"  {file.name}  •  {report.file_size:,} bytes  •  {ident}"
-            f"  •  {'HEALTHY' if report.healthy else 'ISSUES FOUND'}",
+            f"  {file.name}  •  {payload['file_size']:,} bytes  •  {ident}"
+            f"  •  {'HEALTHY' if payload['healthy'] else 'ISSUES FOUND'}",
             fg=status_colour, bold=True,
         )
     )
     typer.echo("")
-    for c in report.checks:
-        colour = _STATUS_COLOURS.get(c.status, typer.colors.WHITE)
+    for c in payload["checks"]:
+        colour = _STATUS_COLOURS.get(c["status"], typer.colors.WHITE)
         typer.echo(
-            f"  {c.name:<14}"
-            + typer.style(f"{c.status.upper():<5}", fg=colour, bold=True)
-            + f" {c.message}"
+            f"  {c['name']:<14}"
+            + typer.style(f"{c['status'].upper():<5}", fg=colour, bold=True)
+            + f" {c['message']}"
         )
-        for d in c.details:
+        for d in c["details"]:
             typer.echo(typer.style(f"      {d}", fg=typer.colors.BRIGHT_BLACK))
     typer.echo("")
 
-    if not report.healthy:
+    if not payload["healthy"]:
         raise typer.Exit(code=1)

@@ -648,7 +648,7 @@ class TestCookReadAndWriteErrors:
         modified.write_bytes(b"\x01" * 1024)
 
         with patch(
-            "openremap.core.cli.commands.cook.ECUDiffAnalyzer",
+            "openremap.core.services.recipes.cook.ECUDiffAnalyzer",
             side_effect=RuntimeError("diff engine crashed"),
         ):
             result = runner.invoke(app, ["cook", "--allow-non-unique", str(original), str(modified)])

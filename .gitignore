@@ -42,10 +42,6 @@ openremap/_rs/target/
 *.swo
 .DS_Store
 Thumbs.db
-ghidra/
-
-# ── Dev scratch / oracle harnesses (never committed) ──────────────────────────
-_scratch/
 
 # ---- Plans and Fixes ----------------------------------------
 fix.md
@@ -54,13 +50,13 @@ docs/offset-matching-audit.md
 docs/remaining-audit-items.md
 changes/
 todo/
-archive/
 
 # --- Agents ---------------------------------
 .claude/
 CLAUDE.md
 opencode.json
 AGENTS.md
+agents/
 
 # -----Testing Data - Never Commit! ------------
 tests/data/
@@ -68,7 +64,5 @@ tests/data/
 *.ori
 *.BIN
 *.ORI
-benchmarks/
-review/
 report.md
 notes/

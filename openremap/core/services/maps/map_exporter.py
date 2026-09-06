@@ -11,6 +11,7 @@ import csv
 import struct
 from pathlib import Path
 
+from openremap._rust import read_cells as _rs_read_cells  # type: ignore[import-untyped]
 from openremap.core.services.maps.map_hunter import MapTable
 
 # ---------------------------------------------------------------------------
@@ -132,25 +133,13 @@ def _read_cells(
     """Decode a rectangular block of cells.
 
     *stride* is the bytes-per-row of a compound (interleaved) table half;
-    ``None`` means contiguous rows.
+    ``None`` means contiguous rows.  Delegates to the Rust ``read_cells``
+    primitive (shared with ``diff_maps`` / ``map_classifier``).
     """
-    count = cols * rows
-    row_bytes = cols * cell_width
-    if stride is None or stride == row_bytes:
-        if cell_width == 1:
-            return list(data[offset : offset + count])
-        fmt = f"{'<' if le else '>'}{count}H"
-        return list(struct.unpack_from(fmt, data, offset))
-
-    out: list[int] = []
-    for r in range(rows):
-        row_off = offset + r * stride
-        if cell_width == 1:
-            out.extend(data[row_off : row_off + cols])
-        else:
-            fmt = f"{'<' if le else '>'}{cols}H"
-            out.extend(struct.unpack_from(fmt, data, row_off))
-    return out
+    return _rs_read_cells(
+        data, offset, cols, rows, cell_width,
+        "little" if le else "big", stride,
+    )
 
 
 def _write_csv(path: Path, rows: list[list[str]]) -> None:

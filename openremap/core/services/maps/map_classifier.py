@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import struct
 
+from openremap._rust import read_cells as _rs_read_cells  # type: ignore[import-untyped]
 from openremap.core.services.maps.map_hunter import MapTable
 
 # ---------------------------------------------------------------------------
@@ -70,25 +71,14 @@ def _read_axis(data: bytes, offset: int, count: int, byte_order: str) -> list[in
 
 
 def _read_cells(data: bytes, t: MapTable) -> list[int]:
-    """Read all cells of *t* — handles compound (strided) halves."""
-    cols, rows, cw = t.cols, t.rows, t.cell_width
-    le = t.byte_order == "little"
-    row_bytes = cols * cw
-    if t.stride is None or t.stride == row_bytes:
-        count = cols * rows
-        if cw == 1:
-            return list(data[t.offset : t.offset + count])
-        fmt = f"{'<' if le else '>'}{count}H"
-        return list(struct.unpack_from(fmt, data, t.offset))
-    out: list[int] = []
-    for r in range(rows):
-        off = t.offset + r * t.stride
-        if cw == 1:
-            out.extend(data[off : off + cols])
-        else:
-            fmt = f"{'<' if le else '>'}{cols}H"
-            out.extend(struct.unpack_from(fmt, data, off))
-    return out
+    """Read all cells of *t* — handles compound (strided) halves.
+
+    Delegates to the Rust ``read_cells`` primitive (shared with
+    ``diff_maps`` / ``map_exporter``).
+    """
+    return _rs_read_cells(
+        data, t.offset, t.cols, t.rows, t.cell_width, t.byte_order, t.stride,
+    )
 
 
 # ---------------------------------------------------------------------------

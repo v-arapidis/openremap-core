@@ -17,6 +17,7 @@ from openremap.core.manufacturers.bosch.m5x.extractor import BoschM5xExtractor
 from openremap.core.manufacturers.bosch.mp9.extractor import BoschMP9Extractor
 from openremap.core.manufacturers.bosch.me155.extractor import BoschME155Extractor
 from openremap.core.manufacturers.bosch.me7.extractor import BoschME7Extractor
+from openremap.core.manufacturers.bosch.me79.extractor import BoschME79Extractor
 from openremap.core.manufacturers.bosch.me9.extractor import BoschME9Extractor
 from openremap.core.manufacturers.base import BaseManufacturerExtractor
 
@@ -180,6 +181,12 @@ EXTRACTORS: list[BaseManufacturerExtractor] = [
     BoschMP9Extractor(),
     BoschME155Extractor(),
     BoschME7Extractor(),
+    # BoschME79Extractor — ME7.9.x (ME7.9.10, Fiat/Alfa/PSA 2006+): ident
+    # dialect "ZZ<<" at 0x10000 differs from the ME7 extractor's "ZZ<digit>"
+    # guard, so the two are disjoint.  Must run AFTER BoschME7Extractor (ME7
+    # keeps its existing claims; ME7.9.x bins are otherwise unclaimed) and
+    # BEFORE BoschME9Extractor (same size neighbourhood).
+    BoschME79Extractor(),
     BoschME9Extractor(),
     BoschEDC16Extractor(),
     BoschEDC15Extractor(),

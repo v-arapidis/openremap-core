@@ -17,10 +17,21 @@ from openremap.core.manufacturers.siemens.ppd.extractor import SiemensPPDExtract
 from openremap.core.manufacturers.siemens.ems2000.extractor import (
     SiemensEMS2000Extractor,
 )
+from openremap.core.manufacturers.siemens.gs20.extractor import (
+    SiemensGS20Extractor,
+)
 from openremap.core.manufacturers.base import BaseManufacturerExtractor
 
 # ---------------------------------------------------------------------------
 # Siemens extractor registry — order matters, most specific first.
+#
+# SiemensGS20Extractor — GS20 family: BMW automatic-gearbox controller (AGS).
+#                         Exactly 64 KB (65 536 bytes) — the smallest Siemens
+#                         size, fully disjoint from every other Siemens family.
+#                         Strong positive detection: header code "GADC9010" +
+#                         footer project string "G2210_0090C0AD10".  Must come
+#                         FIRST — strongest/most-specific signatures and a
+#                         unique size gate.
 #
 # SiemensSimtec56Extractor — Simtec 56 family (1995–2000): Opel/Vauxhall
 #                            X18XE and X20XEV petrol ECUs (Vectra B, Astra,
@@ -120,6 +131,7 @@ from openremap.core.manufacturers.base import BaseManufacturerExtractor
 # ---------------------------------------------------------------------------
 
 EXTRACTORS: list[BaseManufacturerExtractor] = [
+    SiemensGS20Extractor(),
     SiemensSimtec56Extractor(),
     SiemensMS43Extractor(),
     SiemensSimosExtractor(),
@@ -131,6 +143,7 @@ EXTRACTORS: list[BaseManufacturerExtractor] = [
 
 __all__ = [
     "EXTRACTORS",
+    "SiemensGS20Extractor",
     "SiemensMS43Extractor",
     "SiemensSID801Extractor",
     "SiemensSID803Extractor",

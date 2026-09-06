@@ -19,11 +19,9 @@ from typing import Optional
 
 import typer
 
+from openremap.api.commands.identify import identify_binary
 from openremap.core.cli.io import CONTAINER_NAMES, load_binary_file
-from openremap.core.services.identify.confidence import ConfidenceResult, score_identity
-from openremap.core.services.identify.vin_scanner import scan_vins
-from openremap.core.services.vin_decode import decode_vin
-from openremap.core.services.identify.identifier import identify_ecu
+from openremap.core.services.identify.confidence import ConfidenceResult
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -62,14 +60,12 @@ def _format_confidence_inline(confidence: ConfidenceResult) -> str:
     return f"{tier_str}{summary_str}"
 
 
-def _format_confidence_warnings(
-    confidence: ConfidenceResult, indent: str = "  "
-) -> str:
+def _format_confidence_warnings(warnings: list[str], indent: str = "  ") -> str:
     """Return a formatted warnings block, or an empty string when there are none."""
-    if not confidence.warnings:
+    if not warnings:
         return ""
     lines = []
-    for w in confidence.warnings:
+    for w in warnings:
         lines.append(indent + typer.style("⚠  " + w, fg=typer.colors.RED, bold=True))
     return "\n".join(lines)
 
@@ -170,7 +166,7 @@ def identify(
     container = CONTAINER_NAMES.get(fmt_code, fmt_code)
 
     try:
-        result = identify_ecu(data=data, filename=file.name)
+        result = identify_binary(data, file.name, container)
     except Exception as exc:
         typer.echo(
             typer.style(
@@ -180,46 +176,8 @@ def identify(
         )
         raise typer.Exit(code=1)
 
-    confidence = score_identity(result, filename=file.name, data=data)
-
-    # --- VIN candidate (optional, high floor) ---
-    # Vehicle identity is orthogonal to ECU identity and NEVER part of the
-    # match key.  Only the top candidate at >= 0.6 is shown (measured on the
-    # real corpus: 2/1871 files qualify — real dealer-flashed VINs; the
-    # 0.2-0.45 lookalike noise stays below the floor).
-    vin_top = None
-    vin_decoded = None
-    vins = scan_vins(data, min_confidence=0.6)
-    if vins:
-        vin_top = vins[0]
-        vin_decoded = decode_vin(vin_top.vin)
-
     if as_json:
-        json_out = dict(result)
-        json_out["container"] = container
-        json_out["confidence"] = {
-            "score": confidence.score,
-            "tier": confidence.tier,
-            "signals": [
-                {"delta": s.delta, "label": s.label} for s in confidence.signals
-            ],
-            "warnings": confidence.warnings,
-        }
-        json_out["vin"] = (
-            {
-                "candidate": vin_top.vin,
-                "confidence": vin_top.confidence,
-                "manufacturer": vin_decoded.manufacturer,
-                "region": vin_decoded.region,
-                "country": vin_decoded.country,
-                "years": vin_decoded.years,
-                "checksum_valid": vin_decoded.checksum_valid,
-                "decoded": vin_decoded.decoded,
-            }
-            if vin_top is not None
-            else None
-        )
-        content = json.dumps(json_out, indent=2)
+        content = json.dumps(result, indent=2)
         _write_output(content, output)
         return
 
@@ -235,10 +193,11 @@ def identify(
     )
     status_line = "  " + typer.style(status_label, fg=status_colour, bold=True)
 
-    table = _format_table({**result, "container": container})
+    table = _format_table(result)
 
     # --- Confidence section ---
-    conf_colour = _TIER_COLOURS.get(confidence.tier, typer.colors.WHITE)
+    conf = result["confidence"]
+    conf_colour = _TIER_COLOURS.get(conf["tier"], typer.colors.WHITE)
     conf_header = typer.style(
         f"\n  ── Confidence " + "─" * 37,
         bold=True,
@@ -246,24 +205,24 @@ def identify(
     conf_tier_line = (
         "  "
         + typer.style("Tier   ", dim=True)
-        + typer.style(confidence.tier.upper(), fg=conf_colour, bold=True)
+        + typer.style(conf["tier"].upper(), fg=conf_colour, bold=True)
     )
 
     conf_signals_lines = []
-    for sig in confidence.signals:
-        colour = typer.colors.GREEN if sig.delta >= 0 else typer.colors.RED
+    for sig in conf["signals"]:
+        colour = typer.colors.GREEN if sig["delta"] >= 0 else typer.colors.RED
         marker = (
             typer.style("+", fg=colour, bold=True)
-            if sig.delta >= 0
+            if sig["delta"] >= 0
             else typer.style("-", fg=colour, bold=True)
         )
         conf_signals_lines.append(
-            f"  {typer.style('Signal ', dim=True)} {marker}  {sig.label}"
+            f"  {typer.style('Signal ', dim=True)} {marker}  {sig['label']}"
         )
 
     conf_signals = "\n".join(conf_signals_lines)
 
-    warnings_block = _format_confidence_warnings(confidence, indent="  ")
+    warnings_block = _format_confidence_warnings(conf["warnings"], indent="  ")
     warnings_section = f"\n{warnings_block}" if warnings_block else ""
 
     confidence_section = (
@@ -271,24 +230,25 @@ def identify(
     )
 
     # --- VIN candidate section (only when a >= 0.6 candidate exists) ---
+    vin = result["vin"]
     vin_section = ""
-    if vin_top is not None:
+    if vin is not None:
         vin_header = typer.style("\n  ── VIN candidate " + "─" * 28, bold=True)
-        vin_lines = [f"  {vin_top.vin}  (confidence {vin_top.confidence:.2f})"]
-        if vin_decoded.decoded:
+        vin_lines = [f"  {vin['candidate']}  (confidence {vin['confidence']:.2f})"]
+        if vin["decoded"]:
             bits = []
-            if vin_decoded.manufacturer:
-                bits.append(vin_decoded.manufacturer)
-            if vin_decoded.country:
-                bits.append(vin_decoded.country)
-            if vin_decoded.years:
-                bits.append(str(vin_decoded.years[0]))
+            if vin["manufacturer"]:
+                bits.append(vin["manufacturer"])
+            if vin["country"]:
+                bits.append(vin["country"])
+            if vin["years"]:
+                bits.append(str(vin["years"][0]))
             if bits:
                 vin_lines.append("  " + ", ".join(bits) + " (decoded, unverified)")
         vin_lines.append(
             "  "
             + typer.style(
-                f"check digit {'valid' if vin_decoded.checksum_valid else 'invalid'} (ISO 3779)",
+                f"check digit {'valid' if vin['checksum_valid'] else 'invalid'} (ISO 3779)",
                 dim=True,
             )
         )

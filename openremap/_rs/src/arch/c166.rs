@@ -42,7 +42,7 @@ use pyo3::prelude::*;
 ///   - 0xF5 MOVB Rbn,[Rwm+#data16] (spec gap; manual)
 /// Everything else defaults to 2 bytes — the C166's dominant form.
 /// Oracle-verified against Ghidra on the real corpus: ~99.9% instruction-
-/// length agreement (see scripts/verify_c166.py).
+/// length agreement (see _dev/scripts/verify_c166.py).
 fn insn_size(b0: u8) -> usize {
     // JMPR: every 0x?D opcode is a 2-byte conditional jump.
     if b0 & 0x0F == 0x0D {
@@ -426,7 +426,7 @@ mod tests {
     fn sizes_verified_against_ghidra_spec() {
         // Opcodes the Ghidra SLEIGH spec defines as 4-byte that nefmoto's
         // table never covered (ALU/bit-op/CMP-inc-dec families) — the
-        // oracle catch (scripts/verify_c166.py).
+        // oracle catch (_dev/scripts/verify_c166.py).
         for op in [0x64, 0x66, 0x65, 0x75, 0x86, 0xB2, 0x82, 0x92, 0x9A, 0xC2, 0x8A, 0xAA, 0xCA, 0xE2] {
             assert_eq!(insn_size(op), 4, "opcode 0x{op:02X} should be 4 bytes per the spec");
         }

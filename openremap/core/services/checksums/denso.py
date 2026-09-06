@@ -1,10 +1,10 @@
 """
-Denso Subaru checksums — SH72531 1 MB petrol + EE20 diesel.
+Denso Subaru checksums — SH7058 1 MB petrol + EE20 diesel.
 
 Ground truth: the RomRaider source (GPL) `RomChecksum.java` documents the
 descriptor format for Subaru's EcuFlash "subarudbw" checksum tables, and
 EcuFlash defs (td-d/SubaruDefs) give table locations per CAL ID
-(0xFFB80 for the 1 MB SH72531 family, 0x7FB80 for some 512 KB SH7058,
+(0xFFB80 for the 1 MB SH7058 family, 0x7FB80 for some 512 KB SH7055,
 0x13F500/0x13FEFC for 2 MB SH72546).  Corpus verification showed the
 factory files verify with ONE refinement over the RomRaider port:
 
@@ -25,9 +25,9 @@ family-known address but is also structurally discoverable: consecutive
 entries with aligned, in-file regions that verify.
 
 Closed findings (2026-08-15):
-- 16-bit SH7055 ROMs: no stored checksum — a full single-byte mutation
+- 16-bit 68HC16Y5 ROMs: no stored checksum — a full single-byte mutation
   probe of a factory 192 KB file changes no other byte.
-- 512 KB SH7058 ROMs in the corpus carry no table (defs place one only
+- 512 KB SH7055 ROMs in the corpus carry no table (defs place one only
   for specific CAL IDs, e.g. E6PF101A @0x7FB80 — file absent from corpus).
 - 2 MB SH72546: tables exist in defs at per-ROM addresses but our two
   corpus files show no verifying table (their def addresses differ) —

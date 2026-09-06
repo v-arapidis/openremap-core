@@ -1,7 +1,7 @@
 """
 Shared helpers for Denso ECU extractors.
 
-The Denso Subaru firmware family (SH7055 / SH7058 / SH72531 and the EE20
+The Denso Subaru firmware family (68HC16Y5 / SH7055 / SH7058 and the EE20
 diesel unit) stores an 8-character "calibration ID" (CAL ID) in plain
 ASCII in an identity block near the start of the binary.  The Subaru
 tuning community (RomRaider / ECUFlash definitions) uses this CAL ID as
@@ -48,9 +48,13 @@ def cal_id_match(field: bytes) -> str | None:
     looks like a CAL ID, else None.
 
     Padding behaviour: the field is typically exactly 8 bytes.  A few ROMs
-    (e.g. A8DH2Z1Z, A2WC50) store a 6-character ID followed by two space
-    bytes — the padding is stripped before the shape test so the
-    truncated ID is still accepted.
+    store a truncated 6-character ID followed by two space bytes (e.g. the
+    ``A8DH2Z1Z`` file stores ``A8DH20``, the ``A2WC50`` file stores
+    ``A2WC50``) — the padding is stripped before the shape test so the
+    truncated ID is still accepted.  Note: for the ``A8DH2Z1Z`` file the
+    filename romid (``A8DH2Z1Z``, 8 chars) does not match the stored CAL ID
+    (``A8DH20``, 6 chars) — a known filename/label anomaly, not an extraction
+    bug (the full 8-char string lives in a data area, not the ident block).
     """
     stripped = field.rstrip(b" ")
     if len(stripped) < MIN_CAL_ID_LENGTH or len(stripped) > MAX_CAL_ID_LENGTH:
@@ -100,14 +104,24 @@ DENSO_COPR = b"Copr.DENSO"
 # Diesel-only anchor — the diesel ID block spells it "Cpyr.DENSO".
 DENSO_CPYR = b"Cpyr.DENSO"
 
-# 16-bit SH7055 anchor ("CACopyrightDENSO2002")
+# 16-bit 68HC16Y5 anchor ("CACopyrightDENSO2002")
 DENSO_COPYRIGHT = b"CopyrightDENSO"
 
 
 class DensoFamily:
-    """ECU family names reported by the Denso extractors."""
+    """ECU family names reported by the Denso extractors.
 
+    Oracle-corrected 2026-09-02 (see the Denso Subaru relabel entry in
+    ``changelog/0.7.6.md``): the Subaru petrol family labels were one CPU
+    generation off.  The detection buckets were correct (each size maps to
+    one clean CPU); only the names were shifted:
+
+        HC16Y5  — 160/192 KB, 16-bit Motorola HC16  (was mislabelled SH7055)
+        SH7055  — 512 KB, SuperH SH-2              (was mislabelled SH7058)
+        SH7058  — 1 MB, SuperH SH-2                (was mislabelled SH72531)
+    """
+
+    HC16Y5 = "68HC16Y5"
     SH7055 = "SH7055"
     SH7058 = "SH7058"
-    SH72531 = "SH72531"
     DIESEL = "Diesel"

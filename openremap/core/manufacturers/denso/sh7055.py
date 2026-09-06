@@ -1,23 +1,25 @@
 """
-Denso SH7055 ECU binary extractor (16-bit Subaru application).
+Denso SH7055 ECU binary extractor (SuperH, 512 KB Subaru application).
 
 Implements BaseManufacturerExtractor for the Denso SH7055-based ECU used
-in 2001-2004 Subaru models (Impreza/WRX/STi, Forester, Liberty/Legacy).
+in 2004-2007 Subaru models (Liberty/Legacy GT, Forester XT, Impreza).
+
+The 512 KB family was previously mislabelled ``SH7058`` (one CPU
+generation off).  See the Denso Subaru relabel entry in
+``changelog/0.7.6.md``.
 
 Binary layout:
 
-  160 KB (0x28000) or 192 KB (0x30000)
+  512 KB (0x80000)
 
-  The identity block sits at the top of the file:
+  Identity block:
 
-    0x01E0   0x02 0x40 pairs (SH7055 vector-table tail)
-    0x01FE   0x02 0x40 marker immediately before the CAL ID
-    0x0200   CAL ID, 8 ASCII chars (e.g. "A4RG060P")
-    0x0208   0x00
-    0x0209   "CACopyrightDENSO2002" anchor string
-
-  Unlike the 32-bit Denso layouts, the 16-bit block has no 8-character
-  internal ID field and no descriptor bytes.
+    0x1FFC   4-byte descriptor (b"\\x31\\x91\\x00\\x05" or
+              b"\\x34\\x11\\x00\\x01")
+    0x2000   CAL ID, 8 ASCII chars (e.g. "A2WC400H")
+    0x2008   0x00
+    0x2009   Internal ID, 8 ASCII chars (e.g. "86CAU_AT")
+    0x2023   "Copr.DENSO2005" anchor string
 """
 
 import hashlib
@@ -32,31 +34,31 @@ from openremap.core.manufacturers.base import (
     DetectionStrength,
 )
 from openremap.core.manufacturers.denso.base import (
-    DENSO_COPYRIGHT,
     DensoFamily,
     find_cal_id,
+    find_internal_id,
 )
 
-VALID_FILE_SIZES = (0x28000, 0x30000)
+VALID_FILE_SIZES = (0x80000,)
 
-# 0x02 0x40 pair immediately before the CAL ID field.
-CAL_MARKER = b"\x02\x40"
+# 4-byte descriptor immediately before the CAL ID field.
+VALID_MARKERS = (b"\x31\x91\x00\x05", b"\x34\x11\x00\x01")
 
-CAL_OFFSET = 0x200
+CAL_OFFSET = 0x2000
 
-# Copyright anchor sits at CAL_OFFSET + 9 and is ~22 bytes long.
-COPYRIGHT_REGION = slice(0x209, 0x230)
+# "Copr.DENSO" anchor sits 0x23 bytes after the CAL ID.
+DENSO_REGION = slice(0x2010, 0x2040)
 
 
 class DensoSH7055Extractor(BaseManufacturerExtractor):
     """
-    Extractor for the Denso SH7055 16-bit ECU (Subaru application).
+    Extractor for the Denso SH7055 32-bit ECU (SuperH, Subaru application).
 
     Detection is anchored on:
-      - File size gate (160 KB or 192 KB)
-      - 0x02 0x40 marker bytes immediately before the CAL ID field
-      - CAL ID shape at the fixed 0x200 offset
-      - "CopyrightDENSO" anchor string after the CAL ID
+      - File size gate (512 KB)
+      - Descriptor bytes at 0x1FFC
+      - CAL ID shape at the fixed 0x2000 offset
+      - "Copr.DENSO" anchor string in the identity block
     """
 
     detection_strength = DetectionStrength.STRONG
@@ -85,7 +87,7 @@ class DensoSH7055Extractor(BaseManufacturerExtractor):
             return False
         evidence.append(SIZE_MATCH)
 
-        if data[0x1FE:0x200] != CAL_MARKER:
+        if data[0x1FFC:0x2000] not in VALID_MARKERS:
             self._set_evidence()
             return False
         evidence.append(MAGIC_MATCH)
@@ -95,7 +97,7 @@ class DensoSH7055Extractor(BaseManufacturerExtractor):
             return False
         evidence.append(IDENT_BLOCK)
 
-        if DENSO_COPYRIGHT not in data[COPYRIGHT_REGION]:
+        if b"DENSO" not in data[DENSO_REGION]:
             self._set_evidence()
             return False
         evidence.append(FAMILY_STRING)
@@ -117,21 +119,21 @@ class DensoSH7055Extractor(BaseManufacturerExtractor):
 
         result["raw_strings"] = self.extract_raw_strings(
             data=data,
-            region=slice(0x1E0, 0x400),
+            region=slice(0x1FF0, 0x2100),
             min_length=6,
             max_results=20,
         )
 
         cal_id = find_cal_id(data, CAL_OFFSET)
         result["software_version"] = cal_id
-        result["calibration_id"] = None
+        result["calibration_id"] = find_internal_id(data, CAL_OFFSET + 9)
         result["calibration_version"] = None
         result["sw_base_version"] = None
         result["hardware_number"] = None
         result["oem_part_number"] = None
         result["serial_number"] = None
         result["dataset_number"] = None
-        result["ident_block"] = (0x1E0, 0x230)
+        result["ident_block"] = (0x1FF0, 0x2040)
 
         ecu_family = DensoFamily.SH7055
         ecu_variant: Optional[str] = None

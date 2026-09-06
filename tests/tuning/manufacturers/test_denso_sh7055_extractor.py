@@ -1,20 +1,19 @@
 """
-Tests for DensoSH7055Extractor (16-bit Subaru application).
+Tests for DensoSH7055Extractor (SuperH, 512 KB Subaru application).
 
 Covers:
   - Identity properties: name ("Denso"), supported_families ("SH7055")
   - can_handle():
-      * True  — synthetic 160 KB and 192 KB bins with valid marker,
-                CAL ID, and "CopyrightDENSO" anchor
-      * False — wrong sizes, missing 0x02 0x40 marker, bad CAL ID shape,
-                missing copyright anchor
+      * True  — synthetic 512 KB bins with either descriptor variant,
+                CAL ID, and "Copr.DENSO" anchor
+      * False — wrong sizes, bad descriptor, bad CAL ID shape, missing
+                DENSO anchor
   - extract():
-      * required fields always present (manufacturer, file_size, md5,
-        sha256_first_64kb)
-      * software_version == CAL ID at 0x200
+      * required fields always present
+      * software_version == CAL ID at 0x2000
+      * calibration_id == internal ID at 0x2009
       * match_key == "SH7055::<CAL>"
-      * deterministic; filename does not affect identification fields
-  - Corpus (skip-guarded): every 160/192 KB file in tests/data/ECUs/Subaru
+  - Corpus (skip-guarded): every 512 KB file in tests/data/ECUs/Subaru
     is claimed by this extractor and yields a non-empty software_version.
 """
 
@@ -25,8 +24,8 @@ from pathlib import Path
 import pytest
 
 from openremap.core.manufacturers.denso.sh7055 import (
-    CAL_MARKER,
     DensoSH7055Extractor,
+    VALID_MARKERS,
 )
 
 DATA = Path(__file__).resolve().parents[3] / "tests" / "data"
@@ -34,17 +33,20 @@ HAS_SUBARU = (DATA / "ECUs" / "Subaru").is_dir()
 
 EXTRACTOR = DensoSH7055Extractor()
 
-SIZE_160KB = 0x28000
-SIZE_192KB = 0x30000
+SIZE = 0x80000
 
 
-def build_sh7055(size: int = SIZE_192KB, cal: bytes = b"A4RG060P") -> bytes:
+def build_sh7055(
+    marker: bytes = b"\x31\x91\x00\x05",
+    cal: bytes = b"A2WC400H",
+    internal: bytes = b"86CAU_AT",
+) -> bytes:
     """Build a valid Denso SH7055-style binary."""
-    buf = bytearray([0xFF] * size)
-    buf[0x1FE:0x200] = CAL_MARKER
-    buf[0x200 : 0x200 + len(cal)] = cal
-    copyr = b"CACopyrightDENSO2002"
-    buf[0x209 : 0x209 + len(copyr)] = copyr
+    buf = bytearray([0xFF] * SIZE)
+    buf[0x1FFC:0x2000] = marker
+    buf[0x2000 : 0x2000 + len(cal)] = cal
+    buf[0x2009 : 0x2009 + len(internal)] = internal
+    buf[0x2023:0x2031] = b"Copr.DENSO2005"
     return bytes(buf)
 
 
@@ -70,11 +72,12 @@ class TestIdentity:
 
 
 class TestCanHandleTrue:
-    def test_192kb(self):
-        assert EXTRACTOR.can_handle(build_sh7055(SIZE_192KB))
+    def test_main_marker(self):
+        assert EXTRACTOR.can_handle(build_sh7055())
 
-    def test_160kb(self):
-        assert EXTRACTOR.can_handle(build_sh7055(SIZE_160KB))
+    @pytest.mark.parametrize("marker", VALID_MARKERS)
+    def test_all_markers(self, marker):
+        assert EXTRACTOR.can_handle(build_sh7055(marker=marker))
 
     def test_evidence_tags(self):
         assert EXTRACTOR.can_handle(build_sh7055())
@@ -92,25 +95,21 @@ class TestCanHandleTrue:
 
 class TestCanHandleFalse:
     def test_wrong_sizes(self):
-        for size in (0x20000, 0x28001, 0x2FFFF, 0x30001, 0x40000, 0x80000, 0x100000):
-            assert not EXTRACTOR.can_handle(build_sh7055(size))
+        for size in (0x40000, 0x60000, 0x7FFFF, 0x80001, 0x100000, 0x180000):
+            assert not EXTRACTOR.can_handle(b"\xff" * size)
 
     def test_empty(self):
         assert not EXTRACTOR.can_handle(b"")
 
-    def test_missing_marker(self):
-        data = bytearray(build_sh7055())
-        data[0x1FE:0x200] = b"\x00\x00"
-        assert not EXTRACTOR.can_handle(bytes(data))
+    def test_bad_marker(self):
+        assert not EXTRACTOR.can_handle(build_sh7055(marker=b"\x31\x91\x00\x06"))
 
     def test_bad_cal_shape(self):
-        data = bytearray(build_sh7055())
-        data[0x200:0x208] = b"12345678"
-        assert not EXTRACTOR.can_handle(bytes(data))
+        assert not EXTRACTOR.can_handle(build_sh7055(cal=b"12345678"))
 
-    def test_missing_copyright(self):
+    def test_missing_deniso(self):
         data = bytearray(build_sh7055())
-        data[0x209:0x222] = b"\x00" * 0x19
+        data[0x2023:0x2031] = b"\x00" * 0xE
         assert not EXTRACTOR.can_handle(bytes(data))
 
     def test_evidence_cleared_on_false(self):
@@ -137,31 +136,21 @@ class TestExtract:
         r = EXTRACTOR.extract(data)
         assert r["md5"] == hashlib.md5(data).hexdigest()
         assert r["sha256_first_64kb"] == hashlib.sha256(data[:0x10000]).hexdigest()
-        assert len(r["sha256_first_64kb"]) == 64
 
     def test_software_version(self):
-        assert self._result()["software_version"] == "A4RG060P"
+        assert self._result()["software_version"] == "A2WC400H"
 
-    def test_truncated_cal_strips_padding(self):
-        data = bytearray(build_sh7055())
-        data[0x200:0x208] = b"A4RG06  "
-        r = EXTRACTOR.extract(bytes(data))
-        assert r["software_version"] == "A4RG06"
+    def test_calibration_id(self):
+        assert self._result()["calibration_id"] == "86CAU_AT"
 
     def test_ecu_family(self):
         assert self._result()["ecu_family"] == "SH7055"
 
     def test_match_key(self):
-        assert self._result()["match_key"] == "SH7055::A4RG060P"
+        assert self._result()["match_key"] == "SH7055::A2WC400H"
 
     def test_deterministic(self):
         assert self._result() == self._result()
-
-    def test_filename_does_not_affect_fields(self):
-        a = EXTRACTOR.extract(build_sh7055(), "one.hex")
-        b = EXTRACTOR.extract(build_sh7055(), "two.bin")
-        assert a["software_version"] == b["software_version"]
-        assert a["match_key"] == b["match_key"]
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +165,7 @@ class TestCorpus:
         [
             f
             for f in sorted(glob.glob(str(DATA / "ECUs" / "Subaru" / "**" / "*.hex"), recursive=True))
-            if Path(f).stat().st_size in (SIZE_160KB, SIZE_192KB)
+            if Path(f).stat().st_size == SIZE
         ],
         ids=lambda p: Path(p).name,
     )

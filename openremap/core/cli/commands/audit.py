@@ -17,8 +17,8 @@ from pathlib import Path
 
 import typer
 
+from openremap.api.commands.audit import audit_binary
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.recipes.audit import audit
 
 
 def _read_bin(path: Path, label: str) -> bytes:
@@ -89,7 +89,7 @@ def audit_cmd(
         raise typer.Exit(code=1)
 
     try:
-        result = audit(
+        result = audit_binary(
             stock_data,
             tuned_data,
             recipe_data,
@@ -111,31 +111,7 @@ def audit_cmd(
             "stock": str(stock),
             "tuned": str(tuned),
             "recipe": str(recipe),
-            "provenance": {
-                "ok": result.provenance_ok,
-                "recipe_sha256": result.recipe_sha256,
-                "stock_sha256": result.stock_sha256,
-            },
-            "fingerprint": {
-                "ok": result.fingerprint_ok,
-                "recipe": result.recipe_fingerprint,
-                "recomputed": result.recomputed_fingerprint,
-            },
-            "instruction_count": result.instruction_count,
-            "unaccounted": {
-                "bytes": result.unaccounted_bytes,
-                "blocks": [
-                    {
-                        "offset": b.offset,
-                        "size": b.size,
-                        "region": b.region_kind,
-                        "region_confidence": b.region_confidence,
-                    }
-                    for b in result.unaccounted_blocks
-                ],
-            },
-            "clean": result.clean,
-            "warnings": result.warnings,
+            **result,
         }
         typer.echo(json.dumps(out, indent=2, ensure_ascii=False, sort_keys=True))
         return
@@ -152,28 +128,33 @@ def audit_cmd(
     )
     typer.echo("")
 
+    provenance_ok = result["provenance"]["ok"]
+    fingerprint_ok = result["fingerprint"]["ok"]
+    unaccounted_blocks = result["unaccounted"]["blocks"]
+    unaccounted_bytes = result["unaccounted"]["bytes"]
+
     typer.echo(
-        f"  {ok if result.provenance_ok else bad}  Provenance — recipe built "
+        f"  {ok if provenance_ok else bad}  Provenance — recipe built "
         f"from this stock "
-        f"(sha256 {'match' if result.provenance_ok else 'MISMATCH'})"
+        f"(sha256 {'match' if provenance_ok else 'MISMATCH'})"
     )
     typer.echo(
-        f"  {ok if result.fingerprint_ok else bad}  Fingerprint — recipe "
+        f"  {ok if fingerprint_ok else bad}  Fingerprint — recipe "
         f"honestly describes the pair "
-        f"({'match' if result.fingerprint_ok else 'MISMATCH'})"
+        f"({'match' if fingerprint_ok else 'MISMATCH'})"
     )
 
-    if result.unaccounted_blocks:
+    if unaccounted_blocks:
         typer.echo(
-            f"  {bad}  Unaccounted — {result.unaccounted_bytes} byte(s) in "
-            f"{len(result.unaccounted_blocks)} block(s) changed but NOT in "
+            f"  {bad}  Unaccounted — {unaccounted_bytes} byte(s) in "
+            f"{len(unaccounted_blocks)} block(s) changed but NOT in "
             f"the recipe:"
         )
-        for b in result.unaccounted_blocks:
+        for b in unaccounted_blocks:
             typer.echo(
                 typer.style(
-                    f"     0x{b.offset:08X}  {b.size:>6} bytes  "
-                    f"[{b.region_kind}]",
+                    f"     0x{b['offset']:08X}  {b['size']:>6} bytes  "
+                    f"[{b['region']}]",
                     fg=typer.colors.YELLOW,
                 )
             )
@@ -183,7 +164,7 @@ def audit_cmd(
         )
 
     typer.echo("")
-    if result.clean:
+    if result["clean"]:
         typer.echo(
             typer.style(
                 "  ✅ The three artifacts are consistent.", fg=typer.colors.GREEN, bold=True

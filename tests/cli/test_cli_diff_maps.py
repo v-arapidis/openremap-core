@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.core.cli.commands.diff_maps import (
+from openremap.api.composite.diff_maps import (
     _axes_similar,
     _diff_cells,
     _json_safe,

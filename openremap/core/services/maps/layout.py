@@ -256,3 +256,47 @@ def find_ident_blocks(data: bytes, *, min_run: int = _ASCII_RUN_MIN) -> list[Reg
 def code_regions_from_layout(regions) -> list[tuple[int, int]]:
     """``[(start, end)]`` for regions with kind ``"code"``."""
     return [(r.start, r.end) for r in regions if r.kind == "code"]
+
+
+# ---------------------------------------------------------------------------
+# Layout report (bytes → JSON-safe dict)
+# ---------------------------------------------------------------------------
+
+
+def layout_binary(data: bytes, filename: str, *, min_run: int = 64) -> dict:
+    """Segment *data* into flash-layout blocks and return the JSON-safe dict."""
+    from openremap.core.serialize import to_json_safe
+
+    regions = segment(data)
+    ident = find_ident_blocks(data, min_run=min_run)
+    return to_json_safe(
+        {
+            "file": filename,
+            "file_size": len(data),
+            "regions": [
+                {
+                    "start": r.start,
+                    "end": r.end,
+                    "size": r.size,
+                    "kind": r.kind,
+                    "fill_byte": r.fill_byte,
+                    "fill_ratio": r.fill_ratio,
+                    "mean_entropy": r.mean_entropy,
+                    "tables_high_conf": r.tables_high_conf,
+                    "confidence": r.confidence,
+                }
+                for r in regions
+            ],
+            "ident_blocks": [
+                {
+                    "start": b.start,
+                    "end": b.end,
+                    "size": b.size,
+                    "mean_entropy": b.mean_entropy,
+                    "tables_high_conf": b.tables_high_conf,
+                    "confidence": b.confidence,
+                }
+                for b in ident
+            ],
+        }
+    )

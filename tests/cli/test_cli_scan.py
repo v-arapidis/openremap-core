@@ -625,7 +625,7 @@ class TestClassifyFileDirect:
         ext2.__class__.__name__ = "MockBExtractor"
         ext2.can_handle.return_value = True
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext1, ext2]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext1, ext2]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_CONTESTED
@@ -650,7 +650,7 @@ class TestClassifyFileDirect:
             "match_key": "mk_abc123",
         }
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED
@@ -675,7 +675,7 @@ class TestClassifyFileDirect:
             "match_key": None,
         }
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SW_MISSING
@@ -691,7 +691,7 @@ class TestClassifyFileDirect:
         ext.can_handle.return_value = True
         ext.extract.side_effect = RuntimeError("extraction crashed")
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SW_MISSING
@@ -716,7 +716,7 @@ class TestClassifyFileDirect:
             "match_key": "mk_cal001",
         }
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED
@@ -741,7 +741,7 @@ class TestClassifyFileDirect:
             "match_key": "mk_hw999",
         }
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED
@@ -755,7 +755,7 @@ class TestClassifyFileDirect:
         ext = MagicMock()
         ext.can_handle.return_value = False
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_UNKNOWN
@@ -1124,7 +1124,7 @@ class TestScanCLIUncoveredPaths:
         ext2.__class__.__name__ = "MockBExtractor"
         ext2.can_handle.return_value = True
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext1, ext2]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext1, ext2]):
             result = runner.invoke(app, ["scan", str(tmp_path)])
 
         assert result.exit_code == 0
@@ -1255,7 +1255,7 @@ class TestScanCLIUncoveredPaths:
         ext_bad.__class__.__name__ = "BadExtractor"
         ext_bad.can_handle.side_effect = RuntimeError("extractor internal crash")
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext_bad]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext_bad]):
             result = runner.invoke(app, ["scan", str(tmp_path)])
 
         # Scan should complete successfully even when an extractor raises
@@ -1282,7 +1282,7 @@ class TestScanCLIUncoveredPaths:
             "match_key": "mk_abc",  # key present → SCANNED
         }
 
-        with patch("openremap.core.cli.commands.scan.EXTRACTORS", [ext]):
+        with patch("openremap.core.manufacturers.scan.EXTRACTORS", [ext]):
             result = classify_file(b"\x00" * 1024, "test.bin")
 
         assert result.destination == DEST_SCANNED

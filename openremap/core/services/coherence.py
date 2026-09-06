@@ -131,8 +131,10 @@ class _Detector:
 
 
 #: Non-IronFelix detector key → family token(s).
-#: ``Denso`` tokens cover both the manufacturer name (Denso identity
-#: families are the SHxxxx CPU families, not "Denso") and the "SH" prefix.
+#: ``Denso`` tokens cover both the manufacturer name and the "SH" prefix:
+#: Denso identity families are the SHxxxx CPU families (SH7055/SH7058) plus
+#: the 16-bit 68HC16Y5, and the Denso descriptor-table checksum only exists
+#: on the SH families — so manufacturer match + "SH" prefix are sufficient.
 _DETECTOR_TOKENS: dict[str, tuple[str, ...]] = {
     "me7": ("ME7",),
     "ms43": ("MS43",),
@@ -150,6 +152,10 @@ _IRONFELIX_TOKENS: dict[str, tuple[str, ...]] = {
     "Hyundai Bosch M7.9.8": ("M7.9.8",),
     "China Bosch M7.9.7": ("M7.9.7",),
     "Citroen Bosch ME7.4.5": ("ME7",),
+    # Siemens GS20 (BMW AGS): identity family "GS20" corroborates the
+    # IronFelix GS20 checksum profiles (agree on stock, stale on tuned).
+    "Siemens GS20 TCU (64 KB data)": ("GS20",),
+    "Siemens GS20 TCU (256 KB program)": ("GS20",),
 }
 
 
@@ -158,8 +164,9 @@ def _family_matches(token: str, family: str | None, manufacturer: str | None) ->
 
     Tokens are ECU-family prefixes (case-insensitive ``startswith`` — the
     same convention as the arch table) OR exact manufacturer names
-    (``Denso``: Denso identity families are the SHxxxx CPU families, so
-    the checksum family is matched against the manufacturer instead).
+    (``Denso``: Denso identity families are the SHxxxx CPU families (plus
+    the 16-bit 68HC16Y5), so the checksum family is matched against the
+    manufacturer name and the "SH" prefix).
     """
     if not family:
         return False

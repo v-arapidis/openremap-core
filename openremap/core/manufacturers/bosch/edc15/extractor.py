@@ -71,6 +71,7 @@ from openremap.core.manufacturers.base import (
     EXCLUSION_CLEAR,
     FILL_PATTERN,
 )
+from openremap.core.manufacturers.bosch._vag import find_vag_part_number
 from openremap.core.manufacturers.bosch.edc15.patterns import (
     DETECTION_SIGNATURES,
     EDC15_FORMAT_E_IDENT_RE,
@@ -291,10 +292,13 @@ class BoschEDC15Extractor(BaseManufacturerExtractor):
         result["sw_base_version"] = None
         result["serial_number"] = None
         result["dataset_number"] = None
-        # oem_part_number may already be set by Format D (Step 5b) —
-        # only default to None if not already populated.
+        # oem_part_number may already be set by Format D (Step 5b) — for the
+        # other formats (A/B/C/E) fall back to the shared VAG part-number
+        # scan (letter-guarded), so e.g. "038906019CJ" in an ALH dump is
+        # still recovered even though those formats don't carry a structured
+        # OEM field.
         if "oem_part_number" not in result:
-            result["oem_part_number"] = None
+            result["oem_part_number"] = find_vag_part_number(data)
 
         # --- Step 8: Build match key ---
         # When software_version is present (Format A/B), it is used directly.

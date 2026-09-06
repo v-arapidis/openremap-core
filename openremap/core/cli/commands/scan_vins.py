@@ -15,9 +15,8 @@ from pathlib import Path
 
 import typer
 
+from openremap.api.commands.scan_vins import scan_vins_binary
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.identify.vin_scanner import scan_vins
-from openremap.core.services.vin_decode import decode_vin
 
 
 def scan_vins_cmd(
@@ -52,31 +51,12 @@ def scan_vins_cmd(
     """
     data, _fmt = load_binary_file(file, "Binary")
 
-    hits = scan_vins(data, min_confidence=min_confidence)
-    decoded = [decode_vin(h.vin) for h in hits]
+    result = scan_vins_binary(data, file.name, min_confidence=min_confidence)
+    candidates = result["candidates"]
 
     if as_json:
-        out = {
-            "file": str(file),
-            "file_size": len(data),
-            "candidates": [
-                {
-                    "offset": h.offset,
-                    "vin": h.vin,
-                    "confidence": h.confidence,
-                    "evidence": h.evidence,
-                    "mirror_count": h.mirror_count,
-                    "manufacturer": d.manufacturer,
-                    "region": d.region,
-                    "country": d.country,
-                    "years": d.years,
-                    "checksum_valid": d.checksum_valid,
-                    "decoded": d.decoded,
-                }
-                for h, d in zip(hits, decoded)
-            ],
-        }
-        typer.echo(json.dumps(out, indent=2, ensure_ascii=False, sort_keys=True))
+        result["file"] = str(file)
+        typer.echo(json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True))
         return
 
     typer.echo("")
@@ -84,13 +64,13 @@ def scan_vins_cmd(
     typer.echo(
         typer.style(
             f"  {file.name}  •  {len(data):,} bytes  •  "
-            f"{len(hits)} candidate(s) ≥ {min_confidence}",
+            f"{len(candidates)} candidate(s) ≥ {min_confidence}",
             dim=True,
         ),
     )
     typer.echo("")
 
-    if not hits:
+    if not candidates:
         typer.echo("  No VIN candidates found at this confidence level.")
         typer.echo("")
         return
@@ -102,23 +82,26 @@ def scan_vins_cmd(
         )
     )
     typer.echo(typer.style("  " + "─" * 66, dim=True))
-    for h, d in zip(hits, decoded):
+    for c in candidates:
         colour = (
             typer.colors.GREEN
-            if h.confidence >= 0.6
+            if c["confidence"] >= 0.6
             else typer.colors.YELLOW
         )
         decoded_suffix = ""
-        if d.decoded:
+        if c["decoded"]:
+            country = c["country"]
+            years = c["years"]
             decoded_suffix = (
-                f"  — {d.manufacturer}"
-                f"{f', {d.country}' if d.country else ''}"
-                f"{f', {d.years[0]}' if d.years else ''} (decoded, unverified)"
+                f"  — {c['manufacturer']}"
+                + (f", {country}" if country else "")
+                + (f", {years[0]}" if years else "")
+                + " (decoded, unverified)"
             )
         typer.echo(
-            f"  0x{h.offset:06X}  "
-            + typer.style(f"{h.vin:<19}", fg=colour, bold=h.confidence >= 0.6)
-            + f"  {h.confidence:>5.2f}  {', '.join(h.evidence)}"
+            f"  0x{c['offset']:06X}  "
+            + typer.style(f"{c['vin']:<19}", fg=colour, bold=c["confidence"] >= 0.6)
+            + f"  {c['confidence']:>5.2f}  {', '.join(c['evidence'])}"
             + typer.style(decoded_suffix, dim=True)
         )
     typer.echo("")

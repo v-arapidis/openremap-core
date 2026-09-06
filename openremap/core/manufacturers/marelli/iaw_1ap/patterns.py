@@ -136,6 +136,9 @@ SEARCH_REGIONS: Dict[str, slice] = {
     "family_area": slice(0x5F80, 0x5FA0),
     # Area around the sync marker for calibration ID extraction
     "cal_marker": slice(0x4800, 0x4820),
+    # Code + calibration area (before the "333…1ap" family-tag block at
+    # 0x5F4D) — holds the OEM part-number digit run (observed at 0x051C0).
+    "part_number_area": slice(0x1000, 0x5F00),
     # Full binary — used for exclusion checks and sync marker search
     "full": slice(0x0000, None),
 }
@@ -153,11 +156,16 @@ PATTERNS: Dict[str, bytes] = {
     # Lowercase family tag — the only reliable ASCII identifier
     # e.g. "1ap"
     "family_tag": rb"1ap",
+    # OEM part number — a 10–11 digit ASCII run in the code+cal area.
+    # Observed value "55598889641" at 0x051C0 (closed sources report the
+    # same number minus the leading 5: "5598889641").  Label heuristic.
+    "oem_part_number": rb"[0-9]{10,11}",
 }
 
 # Map pattern names to their search regions
 PATTERN_REGIONS: Dict[str, str] = {
     "family_tag": "family_area",
+    "oem_part_number": "part_number_area",
 }
 
 # ---------------------------------------------------------------------------

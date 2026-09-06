@@ -1,5 +1,5 @@
 """
-Denso Subaru checksum tests (SH72531 1 MB descriptor table).
+Denso Subaru checksum tests (SH7058 1 MB descriptor table).
 
 Corpus validation (skip-guarded): the CAN-era 1 MB factory ROMs carry a
 descriptor table that verifies fully; flipping one byte in a covered

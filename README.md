@@ -59,7 +59,7 @@ Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
 
 ## What it is
 
-- **Identify** — 36 extractors across 6 OEMs (Bosch, Siemens, Delphi,
+- **Identify** — 38 extractors across 6 OEMs (Bosch, Siemens, Delphi,
   Magneti Marelli, Denso, Hitachi), each result with a confidence tier
   and the evidence behind it
 - **Health-check** — one command: checksums, axis sanity, map-count
@@ -77,7 +77,7 @@ Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
 
 ## Supported ECUs
 
-6 manufacturers, 36 extractors — from LH-Jetronic (1982) to EDC17 and
+6 manufacturers, 38 extractors — from LH-Jetronic (1982) to EDC17 and
 Denso/Hitachi Subaru (2020s). → [Per-family reference](https://docs.openremap.com/manufacturers/)
 
 ## Decoders & CPU coverage
@@ -101,7 +101,7 @@ pseudo-decompiler. Two backends cover the supported families:
 | 8051 (MCS-51) | Rust | M1.8, M2.x, MP9, M4.x, Mono-Motronic, SIMOS, Simtec56 |
 | MCS-96 (8096) | Rust | EDC1, EDC3 |
 | TriCore | capstone | EDC16, EDC17, MED9, MED17 |
-| SuperH | capstone | SH7055, SH7058, SH72531, SH72546 |
+| SuperH | capstone | SH7055, SH7058, SH72546 |
 | M680X (68HC11 / 6800) | capstone | M1.3, M1.7, M3.x, MP3.x, MP7.2, LH-Jetronic |
 | 68K (68000 / CPU32) | capstone | M1.5.5, M1.55, IAW 4LV |
 | PowerPC | capstone | MJD 6JF |
@@ -110,9 +110,11 @@ pseudo-decompiler. Two backends cover the supported families:
 Every mapping above is evidence-backed: an internal audit established each
 family's CPU from reset-vector header bytes and independent decoder
 evidence, and corrected several extractor docstrings along the way (M2.x /
-MP9 / M4.x are 8051, not 68xxx; EDC16 / MED9 are TriCore, not C166). Denso
-EE20 is believed to be SuperH per community docs, but there is no corpus
-binary to verify against yet.
+MP9 / M4.x are 8051, not 68xxx; EDC16 / MED9 are TriCore, not C166). The
+16-bit Denso Subaru units are Motorola 68HC16 (CPU16) — capstone has no
+HC16 support, so they are not disassembled. Denso EE20 is believed to be
+SuperH per community docs, but there is no corpus binary to verify against
+yet.
 
 ## Documentation
 

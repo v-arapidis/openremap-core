@@ -12,15 +12,15 @@ Examples:
     openremap convert corrupt.hex --format ihex             # strict parse
 """
 
+import base64
 import json as stdjson
 from pathlib import Path
 from typing import Optional
 
 import typer
 
-from openremap.core.services.convert import DecodeResult, decode_image
+from openremap.api.commands.convert import convert_image
 
-_FMT_NAMES = {"ihex": "Intel HEX", "srec": "Motorola S-Record", "binary": "raw binary"}
 _FMT_CHOICES = ("auto", "ihex", "srec", "bin")
 
 
@@ -87,7 +87,7 @@ def convert(
 
     force = None if format == "auto" else format
     try:
-        result: DecodeResult = decode_image(raw, force=force)
+        result = convert_image(raw, force=force)
     except ValueError as exc:
         typer.echo(
             typer.style(
@@ -101,7 +101,7 @@ def convert(
 
     out_path = output or (input.parent / f"{input.stem}.bin")
     try:
-        out_path.write_bytes(result.data)
+        out_path.write_bytes(base64.b64decode(result["data_b64"]))
     except OSError as exc:
         typer.echo(
             typer.style(
@@ -113,20 +113,20 @@ def convert(
         )
         raise typer.Exit(code=1)
 
-    for warning in result.warnings:
+    for warning in result["warnings"]:
         typer.echo(typer.style(f"  ⚠  {warning}", fg=typer.colors.YELLOW), err=True)
 
     if as_json:
         payload = {
             "input": str(input),
-            "format": result.format,
-            "format_name": _FMT_NAMES[result.format],
+            "format": result["format"],
+            "format_name": result["format_name"],
             "output": str(out_path),
-            "size": len(result.data),
-            "address_min": result.address_min,
-            "address_max": result.address_max,
-            "segments": result.segments,
-            "warnings": result.warnings,
+            "size": result["size"],
+            "address_min": result["address_min"],
+            "address_max": result["address_max"],
+            "segments": result["segments"],
+            "warnings": result["warnings"],
         }
         typer.echo(
             stdjson.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True)
@@ -134,7 +134,7 @@ def convert(
         return
 
     typer.echo(
-        f"  {_FMT_NAMES[result.format]:<20}  {len(result.data):,} bytes"
-        f"{'  @ 0x%X-0x%X' % (result.address_min, result.address_max - 1) if result.address_min is not None else ''}"
+        f"  {result['format_name']:<20}  {result['size']:,} bytes"
+        f"{'  @ 0x%X-0x%X' % (result['address_min'], result['address_max'] - 1) if result['address_min'] is not None else ''}"
     )
     typer.echo(f"  Saved to {out_path}")

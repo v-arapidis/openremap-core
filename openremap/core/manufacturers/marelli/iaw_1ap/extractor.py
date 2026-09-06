@@ -54,7 +54,10 @@ Extraction:
     - ecu_family        = "IAW 1AP"
     - software_version  = None  (not stored in binary)
     - hardware_number   = None  (not stored in binary)
-    - oem_part_number   = None  (not stored in binary)
+    - oem_part_number   = 10-11 digit ASCII run in the code+cal area
+                          (e.g. "55598889641" at 0x051C0) — heuristic;
+                          closed sources report the same value minus the
+                          leading 5 ("5598889641").
     - calibration_id    = 8 hex chars from the 4 bytes after the AA55CC33
                           sync marker at offset 0x4810, e.g. "50960654"
 
@@ -86,6 +89,7 @@ from openremap.core.manufacturers.marelli.iaw_1ap.patterns import (
     EXPECTED_SIZE,
     FAMILY_ANCHOR,
     FAMILY_TAG,
+    PATTERN_REGIONS,
     PATTERNS,
     SEARCH_REGIONS,
     SYNC_MARKER,
@@ -223,11 +227,11 @@ class MarelliIAW1APExtractor(BaseManufacturerExtractor):
         result["ecu_family"] = FAMILY_TAG
         result["ecu_variant"] = FAMILY_TAG
 
-        # --- Step 3: Run regex patterns for the family tag ---
+        # --- Step 3: Run regex patterns for the family tag + part number ---
         raw_hits = self._run_all_patterns(
             data=data,
             patterns=PATTERNS,
-            pattern_regions={"family_tag": "family_area"},
+            pattern_regions=PATTERN_REGIONS,
             search_regions=SEARCH_REGIONS,
         )
 
@@ -235,10 +239,12 @@ class MarelliIAW1APExtractor(BaseManufacturerExtractor):
         calibration_id = self._extract_calibration_id(data)
         result["calibration_id"] = calibration_id
 
-        # --- Step 5: Fields not present in IAW 1AP binaries ---
+        # --- Step 5: OEM part number — 10-11 digit run (heuristic) ---
+        result["oem_part_number"] = self._first_hit(raw_hits, "oem_part_number")
+
+        # --- Step 6: Fields not present in IAW 1AP binaries ---
         result["software_version"] = None
         result["hardware_number"] = None
-        result["oem_part_number"] = None
         result["calibration_version"] = None
         result["sw_base_version"] = None
         result["serial_number"] = None

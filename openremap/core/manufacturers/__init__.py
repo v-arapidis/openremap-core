@@ -12,9 +12,9 @@ Adding a new built-in manufacturer:
     4. Import the package here and unpack it into BUILTIN_EXTRACTORS below
 
 Inter-manufacturer priority rationale:
-    Bosch first   — largest family count (18 extractors), strongest positive
+    Bosch first   — largest family count (19 extractors), strongest positive
                     signatures (ZZ markers, TSW strings, 1037/0261 part numbers).
-    Siemens       — 6 extractors with strong 5WK9 / PPD / SID signatures that
+    Siemens       — 8 extractors with strong 5WK9 / PPD / SID signatures that
                     are disjoint from Bosch.
     Delphi        — DEL header, HC12 pointer tables, GM part numbers.
                     Must run after Siemens because Multec S shares the 128 KB
@@ -25,7 +25,7 @@ Inter-manufacturer priority rationale:
                     implemented manufacturers because several Marelli extractors
                     use weaker heuristics (e.g. IAW 1AP has only a 3-byte "1ap"
                     anchor).
-    Denso         — SH7055/SH7058/SH72531/diesel Subaru-application families.
+    Denso         — 68HC16Y5/SH7055/SH7058/diesel Subaru-application families.
                     Anchored on identity-block descriptors + CAL ID + Denso
                     copyright strings.  Sizes (160K-1MB) are disjoint from the
                     European families; runs after Marelli.

@@ -830,6 +830,27 @@ class TestExtractOemPartNumber:
         if result["oem_part_number"] is not None:
             assert isinstance(result["oem_part_number"], str)
 
+    def test_vag_oem_digit_at_position_three(self):
+        """Digit at position 3 (e.g. '038906016L') is a valid VAG PN."""
+        buf = bytearray(make_edc16_1mb_bin())
+        write(buf, 0xC0C00, b"\x00038906016L\x00")
+        result = EXTRACTOR.extract(bytes(buf))
+        assert result["oem_part_number"] == "038906016L"
+
+    def test_vag_oem_platform_prefix_4b(self):
+        """Platform-code part numbers (e.g. '4B0906018DF') are detected."""
+        buf = bytearray(make_edc16_1mb_bin())
+        write(buf, 0xC0C00, b"\x004B0906018DF\x00")
+        result = EXTRACTOR.extract(bytes(buf))
+        assert result["oem_part_number"] == "4B0906018DF"
+
+    def test_vag_oem_rejects_digit_only_hw(self):
+        """Digit-only HW/SW runs must never be reported as part numbers."""
+        buf = bytearray(make_edc16_1mb_bin())
+        write(buf, 0xC0C00, b"\x000261200352\x00")  # Bosch HW number
+        result = EXTRACTOR.extract(bytes(buf))
+        assert result["oem_part_number"] is None
+
 
 # ---------------------------------------------------------------------------
 # extract() — always-None fields

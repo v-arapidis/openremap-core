@@ -8,13 +8,14 @@ module-name = "openremap._rust"
 python-source = "."
 features = ["pyo3/abi3-py310", "pyo3/extension-module"]
 exclude = ["openremap/_rs/target/**"]
+include = ["openremap/api/workflows/*.toml"]
 
 [tool.uv]
 package = true
 
 [project]
 name = "openremap"
-version = "0.7.5"
+version = "0.7.6"
 description = "ECU binary analysis and patching toolkit — diff, validate, and apply tuning recipes to automotive ECU binaries."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -46,12 +47,13 @@ dependencies = [
     "vininfo>=1.11",
     "rapidfuzz>=3.14",
     "capstone>=5.0.9",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.scripts]
 openremap        = "openremap.core.cli.main:main"
 openremap-tui    = "openremap.tui.main:run"
-openremap-server = "openremap.server:main"
+openremap-api    = "openremap.api.transport.stdio:main"
 
 [project.urls]
 Homepage = "https://www.openremap.com"

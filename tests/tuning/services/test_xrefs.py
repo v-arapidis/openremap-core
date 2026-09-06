@@ -80,10 +80,16 @@ def test_arch_for_family_edc17_tricore():
 
 
 def test_arch_for_family_denso_and_hitachi_sh():
-    for fam in ("SH7055", "SH7058", "SH72531", "SH72546"):
+    for fam in ("SH7055", "SH7058", "SH72546"):
         info = arch_for_family("Denso", fam)
         assert info is not None, fam
         assert info[0] == "sh", fam
+
+
+def test_arch_for_family_denso_hc16_unmapped():
+    # The 16-bit Denso family (68HC16Y5) is Motorola HC16/CPU16 — capstone
+    # has no CPU16 support, so it must stay unmapped (not wrongly SuperH).
+    assert arch_for_family("Denso", "68HC16Y5") is None
 
 
 def test_arch_for_family_tricore_families():

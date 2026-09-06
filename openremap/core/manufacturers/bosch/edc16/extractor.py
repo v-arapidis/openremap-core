@@ -114,6 +114,7 @@ from openremap.core.manufacturers.base import (
     MAGIC_MATCH,
     SIZE_MATCH,
 )
+from openremap.core.manufacturers.bosch._vag import find_vag_part_number
 from openremap.core.manufacturers.bosch.edc16.patterns import (
     ACTIVE_STARTS_BY_SIZE,
     DETECTION_SIGNATURES,
@@ -658,20 +659,17 @@ class BoschEDC16Extractor(BaseManufacturerExtractor):
         Attempt to extract an OEM (vehicle-manufacturer) part number.
 
         Searches the full binary for common OEM part number formats:
-          - VAG: e.g. "03G906016J", "03L 906 018 AJ"
+          - VAG: e.g. "03G906016J", "038906016L", "03L 906 018 AJ"
           - BMW: e.g. "12 14 7 626 350"
 
         Returns:
             Normalized OEM part number string, or None.
         """
-        # VAG pattern: 0[2-9]X NNN NNN [XX]  (with optional spaces)
-        m = re.search(
-            rb"(?<![A-Z0-9])0[2-9][A-Z][\s]?\d{3}[\s]?\d{3}(?:[\s]?[A-Z]{1,2})?(?![A-Z0-9])",
-            data,
-        )
-        if m:
-            val = m.group(0).decode("ascii", errors="ignore")
-            return val.replace(" ", "").strip()
+        # VAG pattern — shared scanner (letter-content guarded, so digit-only
+        # HW/SW/calibration runs are never mistaken for part numbers).
+        oem = find_vag_part_number(data)
+        if oem:
+            return oem
 
         # BMW pattern: NN NN N NNN NNN
         m = re.search(

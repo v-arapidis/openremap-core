@@ -57,8 +57,11 @@ _ARCH_TABLE: dict[str, tuple[str, int, int, bool]] = {
     "EDC16": ("tricore", CS_ARCH_TRICORE, 0, False),
     "SH7055": ("sh", CS_ARCH_SH, CS_MODE_SH2, True),
     "SH7058": ("sh", CS_ARCH_SH, CS_MODE_SH2, True),
-    "SH72531": ("sh", CS_ARCH_SH, CS_MODE_SH2, True),
     "SH72546": ("sh", CS_ARCH_SH, CS_MODE_SH2A, True),
+    # NOTE: the Denso 16-bit family is 68HC16Y5 (Motorola HC16 / CPU16), not
+    # SuperH — capstone has no CPU16 support, so it is deliberately unmapped.
+    # arch_for_family returns None and the analyze pipeline falls through to
+    # the detect_arch cascade (which finds nothing → clean skip).
     # C166/ST10 families (Phase 2) — Rust decoder + DPP-window translation.
     # Validated on the real corpus: ME7/ME7.x, ME9, EDC15, MS43, PPD1.x,
     # SID801/803, EMS2000, M5.x, ME1.5.5.

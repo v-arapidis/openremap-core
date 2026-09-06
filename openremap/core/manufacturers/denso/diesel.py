@@ -8,7 +8,7 @@ Binary layout:
 
   1 MB (0x100000)
 
-  Unlike the petrol SH72531 units, the diesel identity block sits at
+  Unlike the petrol SH7058 units, the diesel identity block sits at
   0x4000 and its copyright anchor is spelled "Cpyr.DENSO" (missing "o"):
 
     0x4000   b"K" + 3 digits (production marker, e.g. "K321")
@@ -63,7 +63,7 @@ class DensoDieselExtractor(BaseManufacturerExtractor):
       - CAL ID shape at the fixed 0x400C offset
       - "Cpyr.DENSO" anchor string in the identity block
 
-    Runs before DensoSH72531Extractor (same 1 MB size) because its
+    Runs before DensoSH7058Extractor (same 1 MB size) because its
     identity block and anchor string are distinct from every petrol
     layout.
     """

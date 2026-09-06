@@ -57,6 +57,11 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(maps::map_hunter::scan_map_axes, m)?)?;
     m.add_function(wrap_pyfunction!(maps::map_hunter::scan_map_tables, m)?)?;
 
+    // ── Diff-maps cell machinery ─────────────────────────────────────────
+    m.add_function(wrap_pyfunction!(maps::diff_cells::read_cells, m)?)?;
+    m.add_function(wrap_pyfunction!(maps::diff_cells::best_alignment, m)?)?;
+    m.add_function(wrap_pyfunction!(maps::diff_cells::diff_cells, m)?)?;
+
     // ── Checksum sweep ───────────────────────────────────────────────────
     m.add_function(wrap_pyfunction!(checksums::checksum::checksum_compute, m)?)?;
     m.add_function(wrap_pyfunction!(checksums::checksum::me7_multipoint_scan, m)?)?;

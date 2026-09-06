@@ -12,16 +12,13 @@ Examples:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Optional
 
 import typer
 
+from openremap.api.composite.cook import _tag_regions, cook_recipe
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.maps.map_hunter import scan_map_tables
-from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
-from openremap.core.services.recipes.recipe_regions import tag_instruction_regions
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -49,18 +46,6 @@ def _read_bin(path: Path, label: str) -> bytes:
     _check_bin(path, label)
     data, _fmt = load_binary_file(path, label)
     return data
-
-
-def _tag_regions(recipe: dict, original_data: bytes, tables: list | None = None) -> dict:
-    """Advisory flash-layout region tags for recipe instructions.
-
-    Never blocks and never filters: any failure silently degrades to an
-    empty summary so region tagging can never fail a cook.
-    """
-    try:
-        return tag_instruction_regions(recipe, original_data, tables)
-    except Exception:
-        return {"tagged": 0, "risky": 0, "by_region": {}}
 
 
 def _print_region_warning(recipe: dict, summary: dict) -> None:
@@ -231,38 +216,15 @@ def cook(
     )
 
     try:
-        analyzer = ECUDiffAnalyzer(
-            original_data=original_data,
-            modified_data=modified_data,
-            original_filename=original.name,
-            modified_filename=modified.name,
+        result = cook_recipe(
+            original_data,
+            modified_data,
+            original.name,
+            modified.name,
             context_size=context_size,
             require_unique=not allow_non_unique,
+            annotate_maps=annotate_maps,
         )
-        recipe = analyzer.build_recipe()
-
-        # One structural scan, shared by map annotation and region tags —
-        # never scan the stock binary twice.
-        shared_tables = scan_map_tables(
-            original_data, min_score=0.55, max_series_tables=16,
-        )
-
-        if annotate_maps:
-            from openremap.core.services.recipes.recipe_maps import attach_maps
-
-            attach_maps(recipe, original_data, tables=shared_tables)
-            map_count = len(recipe["maps"])
-            typer.echo(
-                typer.style(
-                    f"\n  🗺  Annotated {map_count} calibration map(s) — "
-                    f"recipe schema bumped to 4.4.",
-                    fg=typer.colors.CYAN,
-                ),
-                err=True,
-            )
-
-        # Advisory flash-layout region tags (never blocks, never filters).
-        region_summary = _tag_regions(recipe, original_data, shared_tables)
     except Exception as exc:
         # Includes the size-mismatch hard error from the pre-cook guard and
         # the Guard-3 non-unique-anchor abort.
@@ -301,9 +263,24 @@ def cook(
             )
         raise typer.Exit(code=1)
 
+    recipe = result["recipe"]
+    warnings = result["warnings"]
+    map_count = result["map_count"]
+    region_summary = result["region_summary"]
+
+    if map_count is not None:
+        typer.echo(
+            typer.style(
+                f"\n  🗺  Annotated {map_count} calibration map(s) — "
+                f"recipe schema bumped to 4.4.",
+                fg=typer.colors.CYAN,
+            ),
+            err=True,
+        )
+
     # Surface any non-fatal warnings produced during recipe building
     # (e.g. ECU identity mismatch between original and modified).
-    for warning in analyzer.cook_warnings():
+    for warning in warnings:
         typer.echo(
             typer.style(
                 f"\n  ⚠  Warning: {warning}",
@@ -314,15 +291,10 @@ def cook(
         )
 
     if allow_non_unique:
-        non_unique_warnings = [
-            w for w in analyzer.cook_warnings() if "non-unique" in w
-        ]
+        non_unique_warnings = [w for w in warnings if "non-unique" in w]
         if non_unique_warnings:
             # Machine-readable stamp: this recipe is only safe on the exact
-            # binary it was cooked from.  tune/validate enforce it via the
-            # recipe's ecu.sha256 (hard refusal on any other file, unless
-            # the user passes --force).
-            recipe.setdefault("metadata", {})["portability"] = "same_file_only"
+            # binary it was cooked from (set by the API core).
             typer.echo(
                 typer.style(
                     f"\n  ⚠  {len(non_unique_warnings)} instruction(s) have non-unique "

@@ -1278,7 +1278,7 @@ class TestDeclaredIdentBlock:
             {"sw": b"A2WC400H", "cal": b"86CAU_AT"}
         )
         ident = _identity(
-            ecu_family="SH7058",
+            ecu_family="SH7055",
             software_version="A2WC400H",
             calibration_id="86CAU_AT",
             hardware_number=None,
@@ -1294,7 +1294,7 @@ class TestDeclaredIdentBlock:
         # generic scan would find nothing — the declaration must win.
         data = _bin_with_short_declared_ident({"sw": b"A2WC400H"})
         ident = _identity(
-            ecu_family="SH7058",
+            ecu_family="SH7055",
             software_version="A2WC400H",
             calibration_id=None,
             hardware_number=None,
@@ -1308,7 +1308,7 @@ class TestDeclaredIdentBlock:
     def test_field_outside_declared_block_no_bonus(self):
         data = _bin_with_short_declared_ident({"sw": b"A2WC400H"})
         ident = _identity(
-            ecu_family="SH7058",
+            ecu_family="SH7055",
             software_version="1037541778",  # not present anywhere
             calibration_id=None,
             hardware_number=None,
@@ -1333,7 +1333,7 @@ class TestDeclaredIdentBlock:
         data = bytearray(b"\xff" * 0x10000)
         data[0x2000:0x2018] = b"A2WC400H" + b" " * 8
         ident = _identity(
-            ecu_family="SH7058",
+            ecu_family="SH7055",
             software_version="A2WC400H",
             calibration_id=None,
             hardware_number=None,

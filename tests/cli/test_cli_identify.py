@@ -550,7 +550,7 @@ class TestIdentifyWithConfidenceWarnings:
         )
 
         with patch(
-            "openremap.core.cli.commands.identify.score_identity",
+            "openremap.core.services.identify.identify_binary.score_identity",
             return_value=mock_confidence,
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -578,7 +578,7 @@ class TestIdentifyWithConfidenceWarnings:
         )
 
         with patch(
-            "openremap.core.cli.commands.identify.score_identity",
+            "openremap.core.services.identify.identify_binary.score_identity",
             return_value=mock_confidence,
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -629,7 +629,7 @@ class TestIdentifyEcuException:
         f.write_bytes(b"\x00" * 1024)
 
         with patch(
-            "openremap.core.cli.commands.identify.identify_ecu",
+            "openremap.core.services.identify.identify_binary.identify_ecu",
             side_effect=RuntimeError("extraction engine crashed"),
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -644,7 +644,7 @@ class TestIdentifyEcuException:
         f.write_bytes(b"\x00" * 1024)
 
         with patch(
-            "openremap.core.cli.commands.identify.identify_ecu",
+            "openremap.core.services.identify.identify_binary.identify_ecu",
             side_effect=ValueError("bad binary format"),
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -680,7 +680,7 @@ class TestIdentifySignalsLoop:
         )
 
         with patch(
-            "openremap.core.cli.commands.identify.score_identity",
+            "openremap.core.services.identify.identify_binary.score_identity",
             return_value=mock_confidence,
         ):
             result = runner.invoke(app, ["identify", str(f)])
@@ -725,11 +725,11 @@ class TestIdentifySignalsLoop:
 
         with (
             patch(
-                "openremap.core.cli.commands.identify.identify_ecu",
+                "openremap.core.services.identify.identify_binary.identify_ecu",
                 return_value=mock_result,
             ),
             patch(
-                "openremap.core.cli.commands.identify.score_identity",
+                "openremap.core.services.identify.identify_binary.score_identity",
                 return_value=mock_confidence,
             ),
         ):

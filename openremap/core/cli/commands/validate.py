@@ -26,11 +26,13 @@ from typing import Optional
 
 import typer
 
+from openremap.api.commands.validate import (
+    validate_after_binary,
+    validate_before_binary,
+    validate_check_binary,
+)
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.recipes.preflight import check_same_file_only
-from openremap.core.services.recipes.validate_exists import ECUExistenceValidator, MatchStatus
-from openremap.core.services.recipes.validate_patched import ECUPatchedValidator
-from openremap.core.services.recipes.validate_strict import ECUStrictValidator
+from openremap.core.services.recipes.validate_exists import MatchStatus
 
 app = typer.Typer(
     help=(
@@ -163,16 +165,9 @@ def _run_before(
     )
 
     try:
-        validator = ECUStrictValidator(
-            target_data=target_data,
-            recipe=recipe_dict,
-            target_name=target.name,
-            recipe_name=recipe.name,
+        result = validate_before_binary(
+            target_data, recipe_dict, target.name, recipe.name
         )
-        size_warn = validator.check_file_size()
-        match_key_warn = validator.check_match_key()
-        validator.validate_all()
-        report = validator.to_dict()
     except Exception as exc:
         typer.echo(
             typer.style(
@@ -184,19 +179,13 @@ def _run_before(
         )
         raise typer.Exit(code=1)
 
-    # ── Same-file-only policy gate (ISSUE-2) ─────────────────────────
-    gate_ok, gate_msg = check_same_file_only(recipe_dict, target_data)
-    stamped = (
-        recipe_dict.get("metadata", {}).get("portability") == "same_file_only"
-    )
-    report["same_file_only"] = {
-        "stamped": stamped,
-        "allowed": gate_ok,
-        "note": gate_msg,
-    }
-    if stamped and not gate_ok:
-        # a same-file-only recipe on a different binary is never safe to patch
-        report["summary"]["safe_to_patch"] = False
+    report = result["report"]
+    size_warn = result["size_warn"]
+    match_key_warn = result["match_key_warn"]
+    gate_info = report.get("same_file_only", {})
+    stamped = gate_info.get("stamped", False)
+    gate_ok = gate_info.get("allowed", True)
+    gate_msg = gate_info.get("note")
 
     if as_json or output:
         _write_json(report, output, pretty=True)
@@ -296,16 +285,9 @@ def _run_check(
     )
 
     try:
-        validator = ECUExistenceValidator(
-            target_data=target_data,
-            recipe=recipe_dict,
-            target_name=target.name,
-            recipe_name=recipe.name,
+        result = validate_check_binary(
+            target_data, recipe_dict, target.name, recipe.name
         )
-        size_warn = validator.check_file_size()
-        match_key_warn = validator.check_match_key()
-        validator.validate_all()
-        report = validator.to_dict()
     except Exception as exc:
         typer.echo(
             typer.style(
@@ -316,6 +298,10 @@ def _run_check(
             err=True,
         )
         raise typer.Exit(code=1)
+
+    report = result["report"]
+    size_warn = result["size_warn"]
+    match_key_warn = result["match_key_warn"]
 
     if as_json or output:
         _write_json(report, output, pretty=True)
@@ -450,16 +436,9 @@ def _run_after(
     )
 
     try:
-        validator = ECUPatchedValidator(
-            patched_data=patched_data,
-            recipe=recipe_dict,
-            patched_name=patched_file.name,
-            recipe_name=recipe.name,
+        result = validate_after_binary(
+            patched_data, recipe_dict, patched_file.name, recipe.name
         )
-        size_warn = validator.check_file_size()
-        match_key_warn = validator.check_match_key()
-        validator.verify_all()
-        report = validator.to_dict()
     except Exception as exc:
         typer.echo(
             typer.style(
@@ -470,6 +449,10 @@ def _run_after(
             err=True,
         )
         raise typer.Exit(code=1)
+
+    report = result["report"]
+    size_warn = result["size_warn"]
+    match_key_warn = result["match_key_warn"]
 
     if as_json or output:
         _write_json(report, output, pretty=True)

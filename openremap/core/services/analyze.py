@@ -211,12 +211,19 @@ def analyze_binary(
     fast: bool = False,
     skip_maps: bool = False,
     container: str = "raw binary",
+    xref_mode: str = "v1",
 ) -> AnalyzeReport:
     """Analyse *data* and return the full descriptive report.
 
     ``fast`` skips the map scan, checksums, and the health verdict.
     ``skip_maps`` skips only the map scan (keeps checksums + health).
+    ``xref_mode`` picks the code-reference pipeline: ``"v1"`` (default,
+    unchanged) or ``"v2"`` (decoder calibration stays identical to v1; only
+    the confirmation bonus is stricter — a table earns it when already
+    high-confidence, ``score >= 0.85``, AND code-referenced).
     """
+    if xref_mode not in ("v1", "v2"):
+        raise ValueError(f"xref_mode must be 'v1' or 'v2', got {xref_mode!r}")
     ident = identify_ecu(data, filename)
 
     vins = scan_vins(data, min_confidence=_VIN_FLOOR)
@@ -242,19 +249,33 @@ def analyze_binary(
             ident.get("manufacturer"), ident.get("ecu_family")
         )
         codes = code_regions_from_layout(regions)
-        spans = _table_spans(tables)
-        if arch_info is None:
-            xrefs = detect_arch(data, codes, ident.get("ecu_endian"), spans)
+        if xref_mode == "v1":
+            # v1 (default — unchanged): every scanned table calibrates the
+            # decoder, and any code reference inside a data block earns the
+            # bonus.
+            spans = _table_spans(tables)
+            if arch_info is None:
+                xrefs = detect_arch(data, codes, ident.get("ecu_endian"), spans)
+            else:
+                xrefs = collect_xrefs(
+                    data,
+                    codes,
+                    arch_info,
+                    ident.get("ecu_endian"),
+                    spans=spans,
+                )
+            if xrefs.status == "ok":
+                tables = adjust_table_scores(tables, xrefs)
         else:
-            xrefs = collect_xrefs(
-                data,
-                codes,
-                arch_info,
-                ident.get("ecu_endian"),
-                spans=spans,
+            # v2 (opt-in): decoder calibration stays identical to v1 (full
+            # span set), only the confirmation bonus is strict (first-cell).
+            # Lives in maps/xrefs_v2.py so the default v1 path above is
+            # untouched.
+            from openremap.core.services.maps.xrefs_v2 import run_xrefs_v2
+
+            xrefs, tables = run_xrefs_v2(
+                data, arch_info, ident.get("ecu_endian"), codes, tables
             )
-        if xrefs.status == "ok":
-            tables = adjust_table_scores(tables, xrefs)
 
     checksums = None
     if not fast:
@@ -340,3 +361,23 @@ def _summarize_checksums(data: bytes) -> dict:
             for p in iron
         ]
     return out
+
+
+def analyze_binary_dict(
+    data: bytes,
+    filename: str,
+    *,
+    fast: bool = False,
+    skip_maps: bool = False,
+    container: str = "raw binary",
+    xref_mode: str = "v1",
+) -> dict:
+    """Run the full descriptive analysis and return the JSON-safe dict."""
+    return analyze_binary(
+        data,
+        filename,
+        fast=fast,
+        skip_maps=skip_maps,
+        container=container,
+        xref_mode=xref_mode,
+    ).to_dict()

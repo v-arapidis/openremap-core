@@ -1,5 +1,5 @@
 """
-openremap analyze <FILE> [--json] [-o OUT] [--fast] [--no-maps]
+openremap analyze <FILE> [--json] [-o OUT] [--fast] [--no-maps] [--xref-mode v1|v2]
 
 One command that describes a whole ECU binary: container + hardware,
 identity + confidence, VIN, flash layout, maps, checksums, and the health
@@ -11,6 +11,7 @@ Examples:
     openremap analyze stock.bin --json
     openremap analyze stock.bin --fast          # skip maps + checksums + health
     openremap analyze stock.bin --no-maps       # skip the map scan only
+    openremap analyze stock.bin --xref-mode v2  # score-gated confirmation bonus
 """
 
 import json as stdjson
@@ -19,9 +20,9 @@ from typing import Optional
 
 import typer
 
+from openremap.api.composite.analyze import AnalyzeReport, analyze_binary
 from openremap.core.arch import arch_for_family, decoder_label
 from openremap.core.cli.io import CONTAINER_NAMES, load_binary_file
-from openremap.core.services.analyze import AnalyzeReport, analyze_binary
 
 _IDENTITY_LABELS = [
     ("manufacturer", "Manufacturer"),
@@ -263,6 +264,14 @@ def analyze(
         "--no-maps",
         help="Skip the map scan only (keeps checksums + health).",
     ),
+    xref_mode: str = typer.Option(
+        "v1",
+        "--xref-mode",
+        help=(
+            "Code-reference pipeline: 'v1' (default) or 'v2' "
+            "(score-gated confirmation bonus)."
+        ),
+    ),
 ) -> None:
     """Describe a whole ECU binary: identity, VIN, layout, maps, checksums, health."""
     data, fmt_code = load_binary_file(file, "Binary")
@@ -275,6 +284,7 @@ def analyze(
             fast=fast,
             skip_maps=no_maps,
             container=container,
+            xref_mode=xref_mode,
         )
     except Exception as exc:
         typer.echo(

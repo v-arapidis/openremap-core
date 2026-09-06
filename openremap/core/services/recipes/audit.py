@@ -345,3 +345,54 @@ def audit(
     result.unaccounted_bytes = sum(b.size for b in result.unaccounted_blocks)
 
     return result
+
+
+def audit_binary(
+    stock_data: bytes,
+    tuned_data: bytes,
+    recipe: dict,
+    *,
+    stock_name: str = "stock.bin",
+    tuned_name: str = "tuned.bin",
+    recipe_name: str = "recipe.remap",
+) -> dict:
+    """Run the three-way consistency audit, returning the JSON-safe dict."""
+    from openremap.core.serialize import to_json_safe
+
+    result = audit(
+        stock_data,
+        tuned_data,
+        recipe,
+        stock_name=stock_name,
+        tuned_name=tuned_name,
+        recipe_name=recipe_name,
+    )
+    return to_json_safe(
+        {
+            "provenance": {
+                "ok": result.provenance_ok,
+                "recipe_sha256": result.recipe_sha256,
+                "stock_sha256": result.stock_sha256,
+            },
+            "fingerprint": {
+                "ok": result.fingerprint_ok,
+                "recipe": result.recipe_fingerprint,
+                "recomputed": result.recomputed_fingerprint,
+            },
+            "instruction_count": result.instruction_count,
+            "unaccounted": {
+                "bytes": result.unaccounted_bytes,
+                "blocks": [
+                    {
+                        "offset": b.offset,
+                        "size": b.size,
+                        "region": b.region_kind,
+                        "region_confidence": b.region_confidence,
+                    }
+                    for b in result.unaccounted_blocks
+                ],
+            },
+            "clean": result.clean,
+            "warnings": result.warnings,
+        }
+    )

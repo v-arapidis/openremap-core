@@ -17,8 +17,9 @@ from pathlib import Path
 
 import typer
 
+from openremap.api.commands.merge import merge_recipes_dict
 from openremap.core.cli.io import load_binary_file
-from openremap.core.services.recipes.recipe_merge import MergeConflict, merge_recipes
+from openremap.core.services.recipes.recipe_merge import MergeConflict
 
 _ALLOWED = (".remap", ".json", ".openremap")
 
@@ -132,7 +133,7 @@ def merge(
         stock_data, _fmt = load_binary_file(stock, "Stock")
 
     try:
-        merged = merge_recipes(
+        merged = merge_recipes_dict(
             data_a,
             data_b,
             name_a=recipe_a.name,

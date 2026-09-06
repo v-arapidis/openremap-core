@@ -1,0 +1,17 @@
+# _dev/ — dev tooling, split by audience.
+#   committed   — generic, tool-agnostic scripts useful to a contributor.
+#   gitignored  — local / machine-specific tooling + generated output (below).
+
+ghidra/
+scratch/
+
+# oracle harness: only the generic comparator + cache builder are committed.
+oracle/bin/label_*.py
+oracle/cache/
+oracle/labels/
+oracle/reports/
+oracle/identity-extractors-sumaries/
+oracle/_scratch/
+
+# benchmark generated output (the .py scripts are committed).
+benchmarks/*.json

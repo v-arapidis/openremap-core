@@ -128,9 +128,11 @@ PATTERNS: Dict[str, bytes] = {
     # ------------------------------------------------------------------
     # OEM (vehicle manufacturer) part numbers
     # ------------------------------------------------------------------
-    # VAG (VW/Audi/Skoda/Seat) — e.g. "03L 906 018 AJ"  "03L906018"
-    # Format: 0 + digit(2-9) + letter + 3 digits + 3 digits + optional suffix
-    "vag_part_number": rb"(?<![A-Z0-9])0[2-9][A-Z][\s]?\d{3}[\s]?\d{3}(?:[\s]?[A-Z]{1,2})?(?![A-Z0-9])",
+    # VAG (VW/Audi/Skoda/Seat) — e.g. "03L 906 018 AJ"  "038906016L"
+    # Format: 2-char family/engine code + letter-or-digit + 6 digits +
+    # optional 1-2 trailing letters.  The letter-content guard lives in
+    # _resolve_oem_part_number() (digit-only HW/SW runs must not match).
+    "vag_part_number": rb"(?<![A-Z0-9])[034][0-9A-Z]{2}[\s]?\d{3}[\s]?\d{3}(?:[\s]?[A-Z]{1,2})?(?![A-Z0-9])",
     # Mercedes-Benz — e.g. "A 651 900 00 00"
     # Must have spaces between all groups (strict format)
     "mercedes_part_number": rb"(?<![A-Z0-9])[A-Z][\s]\d{3}[\s]\d{3}[\s]\d{2}[\s]\d{2}(?![A-Z0-9])",

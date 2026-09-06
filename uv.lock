@@ -276,7 +276,7 @@ wheels = [
 
 [[package]]
 name = "openremap"
-version = "0.7.5"
+version = "0.7.6"
 source = { editable = "." }
 dependencies = [
     { name = "bincopy" },
@@ -285,6 +285,7 @@ dependencies = [
     { name = "rapidfuzz" },
     { name = "rarfile" },
     { name = "textual" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typer" },
     { name = "vininfo" },
 ]
@@ -303,6 +304,7 @@ requires-dist = [
     { name = "rapidfuzz", specifier = ">=3.14" },
     { name = "rarfile", specifier = ">=4.2" },
     { name = "textual", specifier = ">=0.80" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
     { name = "typer", specifier = ">=0.15.0" },
     { name = "vininfo", specifier = ">=1.11" },
 ]

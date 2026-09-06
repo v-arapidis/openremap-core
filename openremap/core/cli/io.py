@@ -13,7 +13,7 @@ own ``read_bytes()``, so a decode failure is one row, never an abort.
 import typer
 from pathlib import Path
 
-from openremap.core.services.convert import DecodeResult, decode_image
+from openremap.core.services.convert import CONTAINER_NAMES, DecodeResult, decode_image
 
 #: Advisory extension set for ECU binary inputs.  The real gate is content
 #: sniffing (:func:`decode_image`) — the extension only affects the
@@ -24,12 +24,8 @@ BINARY_EXTENSIONS = (".bin", ".ori", ".hex", ".s19", ".srec", ".mot")
 
 _EXT_TEXT = ", ".join(BINARY_EXTENSIONS)
 
-#: Friendly names for the container format code returned by decode_image.
-CONTAINER_NAMES: dict[str, str] = {
-    "ihex": "Intel HEX",
-    "srec": "Motorola S-Record",
-    "binary": "raw binary",
-}
+#: CONTAINER_NAMES is re-exported from the service layer (single home:
+#: ``openremap.core.services.convert``) — imported above.
 
 
 def load_binary_file(path: Path, label: str) -> tuple[bytes, str]:

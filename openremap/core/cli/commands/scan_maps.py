@@ -24,10 +24,14 @@ from pathlib import Path
 
 import typer
 
+from openremap.api.commands.scan_maps import (
+    build_json_result as _build_json_result,
+    classify_for_file as _classify_for_file,
+    scan_one as _scan_one,
+    xref_for_file as _xref_for_file,
+)
 from openremap.core.cli.io import load_binary_file
 from openremap.core.services.convert import decode_image
-from openremap.core.services.maps.layout import segment
-from openremap.core.services.maps.map_hunter import scan_map_axes, scan_map_tables
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -95,84 +99,6 @@ def _parse_region(region: str | None) -> slice | None:
         raise typer.Exit(code=1)
 
 
-def _calibration_spans(data: bytes, tables) -> list[tuple[int, int]]:
-    """Byte spans of the detected calibration region(s), or [] when none.
-
-    The layout segmenter labels 64/16 KB sectors as ``calibration`` when
-    they contain high-score (>= 0.85) tables — the map-density signal.
-    The already-scanned tables are reused, so no second scan happens.
-    An empty result means "no calibration signal" — the caller should
-    fall back to a whole-file scan.
-    """
-    return [
-        (r.start, r.end)
-        for r in segment(data, tables=tables)
-        if r.kind == "calibration"
-    ]
-
-
-def _apply_calibration_filter(data: bytes, result: dict) -> None:
-    """Filter a scan result to the detected calibration region (in place).
-
-    Tables outside the calibration region are dropped and counted in
-    ``tables_hidden``; ``layout_filtered`` records whether the filter
-    applied.  When the segmenter finds no calibration signal the result
-    is left untouched (whole-file fallback).  Axes are deliberately NOT
-    filtered — the axes-count health signal must keep its whole-file
-    meaning.
-    """
-    spans = _calibration_spans(data, result["tables"])
-    if not spans:
-        result["layout_filtered"] = False
-        result["tables_hidden"] = 0
-        return
-
-    def _inside(offset: int) -> bool:
-        return any(s <= offset < e for s, e in spans)
-
-    before = len(result["tables"])
-    result["tables"] = [t for t in result["tables"] if _inside(t.offset)]
-    result["layout_filtered"] = True
-    result["tables_hidden"] = before - len(result["tables"])
-
-
-def _scan_one(
-    data: bytes,
-    region_slice: slice | None,
-    min_score: float,
-    max_series_tables: int,
-    layout_default: bool = False,
-) -> dict:
-    """Run axes + table scanning on a single binary.
-
-    With ``layout_default`` (and no explicit ``--region``), the result is
-    filtered to the detected calibration region — junk tables from code /
-    erased sectors are hidden (counted in ``tables_hidden``), and a
-    ``layout_filtered`` flag is recorded.  Without a calibration signal,
-    the whole-file result is returned untouched.
-
-    Returns a dict with keys: axes, tables, axes_count, tables_count,
-    top_score, layout_filtered, tables_hidden.
-    """
-    axes = scan_map_axes(data, region=region_slice)
-    tables = scan_map_tables(
-        data, region=region_slice, axes=axes,
-        min_score=min_score, max_series_tables=max_series_tables,
-    )
-    top_score = max((t.score for t in tables), default=0.0)
-    result = {
-        "axes": axes,
-        "tables": tables,
-        "axes_count": len(axes),
-        "tables_count": len(tables),
-        "top_score": top_score,
-    }
-    if layout_default and region_slice is None:
-        _apply_calibration_filter(data, result)
-        result["tables_count"] = len(result["tables"])
-    return result
-
-
 def _health_badge(axes_count: int) -> tuple[str, str]:
     """Return (badge_char, colour) for the axes-count health signal."""
     if axes_count >= 1000:
@@ -210,64 +136,6 @@ def _label_cell(
         else typer.colors.WHITE
     )
     return typer.style(f"{label} {conf:.2f}", fg=colour)
-
-
-def _classify_for_file(data: bytes, tables) -> dict[int, tuple[str, float]]:
-    """Classify tables, using the ECU family as fuel-type context."""
-    from openremap.core.services.maps.map_classifier import (
-        classify_tables,
-        family_fuel_type,
-    )
-
-    family: str | None = None
-    try:
-        from openremap.core.services.identify.identifier import identify_ecu
-
-        family = identify_ecu(data=data, filename="<scan>").get("ecu_family")
-    except Exception:
-        family = None
-    return classify_tables(data, tables, fuel_type=family_fuel_type(family))
-
-
-def _xref_for_file(data: bytes, tables) -> tuple[list, object | None]:
-    """Compute the code-reference signal and return (adjusted, xref report).
-
-    Tables whose data block is statically referenced by code get the xref
-    score bonus; the report is ``None`` only when identity lookup fails or
-    no code regions were found.  Unsupported/unknown families fall through
-    to the CPU-detection cascade instead of skipping the pass.
-    """
-    from openremap.core.arch import arch_for_family
-    from openremap.core.arch.detect import detect_arch
-    from openremap.core.arch.refs import collect_xrefs
-    from openremap.core.services.maps.layout import code_regions_from_layout, segment
-    from openremap.core.services.maps.xrefs import (
-        _table_spans,
-        adjust_table_scores,
-    )
-
-    try:
-        from openremap.core.services.identify.identifier import identify_ecu
-
-        ident = identify_ecu(data=data, filename="<scan>")
-    except Exception:
-        return tables, None
-
-    arch = arch_for_family(ident.get("manufacturer"), ident.get("ecu_family"))
-    regions = segment(data, tables=tables)
-    codes = code_regions_from_layout(regions)
-    if not codes:
-        return tables, None
-    spans = _table_spans(tables)
-    if arch is None:
-        xr = detect_arch(data, codes, ident.get("ecu_endian"), spans)
-    else:
-        xr = collect_xrefs(
-            data, codes, arch, ident.get("ecu_endian"), spans=spans
-        )
-    if xr.status != "ok":
-        return tables, xr
-    return adjust_table_scores(tables, xr), xr
 
 
 def _print_single_result(
@@ -411,61 +279,6 @@ def _print_single_result(
             )
         )
         typer.echo("")
-
-
-# ---------------------------------------------------------------------------
-# JSON helpers
-# ---------------------------------------------------------------------------
-
-
-def _build_json_result(
-    filepath: Path,
-    data: bytes,
-    result: dict,
-    top: int,
-    labels: dict[int, tuple[str, float]] | None = None,
-    xref=None,
-) -> dict:
-    """Build a JSON-serialisable dict for one file."""
-    from openremap.core.services.maps.xrefs import xref_evidence
-
-    axes = result["axes"]
-    tables = result["tables"]
-    out = {
-        "file": str(filepath),
-        "file_size": len(data),
-        "axes_count": result["axes_count"],
-        "tables_count": result["tables_count"],
-        "top_score": round(result["top_score"], 4),
-        "layout_filtered": bool(result.get("layout_filtered")),
-        "tables_hidden": result.get("tables_hidden", 0),
-        "axes": [
-            {"offset": a.offset, "length": a.length, "byte_order": a.byte_order,
-             "values": list(a.values[:16])}
-            for a in axes[:200]
-        ],
-        "tables": [
-            {"offset": t.offset, "cols": t.cols, "rows": t.rows,
-             "cell_width": t.cell_width, "byte_order": t.byte_order,
-             "x_axis_offset": t.x_axis_offset, "y_axis_offset": t.y_axis_offset,
-             "stride": t.stride, "score": t.score,
-             "label": (labels or {}).get(t.offset, ("unknown", 0.0))[0],
-             "label_confidence": (labels or {}).get(t.offset, ("unknown", 0.0))[1],
-             "xref": xref_evidence(t, xref) if xref is not None else {}}
-            for t in tables[:top]
-        ],
-    }
-    if xref is not None:
-        out["xrefs"] = {
-            "status": xref.status,
-            "skip_reason": xref.skip_reason,
-            "arch": xref.arch,
-            "base_address": xref.base_address,
-            "code_bytes_scanned": xref.code_bytes_scanned,
-            "insn_count": xref.insn_count,
-            "reference_count": len(xref.referenced),
-        }
-    return out
 
 
 # ---------------------------------------------------------------------------

@@ -307,3 +307,27 @@ def merge_recipes(
             pass  # best-effort — annotation never blocks a merge
 
     return merged_recipe
+
+
+def merge_recipes_dict(
+    recipe_a: dict,
+    recipe_b: dict,
+    *,
+    name_a: str = "a.remap",
+    name_b: str = "b.remap",
+    stock_data: bytes | None = None,
+    strict: bool = False,
+) -> dict:
+    """Merge two recipe dicts into one (raises :class:`MergeConflict`).
+
+    Thin alias of :func:`merge_recipes` — the API gate translates the
+    ``MergeConflict`` into a ``GuardError`` for its clients.
+    """
+    return merge_recipes(
+        recipe_a,
+        recipe_b,
+        name_a=name_a,
+        name_b=name_b,
+        stock_data=stock_data,
+        strict=strict,
+    )

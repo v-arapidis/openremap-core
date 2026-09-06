@@ -1,20 +1,22 @@
 """
-Tests for DensoSH7058Extractor (512 KB Subaru application).
+Tests for DensoSH7058Extractor (SuperH, 1 MB Subaru application).
 
 Covers:
   - Identity properties: name ("Denso"), supported_families ("SH7058")
   - can_handle():
-      * True  — synthetic 512 KB bins with either descriptor variant,
-                CAL ID, and "Copr.DENSO" anchor
-      * False — wrong sizes, bad descriptor, bad CAL ID shape, missing
-                DENSO anchor
+      * True  — synthetic 1 MB bins for every layout: A1 (0x41/0x61/0xA1
+                markers), A2 (0xA2 marker, " L" and BF7C prefixes), and
+                shifted dumps (+0x9B, +0xD0)
+      * False — wrong sizes, bad descriptors, bad prefixes, bad CAL ID
+                shape, missing DENSO anchor
   - extract():
       * required fields always present
-      * software_version == CAL ID at 0x2000
-      * calibration_id == internal ID at 0x2009
+      * software_version == CAL ID at the layout-correct offset
+      * calibration_id == internal ID
       * match_key == "SH7058::<CAL>"
-  - Corpus (skip-guarded): every 512 KB file in tests/data/ECUs/Subaru
-    is claimed by this extractor and yields a non-empty software_version.
+  - Corpus (skip-guarded): every 1 MB (or shifted) file in
+    tests/data/ECUs/Subaru that is not a diesel is claimed by this
+    extractor and yields a non-empty software_version.
 """
 
 import glob
@@ -25,7 +27,7 @@ import pytest
 
 from openremap.core.manufacturers.denso.sh7058 import (
     DensoSH7058Extractor,
-    VALID_MARKERS,
+    NOMINAL_SIZE,
 )
 
 DATA = Path(__file__).resolve().parents[3] / "tests" / "data"
@@ -33,20 +35,30 @@ HAS_SUBARU = (DATA / "ECUs" / "Subaru").is_dir()
 
 EXTRACTOR = DensoSH7058Extractor()
 
-SIZE = 0x80000
+SIZE = NOMINAL_SIZE
 
 
 def build_sh7058(
-    marker: bytes = b"\x31\x91\x00\x05",
-    cal: bytes = b"A2WC400H",
-    internal: bytes = b"86CAU_AT",
+    size: int = SIZE,
+    marker: bytes = b"\x34\xa1\x00\x04",
+    cal: bytes = b"A8DH100E",
+    internal: bytes = b"85DK4_A",
+    a2_prefix: bytes | None = None,
 ) -> bytes:
     """Build a valid Denso SH7058-style binary."""
-    buf = bytearray([0xFF] * SIZE)
-    buf[0x1FFC:0x2000] = marker
-    buf[0x2000 : 0x2000 + len(cal)] = cal
-    buf[0x2009 : 0x2009 + len(internal)] = internal
-    buf[0x2023:0x2031] = b"Copr.DENSO2005"
+    delta = size - NOMINAL_SIZE
+    buf = bytearray([0xFF] * size)
+    buf[delta + 0x1FFC : delta + 0x2000] = marker
+    cal_off = delta + 0x2000
+    if a2_prefix is not None:
+        buf[cal_off : cal_off + 4] = a2_prefix
+        cal_off = delta + 0x2004
+    buf[cal_off : cal_off + len(cal)] = cal
+    # The internal ID field is always 8 bytes, space-padded.
+    padded_internal = internal + b" " * (8 - len(internal))
+    buf[cal_off + 9 : cal_off + 17] = padded_internal
+    copyr = b"Copr.DENSO2007"
+    buf[cal_off + 0x23 : cal_off + 0x23 + len(copyr)] = copyr
     return bytes(buf)
 
 
@@ -72,12 +84,39 @@ class TestIdentity:
 
 
 class TestCanHandleTrue:
-    def test_main_marker(self):
-        assert EXTRACTOR.can_handle(build_sh7058())
+    def test_a1_marker_a1(self):
+        assert EXTRACTOR.can_handle(build_sh7058(marker=b"\x34\xa1\x00\x04"))
 
-    @pytest.mark.parametrize("marker", VALID_MARKERS)
-    def test_all_markers(self, marker):
-        assert EXTRACTOR.can_handle(build_sh7058(marker=marker))
+    def test_a1_marker_41(self):
+        assert EXTRACTOR.can_handle(build_sh7058(marker=b"\x34\x41\x00\x01"))
+
+    def test_a1_marker_61(self):
+        assert EXTRACTOR.can_handle(build_sh7058(marker=b"\x34\x61\x00\x01"))
+
+    def test_a1_marker_33(self):
+        assert EXTRACTOR.can_handle(build_sh7058(marker=b"\x33\x41\x00\x01"))
+
+    def test_a2_layout_with_l_prefix(self):
+        assert EXTRACTOR.can_handle(
+            build_sh7058(
+                marker=b"\x34\xa2\x00\x03",
+                cal=b"AZ1J500T",
+                internal=b"PD5H4T K",
+                a2_prefix=b"\xff\xff\x20\x4c",
+            )
+        )
+
+    def test_a2_layout_with_bf7c_prefix(self):
+        assert EXTRACTOR.can_handle(
+            build_sh7058(
+                marker=b"\x34\xa2\x00\x03",
+                cal=b"EZ1E102G",
+                a2_prefix=b"\xff\xff\xbf\x7c",
+            )
+        )
+
+    def test_shifted_dump(self):
+        assert EXTRACTOR.can_handle(build_sh7058(size=SIZE + 0x9B, marker=b"\x34\xa2\x00\x03", cal=b"AE5I410A", a2_prefix=b"\xff\xff\x20\x4c"))
 
     def test_evidence_tags(self):
         assert EXTRACTOR.can_handle(build_sh7058())
@@ -95,14 +134,25 @@ class TestCanHandleTrue:
 
 class TestCanHandleFalse:
     def test_wrong_sizes(self):
-        for size in (0x40000, 0x60000, 0x7FFFF, 0x80001, 0x100000, 0x180000):
+        for size in (0x80000, 0x100100, 0x180000, 0x200000):
             assert not EXTRACTOR.can_handle(b"\xff" * size)
 
     def test_empty(self):
         assert not EXTRACTOR.can_handle(b"")
 
-    def test_bad_marker(self):
-        assert not EXTRACTOR.can_handle(build_sh7058(marker=b"\x31\x91\x00\x06"))
+    def test_bad_marker_byte0(self):
+        assert not EXTRACTOR.can_handle(build_sh7058(marker=b"\x35\xa1\x00\x04"))
+
+    def test_bad_marker_byte1(self):
+        assert not EXTRACTOR.can_handle(build_sh7058(marker=b"\x34\xa3\x00\x04"))
+
+    def test_bad_marker_tail(self):
+        assert not EXTRACTOR.can_handle(build_sh7058(marker=b"\x34\xa1\x00\x05"))
+
+    def test_a2_bad_prefix(self):
+        assert not EXTRACTOR.can_handle(
+            build_sh7058(marker=b"\x34\xa2\x00\x03", a2_prefix=b"\xff\xff\xff\xff")
+        )
 
     def test_bad_cal_shape(self):
         assert not EXTRACTOR.can_handle(build_sh7058(cal=b"12345678"))
@@ -137,17 +187,38 @@ class TestExtract:
         assert r["md5"] == hashlib.md5(data).hexdigest()
         assert r["sha256_first_64kb"] == hashlib.sha256(data[:0x10000]).hexdigest()
 
-    def test_software_version(self):
-        assert self._result()["software_version"] == "A2WC400H"
+    def test_software_version_a1(self):
+        assert self._result()["software_version"] == "A8DH100E"
+
+    def test_software_version_a2(self):
+        r = EXTRACTOR.extract(
+            build_sh7058(
+                marker=b"\x34\xa2\x00\x03",
+                cal=b"AZ1J500T",
+                a2_prefix=b"\xff\xff\x20\x4c",
+            )
+        )
+        assert r["software_version"] == "AZ1J500T"
+
+    def test_software_version_shifted(self):
+        r = EXTRACTOR.extract(
+            build_sh7058(
+                size=SIZE + 0x9B,
+                marker=b"\x34\xa2\x00\x03",
+                cal=b"AE5I410A",
+                a2_prefix=b"\xff\xff\x20\x4c",
+            )
+        )
+        assert r["software_version"] == "AE5I410A"
 
     def test_calibration_id(self):
-        assert self._result()["calibration_id"] == "86CAU_AT"
+        assert self._result()["calibration_id"] == "85DK4_A"
 
     def test_ecu_family(self):
         assert self._result()["ecu_family"] == "SH7058"
 
     def test_match_key(self):
-        assert self._result()["match_key"] == "SH7058::A2WC400H"
+        assert self._result()["match_key"] == "SH7058::A8DH100E"
 
     def test_deterministic(self):
         assert self._result() == self._result()
@@ -165,7 +236,8 @@ class TestCorpus:
         [
             f
             for f in sorted(glob.glob(str(DATA / "ECUs" / "Subaru" / "**" / "*.hex"), recursive=True))
-            if Path(f).stat().st_size == SIZE
+            if NOMINAL_SIZE <= Path(f).stat().st_size <= NOMINAL_SIZE + 0xFF
+            and "Diesel" not in Path(f).name
         ],
         ids=lambda p: Path(p).name,
     )

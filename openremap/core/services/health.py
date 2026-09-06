@@ -87,11 +87,13 @@ _MAP_ENVELOPES: dict[str, tuple[int, int]] = {
     "Simtec56": (5, 10),
     "LH": (0, 7),
     "KE": (1, 1),
-    # Denso/Hitachi Subaru families (corpus-wide, measured 2026-08-15)
+    # Denso/Hitachi Subaru families (corpus-wide, measured 2026-08-15;
+    # re-keyed to the oracle-corrected family labels 2026-09-02 — the
+    # envelopes track the same binaries, only the names shifted).
     "Diesel": (138, 208),
-    "SH7055": (12, 52),
-    "SH7058": (5, 57),
-    "SH72531": (4, 150),
+    "68HC16Y5": (12, 52),
+    "SH7055": (5, 57),
+    "SH7058": (4, 150),
     "SH72546": (156, 375),
 }
 
@@ -375,3 +377,29 @@ def health_report(data: bytes, filename: str = "unknown.bin") -> HealthReport:
     report.checks.append(_check_erased_blocks(data))
     report.checks.append(_check_vins(data))
     return report
+
+
+def health_payload(report, file_label: str) -> dict:
+    """Build the CLI ``--json``-shaped payload from a HealthReport."""
+    return {
+        "file": file_label,
+        "file_size": report.file_size,
+        "family": report.family,
+        "manufacturer": report.manufacturer,
+        "confidence_tier": report.confidence_tier,
+        "healthy": report.healthy,
+        "checks": [
+            {
+                "name": c.name,
+                "status": c.status,
+                "message": c.message,
+                "details": c.details,
+            }
+            for c in report.checks
+        ],
+    }
+
+
+def health_binary(data: bytes, filename: str) -> dict:
+    """Run every health check and return the JSON-safe payload dict."""
+    return health_payload(health_report(data, filename), filename)

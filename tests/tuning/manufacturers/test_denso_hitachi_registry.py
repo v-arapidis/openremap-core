@@ -74,10 +74,10 @@ class TestRegistry:
     def test_denso_intra_brand_order(self):
         names = [type(e).__name__ for e in DENSO_EXTRACTORS]
         assert names == [
+            "DensoHC16Y5Extractor",
             "DensoSH7055Extractor",
-            "DensoSH7058Extractor",
             "DensoDieselExtractor",
-            "DensoSH72531Extractor",
+            "DensoSH7058Extractor",
         ]
 
     def test_hitachi_intra_brand_order(self):

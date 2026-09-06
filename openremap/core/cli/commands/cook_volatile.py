@@ -31,59 +31,17 @@ Examples:
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 
 import typer
 
+from openremap.api.composite.cook_volatile import cook_volatile_recipe
 from openremap.core.cli.commands.cook import (
     _print_region_warning,
     _print_summary,
     _read_bin,
-    _tag_regions,
 )
-from openremap.core.services.maps.map_hunter import scan_map_tables
-from openremap.core.services.recipes.recipe_builder import (
-    ECUDiffAnalyzer,
-    compute_fingerprint,
-)
-from openremap.core.services.recipes.recipe_maps import attach_maps
-from openremap.core.services.recipes.volatile import (
-    VolatileFinding,
-    classify_volatile,
-)
-
-
-# ---------------------------------------------------------------------------
-# Statistics — recomputed after filtering (counts + bytes of the kept set)
-# ---------------------------------------------------------------------------
-
-
-def _recompute_stats(
-    instructions: list,
-    file_size: int,
-    context_size: int,
-    max_context_size: int,
-) -> dict:
-    """Statistical summary of the KEPT instruction set."""
-    if not instructions:
-        return {}
-
-    total_changed = sum(inst["size"] for inst in instructions)
-    single = sum(1 for inst in instructions if inst["size"] == 1)
-
-    return {
-        "total_changes": len(instructions),
-        "total_bytes_changed": total_changed,
-        "percentage_changed": round(total_changed / file_size * 100, 4),
-        "single_byte_changes": single,
-        "multi_byte_changes": len(instructions) - single,
-        "largest_change_size": max(inst["size"] for inst in instructions),
-        "smallest_change_size": min(inst["size"] for inst in instructions),
-        "min_context_size": context_size,
-        "max_context_size": max_context_size,
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +50,7 @@ def _recompute_stats(
 
 
 def _print_review_lines(
-    findings: list[VolatileFinding],
+    findings: list,
     heading: str,
 ) -> None:
     """Print one line per finding — the per-instruction review list."""
@@ -103,10 +61,10 @@ def _print_review_lines(
         err=True,
     )
     for f in findings:
-        first, *rest = f.evidence
+        first, *rest = f["evidence"]
         typer.echo(
             typer.style(
-                f"     0x{f.offset:X} — {f.kind} ({f.confidence}): {first}",
+                f"     0x{f['offset']:X} — {f['kind']} ({f['confidence']}): {first}",
                 fg=typer.colors.YELLOW,
             ),
             err=True,
@@ -117,7 +75,7 @@ def _print_review_lines(
 
 def _print_volatile_summary(excluded: list, flagged: list, no_exclude: bool) -> None:
     """Print the volatile classification summary (always shown)."""
-    excluded_bytes = sum(f.size for f in excluded)
+    excluded_bytes = sum(f["size"] for f in excluded)
     typer.echo("")
     typer.echo(
         typer.style(
@@ -257,102 +215,17 @@ def cook_volatile(
     )
 
     try:
-        analyzer = ECUDiffAnalyzer(
-            original_data=original_data,
-            modified_data=modified_data,
-            original_filename=original.name,
-            modified_filename=modified.name,
+        result = cook_volatile_recipe(
+            original_data,
+            modified_data,
+            original.name,
+            modified.name,
             context_size=context_size,
             require_unique=not allow_non_unique,
-        )
-        recipe = analyzer.build_recipe()
-
-        report = classify_volatile(
-            recipe,
-            original_data,
+            no_exclude=no_exclude,
             exclude_uncertain=exclude_uncertain,
+            annotate_maps=annotate_maps,
         )
-
-        # --- Filter: drop near-certain volatile instructions ---------------
-        if not no_exclude:
-            excluded_indices = {f.index for f in report.excluded}
-            recipe["instructions"] = [
-                inst
-                for i, inst in enumerate(recipe["instructions"])
-                if i not in excluded_indices
-            ]
-
-        # Recompute everything derived from the instruction set.
-        recipe["statistics"] = _recompute_stats(
-            recipe["instructions"],
-            len(original_data),
-            analyzer.context_size,
-            analyzer.max_context_size,
-        )
-        recipe["fingerprint"] = compute_fingerprint(recipe["instructions"])
-        recipe["metadata"]["instruction_count"] = len(recipe["instructions"])
-
-        # --- volatile section (schema 4.5) ---------------------------------
-        if no_exclude:
-            # Nothing was removed: record every finding as flagged so the
-            # recipe stays self-consistent (excluded must mean "removed").
-            excluded_findings: list[VolatileFinding] = []
-            flagged_findings: list[VolatileFinding] = [
-                replace(f, action="flagged")
-                for f in (*report.excluded, *report.flagged)
-            ]
-        else:
-            excluded_findings = list(report.excluded)
-            flagged_findings = list(report.flagged)
-
-        volatile_summary = {
-            "excluded_count": len(excluded_findings),
-            "flagged_count": len(flagged_findings),
-            "bytes_excluded": sum(f.size for f in excluded_findings),
-        }
-        recipe["volatile"] = {
-            "excluded": [f.to_dict() for f in excluded_findings],
-            "flagged": [f.to_dict() for f in flagged_findings],
-            "summary": volatile_summary,
-        }
-        recipe["metadata"]["source"] = "cook_volatile"
-        recipe["metadata"]["volatile"] = volatile_summary
-        recipe["metadata"]["excluded_volatile"] = not no_exclude
-
-        # One structural scan, shared by map annotation and region tags —
-        # never scan the stock binary twice.
-        shared_tables = scan_map_tables(
-            original_data, min_score=0.55, max_series_tables=16,
-        )
-
-        if annotate_maps:
-            # AFTER filtering — maps[].instruction_refs index the KEPT set.
-            attach_maps(recipe, original_data, tables=shared_tables)
-            map_count = len(recipe["maps"])
-            typer.echo(
-                typer.style(
-                    f"\n  🗺  Annotated {map_count} calibration map(s) — "
-                    f"recipe schema bumped to 4.5.",
-                    fg=typer.colors.CYAN,
-                ),
-                err=True,
-            )
-
-        # attach_maps bumps schema to 4.4 (MAPS_SCHEMA_VERSION) — set the
-        # volatile schema level AFTER it, so 4.5 always wins.
-        recipe["schema_version"] = "4.5"
-
-        # Advisory flash-layout region tags on the KEPT instruction set
-        # (never blocks, never filters).
-        region_summary = _tag_regions(recipe, original_data, shared_tables)
-
-        # Same-file-only stamp: non-unique anchors make the recipe safe only
-        # on the exact binary it was cooked from (enforced by tune/validate
-        # via ecu.sha256, unless the user passes --force).
-        if allow_non_unique and any(
-            "non-unique" in w for w in analyzer.cook_warnings()
-        ):
-            recipe.setdefault("metadata", {})["portability"] = "same_file_only"
     except Exception as exc:
         msg = str(exc)
         if "non-unique context" in msg:
@@ -383,6 +256,22 @@ def cook_volatile(
                 err=True,
             )
         raise typer.Exit(code=1)
+
+    recipe = result["recipe"]
+    excluded_findings = result["excluded_findings"]
+    flagged_findings = result["flagged_findings"]
+    region_summary = result["region_summary"]
+    map_count = result["map_count"]
+
+    if map_count is not None:
+        typer.echo(
+            typer.style(
+                f"\n  🗺  Annotated {map_count} calibration map(s) — "
+                f"recipe schema bumped to 4.5.",
+                fg=typer.colors.CYAN,
+            ),
+            err=True,
+        )
 
     # --- Review output -----------------------------------------------------
     if not accept_volatile:

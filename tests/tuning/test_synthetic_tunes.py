@@ -1,7 +1,7 @@
 """
 Integrity tests for the synthetic-tunes corpus.
 
-The corpus is GENERATED (benchmarks/make_synthetic_tunes.py) — these
+The corpus is GENERATED (_dev/benchmarks/make_synthetic_tunes.py) — these
 tests verify the artifacts instead of regenerating them.  Every test
 skips when the corpus is absent (it is gitignored).
 """
@@ -133,7 +133,7 @@ class TestGeneratorDeterminism:
         reproduce the stored file byte-for-byte."""
         import sys
 
-        sys.path.insert(0, str(ROOT / "benchmarks"))
+        sys.path.insert(0, str(ROOT / "_dev" / "benchmarks"))
         import make_synthetic_tunes as gen  # type: ignore[import-not-found]
 
         t = next(
