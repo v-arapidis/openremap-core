@@ -19,8 +19,9 @@ DSL::
 
     [[steps]]
     call = "cook"
-    params = { original_path = "$input.original_path",
-               modified_path = "$input.modified_path" }
+    [steps.params]
+    original_path = "$input.original_path"
+    modified_path = "$input.modified_path"
 
 References inside ``params``:
 
