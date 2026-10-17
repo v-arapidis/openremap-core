@@ -12,7 +12,11 @@ summaries and the two internal roadmaps.
 
 What it checks, in the *committed* markdown that a contributor can actually
 read: every local markdown link target, and every backticked repo path (file or
-directory) rooted at one of the project's top-level directories.
+directory) rooted at one of the project's top-level directories — each one
+resolved against the **committed tree** (``git ls-files``), never against the
+working copy, so a path that exists only on this machine is still a failure.
+Paths that are git-ignored on purpose (``LOCAL_ONLY_PATHS``) are the documented
+exception.
 
 What it deliberately does not check (point-in-time records — never rewritten):
 
@@ -28,9 +32,10 @@ What it deliberately does not check (point-in-time records — never rewritten):
 
 from __future__ import annotations
 
+import posixpath
 import re
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -61,11 +66,52 @@ EXAMPLE_PATHS = {
     "openremap/core/manufacturers/<brand>/<family>/extractor.py",
     "tests/tuning/manufacturers/test_<family>_extractor.py",
 }
+# Paths that are git-ignored *on purpose* and therefore can never be in the
+# committed tree. The docs point contributors at them correctly — "put your own
+# dumps in `tests/data/` and the real-corpus tests will use them, otherwise they
+# skip" — so their absence in a fresh checkout is the intended state, not a dead
+# end. Prefix match, so subdirectories (`tests/data/ECUs`) are covered too.
+LOCAL_ONLY_PATHS = ("tests/data/",)
 # Files whose whole purpose is to record a moment in time.
 POINT_IN_TIME = ("docs/internal/audits/", "docs/internal/version-audits/")
 
 _BACKTICKED = re.compile(r"`([A-Za-z0-9_./-]+/?)`")
 _MD_LINK = re.compile(r"\]\(([^)\s]+)\)")
+
+
+def _tracked_tree() -> tuple[frozenset[str], frozenset[str]]:
+    """Every path in the *committed* tree: files, plus the directories they imply.
+
+    The guard must measure this and not the working copy. It was written to catch
+    docs that point at things a contributor cannot find — and then measured
+    ``Path.exists()``, which is true on the maintainer's machine for anything
+    git-ignored (a local ``tests/data/`` corpus, notes, scratch). The v0.7.7 CI
+    run failed on exactly that: ``CONTRIBUTING.md`` referenced ``tests/data/``,
+    which exists only where somebody has dumps. A guard that is green locally and
+    red in CI is worse than no guard, because it teaches people to ignore it.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "-z"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):  # pragma: no cover
+        pytest.skip("git is not available — cannot determine the committed tree")
+
+    files: set[str] = set()
+    dirs: set[str] = set()
+    for entry in out.split("\0"):
+        if not entry:
+            continue
+        files.add(entry)
+        parent = PurePosixPath(entry).parent
+        while parent != PurePosixPath("."):
+            dirs.add(parent.as_posix())
+            parent = parent.parent
+    return frozenset(files), frozenset(dirs)
 
 
 def _committed_markdown() -> list[str]:
@@ -93,6 +139,19 @@ def _is_living(rel: str) -> bool:
 
 
 LIVING_DOCS = [f for f in _committed_markdown() if _is_living(f)]
+TRACKED_FILES, TRACKED_DIRS = _tracked_tree()
+
+
+def _in_committed_tree(posix: str) -> bool:
+    """True when *posix* (a repo-relative path) exists in the committed tree."""
+    normalized = posixpath.normpath(posix).lstrip("./")
+    if normalized in (".", ""):
+        return True
+    return normalized in TRACKED_FILES or normalized in TRACKED_DIRS
+
+
+def _is_local_only(bare: str) -> bool:
+    return any(bare == p.rstrip("/") or bare.startswith(p) for p in LOCAL_ONLY_PATHS)
 
 
 def _missing_paths(rel: str) -> list[str]:
@@ -106,7 +165,8 @@ def _missing_paths(rel: str) -> list[str]:
         if not local:
             continue
         # Markdown link targets are relative to the file that contains them.
-        if not ((REPO_ROOT / rel).parent / local).exists():
+        resolved = posixpath.join(posixpath.dirname(rel), local)
+        if not _in_committed_tree(resolved):
             missing.append(f"markdown link → {target}")
 
     for token in sorted(set(_BACKTICKED.findall(text))):
@@ -119,7 +179,9 @@ def _missing_paths(rel: str) -> list[str]:
         path_like = "/" in bare and bare.endswith(CODE_EXTENSIONS)
         if not (rooted or path_like):
             continue
-        if not (REPO_ROOT / bare).exists():
+        if _is_local_only(bare):
+            continue
+        if not _in_committed_tree(bare):
             missing.append(f"code path → {token}")
 
     return missing
