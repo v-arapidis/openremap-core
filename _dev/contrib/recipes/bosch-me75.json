@@ -1,0 +1,140 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "ME7.5",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Plants an ident block at 0x7FD9 (the Bosch ident offset) using the raw_strings that identify reported for a REAL file (source sha256 in derived_from), so the mimic carries the same discriminators. Gate is manufacturer+family only: fields are not reproduced (the real file's match_key was 'ME7.5::1037352357'; the mimic does not yield it).",
+  "derived_from": {
+    "snapshot": "_dev/oracle/smallfixes-snapshot/after/identify.jsonl",
+    "source_sha256": "a6dfd4562b7e0c7403adb008899a811ca622570b00c053561cec798c727408d5",
+    "match_key": "ME7.5::1037352357"
+  },
+  "plants": [
+    {
+      "at": "0x7FD9",
+      "seq": [
+        {
+          "text": "]3s{t{t{t{t{t"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "<DMDMDMDMDMDM"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "B~I}P|Q{QzRyKxEw9v,u"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "I$H?FMDNB;@"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": ">\\?]?^?UU33"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "5ZEZEZEZEZEZE*j*j*j*j*j*j"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "S`gk^it}dmw"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "5(5<5P5d5x5"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "K@6T6h6|6"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "H&HHHVHjH~H"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "<~kzlwpp"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "`,i<<<<<<<<<<<<<<<<"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "8x&qOh+Z}H"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "%+.02?KXdq}"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "(2<FPZdn"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "%+.02?KXdq}"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "$&&''())23345568=?@BBCBDUWY\\]\\^a"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": ">AIKLWWN79AEHRMG*-111>84#&+,-831\"#()*511 !$%&000"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "&-58DSbb"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "42/1/ME7.5/3/4013.00//F21dx/Dst05g/020699/"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "ME7.5"
+  }
+}

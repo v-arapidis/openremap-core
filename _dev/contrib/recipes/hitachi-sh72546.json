@@ -1,0 +1,24 @@
+{
+  "manufacturer": "Hitachi",
+  "ecu_family": "SH72546",
+  "file_size": 1572864,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases: 1.5/2 MB \u00b7 the locator walks every b'T\\x00' tag: the 8 bytes after it must fullmatch the CAL ID pattern, and within the NEXT 16 bytes one of the engine hints ('TURBO'/'DIT') or a displacement pattern (2.0/2.5/3.0/3.6) must appear \u2014 so tag, CAL ID and hint must be contiguous.",
+  "derived_from": {
+    "script": "hand-authored (see notes)"
+  },
+  "plants": [
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "54004138444831303045444954"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Hitachi",
+    "ecu_family": "SH72546"
+  }
+}

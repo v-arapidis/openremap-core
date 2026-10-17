@@ -1,0 +1,49 @@
+{
+  "manufacturer": "Bosch",
+  "file_size": 32768,
+  "fill": "FF",
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "02"
+        }
+      ]
+    },
+    {
+      "at": "0x1",
+      "seq": [
+        {
+          "hex": "02"
+        }
+      ]
+    },
+    {
+      "at": "0x3",
+      "seq": [
+        {
+          "hex": "c2"
+        }
+      ]
+    },
+    {
+      "at": "0x4",
+      "seq": [
+        {
+          "hex": "8b"
+        }
+      ]
+    }
+  ],
+  "ecu_family": "M1.x-early",
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M1.x-early",
+    "ecu_variant": "M1.x-early"
+  },
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'M1.x-early'; identify reports family='M1.x-early' variant='M1.x-early'.",
+  "derived_from": {
+    "family_target": "M1.x-early"
+  }
+}

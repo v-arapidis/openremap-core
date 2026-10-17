@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "PPD1.1",
+  "file_size": 2097152,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'PPD1.1'; identify reports family='PPD1.1' variant=None.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.ppd.extractor",
+    "family_target": "PPD1.1"
+  },
+  "plants": [
+    {
+      "at": "0x100000",
+      "seq": [
+        {
+          "hex": "505044312e35"
+        }
+      ]
+    },
+    {
+      "at": "0x100000",
+      "seq": [
+        {
+          "hex": "505044312e31"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "PPD1.1",
+    "ecu_variant": null
+  }
+}

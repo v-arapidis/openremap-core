@@ -1,0 +1,99 @@
+name: New ECU family request
+description: Ask for support for an ECU the engine does not identify yet.
+title: "[family] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for asking. Two things first, because they change what you should do:
+
+        **Do not attach your firmware.** This repository never hosts ECU dumps —
+        they are someone else's copyrighted calibration data. Nothing in this
+        request needs the file itself.
+
+        **You do not need to know the family name.** The command below works it
+        out from your dump (or tells you that nobody knows it yet).
+
+  - type: markdown
+    attributes:
+      value: |
+        ### 1. Run this and paste the output
+
+        ```bash
+        openremap contribute extractor your_dump.bin --measure-only
+        ```
+
+        If you have a second dump of the same ECU (for example a stock and a
+        modified one), add it — stability can only be checked with two:
+
+        ```bash
+        openremap contribute extractor stock.bin --also tuned.bin --measure-only
+        ```
+
+        It needs no checkout of this repository, sends nothing anywhere, and
+        reports what the engine thinks your file is, the byte runs that are
+        stable across your dumps, and the family name your dump suggests.
+
+  - type: textarea
+    id: report
+    attributes:
+      label: Output of the command above
+      description: Paste it as text, not as a screenshot.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: vehicle
+    attributes:
+      label: Vehicle
+      description: Make, model, year, engine. Example — Seat Leon 1P 2007, 2.0 TDI BMN.
+      placeholder: Make / model / year / engine
+    validations:
+      required: true
+
+  - type: input
+    id: part_number
+    attributes:
+      label: ECU part number (if you know it)
+      description: Usually printed on the ECU label, or written on the dump file name.
+    validations:
+      required: false
+
+  - type: input
+    id: family_guess
+    attributes:
+      label: Family name you expect (if any)
+      description: For example what a tuner or a label calls it. Leave empty if you do not know.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: dumps
+    attributes:
+      label: How many dumps of this ECU do you have?
+      options:
+        - Two or more (stability can be checked)
+        - One
+        - None — I only want to know if it is supported
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: openremap version
+      description: Output of `openremap --version`.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have not attached any firmware, and I understand this repository does not host ECU dumps.
+          required: true
+        - label: I understand a request is not a promise — a family is added when someone with the dump contributes it, or when the maintainers can obtain samples.
+          required: true

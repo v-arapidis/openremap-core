@@ -30,7 +30,9 @@ OpenRemap began as a final-semester thesis project, presented at
 **0.7.x (current):** stabilise the 0.7.0 release — fix bugs that surface
 in real use, and integrate third-party open-source libraries (ported
 with credit — never copy-paste, see [THIRD_PARTY.md](THIRD_PARTY.md)).
-This is a **stability** cycle, not a feature cycle.
+A **stability** cycle for the engine, not a feature cycle — the tooling that
+grows here is the tooling for *contributing* (see
+[Contributing](#contributing) below).
 
 **Upcoming milestones:**
 
@@ -53,6 +55,7 @@ openremap health  stock.bin      # is the file sane?  (checksums, maps, VINs)
 openremap cook    stock.bin tuned.bin --output stage1.remap   # diff → recipe
 openremap cook-volatile stockA.bin stage1.bin --output portable.remap  # car-portable recipe
 openremap tune    target.bin stage1.remap --output tuned.bin  # apply → verify
+openremap synth   --output demo.bin                          # an ECU-like file, no ECU needed
 ```
 
 Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
@@ -72,6 +75,14 @@ Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
   validate-before → apply → verify-after; merge recipes; audit the receipt
 - **Map tooling** — structural map discovery, map-level diffing, CSV
   export, probabilistic labels
+- **Synthetic fixtures** — `openremap synth` generates ECU-like binaries
+  from scratch (deterministic, no ECU data involved), so you can try the
+  tooling, build tests, or file a reproducible bug report without owning
+  a dump. Generated files identify as *Unknown* by design.
+- **Contribute an ECU family** — `openremap contribute` measures your own
+  dump for a signature that is stable in that family and absent from every
+  family the engine already recognises, then writes the fixture, an extractor
+  skeleton, a test and a PR description. Your dump never leaves your machine.
 - **Library-first** — every service is importable Python (identity,
   patching, map scanning) with a mandatory Rust core for the hot loops
 
@@ -79,6 +90,10 @@ Runs entirely offline. `.bin`, `.ori`, and `.hex` files are all accepted.
 
 6 manufacturers, 38 extractors — from LH-Jetronic (1982) to EDC17 and
 Denso/Hitachi Subaru (2020s). → [Per-family reference](https://docs.openremap.com/manufacturers/)
+
+Own an ECU that is not listed? You can add support for it **without sharing your
+dump** — `openremap contribute extractor my.bin --measure-only` runs offline and
+tells you what the engine makes of the file.
 
 ## Decoders & CPU coverage
 
@@ -122,7 +137,7 @@ The wiki is live at **[docs.openremap.com](https://docs.openremap.com)** —
 its content lives in the open-source
 [`v-arapidis/openremap-docs`](https://github.com/v-arapidis/openremap-docs)
 repo.  This repository keeps only repo-internal docs
-([`docs/internal/`](docs/internal/) — audits, roadmaps).
+([`docs/internal/`](docs/internal/) — dated audits and version audits).
 
 - [Getting started](https://docs.openremap.com/getting-started/) — install, quick start, CLI, TUI
 - [Concepts](https://docs.openremap.com/concepts/) — how it works, decoders, confidence, evidence, recipe format
@@ -133,6 +148,24 @@ repo.  This repository keeps only repo-internal docs
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) — extractor guides, code style, PR process.
 Changes are tracked per version in [`changelog/`](changelog/).
+
+**Have an ECU that is not supported?** You can add it without sharing your dump —
+and without knowing what the family is called:
+
+```bash
+# what is this file?  (no repository needed, no family name)
+openremap contribute extractor stock.bin --also tuned.bin --measure-only
+
+# from a clone: write the contribution
+openremap contribute extractor stock.bin --also tuned.bin --brand X --family Y --write
+```
+
+The wizard measures a signature that is stable in your family and absent from
+every family the engine already recognises, then writes the fixture recipe (a few
+hundred bytes — never your ROM), an extractor skeleton that already passes the
+review bar, a test, and a PR description. It **executes** the generated extractor
+against every known-family fixture before calling it verified. Details:
+[`contributing/extractors.md`](contributing/extractors.md).
 
 ## License
 

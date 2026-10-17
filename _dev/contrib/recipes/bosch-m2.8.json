@@ -1,0 +1,91 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "M2.8",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'M2.8'; identify reports family='M2.8' variant='M2.8'.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.m2x.extractor",
+    "family_target": "M2.8"
+  },
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x2000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x4000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x7fd9",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x8000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0xffc0",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0xff00",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "22303030303030304d322e38"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M2.8",
+    "ecu_variant": "M2.8"
+  }
+}

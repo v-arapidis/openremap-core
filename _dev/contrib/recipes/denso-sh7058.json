@@ -1,0 +1,41 @@
+{
+  "manufacturer": "Denso",
+  "ecu_family": "SH7058",
+  "file_size": 1048576,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases (can_handle read as the spec): size gate \u2192 4-byte marker at a bare hex offset \u2192 a CAL ID field that must MATCH A PATTERN at CAL_OFFSET \u2192 a copyright string inside the copy region. The blind search cannot reach this: three specific payloads at three specific anchors, one of which must be pattern-valid.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.denso.sh7058"
+  },
+  "plants": [
+    {
+      "at": "0x1ffc",
+      "seq": [
+        {
+          "hex": "33410001"
+        }
+      ]
+    },
+    {
+      "at": "0x2000",
+      "seq": [
+        {
+          "text": "A8DH100E"
+        }
+      ]
+    },
+    {
+      "at": "0x2010",
+      "seq": [
+        {
+          "text": "(Copr.DENSO2"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Denso",
+    "ecu_family": "SH7058"
+  }
+}

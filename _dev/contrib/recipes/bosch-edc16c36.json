@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "EDC16",
+  "file_size": 262144,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'EDC16C36'; identify reports family='EDC16' variant='EDC16C36'.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.edc16.extractor",
+    "family_target": "EDC16C36"
+  },
+  "plants": [
+    {
+      "at": "0x3d",
+      "seq": [
+        {
+          "hex": "decafe"
+        }
+      ]
+    },
+    {
+      "at": "0x3d",
+      "seq": [
+        {
+          "hex": "4544433136433336"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "EDC16",
+    "ecu_variant": "EDC16C36"
+  }
+}

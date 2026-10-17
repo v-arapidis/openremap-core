@@ -1,0 +1,33 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "GS20",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.siemens.gs20.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.gs20.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "4741444339303130"
+        }
+      ]
+    },
+    {
+      "at": "0xffc0",
+      "seq": [
+        {
+          "hex": "47323231305f30303930433041443130"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "GS20"
+  }
+}

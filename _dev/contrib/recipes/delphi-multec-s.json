@@ -1,0 +1,48 @@
+{
+  "manufacturer": "Delphi",
+  "ecu_family": "Multec S",
+  "file_size": 131072,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases: Six phases, all required: 128 KB \u00b7 first 16 bytes all 0xFF (erased boot block) \u00b7 HC12 pointer table b'\\x00\\x00~' at 0x2000 \u00b7 exclusions clear \u00b7 8 ASCII digits at 0x3009 + 2 uppercase letters at 0x3011 \u00b7 8 ASCII digits at 0x3015 (GM part number \u2014 letters there fail). Note the fill doubles as the boot block.",
+  "derived_from": {
+    "script": "hand-authored (see notes)"
+  },
+  "plants": [
+    {
+      "at": "0x2000",
+      "seq": [
+        {
+          "hex": "00007e"
+        }
+      ]
+    },
+    {
+      "at": "0x3009",
+      "seq": [
+        {
+          "hex": "3132333435363738"
+        }
+      ]
+    },
+    {
+      "at": "0x3011",
+      "seq": [
+        {
+          "hex": "4142"
+        }
+      ]
+    },
+    {
+      "at": "0x3015",
+      "seq": [
+        {
+          "hex": "3837363534333231"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Delphi",
+    "ecu_family": "Multec S"
+  }
+}

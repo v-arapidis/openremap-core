@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "M4.4",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'M4.4'; identify reports family='M4.4' variant='M4.4'.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.m4x.extractor",
+    "family_target": "M4.4"
+  },
+  "plants": [
+    {
+      "at": "0xff00",
+      "seq": [
+        {
+          "hex": "3032303236313230343034313232323733353538393931323735323332"
+        }
+      ]
+    },
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "34372f312f4d342e342f30352f353034342f44414d4f53304330342f2f3135303639392f"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M4.4",
+    "ecu_variant": "M4.4"
+  }
+}

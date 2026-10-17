@@ -33,7 +33,22 @@ def version(params: dict | None = None) -> dict:
 @register(
     "list_methods",
     kind="command",
-    description="List all registered methods (commands and workflows) with metadata.",
+    description=(
+        "List all registered methods (commands, composites and workflows) with "
+        "metadata.  Optional 'kind' narrows the listing to one kind; an "
+        "unrecognised kind returns an empty list rather than an error."
+    ),
+    input_schema={
+        "kind": {
+            "type": "str",
+            "required": False,
+            "description": (
+                "Restrict the listing to one kind: 'command', 'composite' or "
+                "'workflow'."
+            ),
+        },
+    },
 )
 def list_methods(params: dict | None = None) -> dict:
-    return {"methods": _registry_list_methods()}
+    kind = (params or {}).get("kind")
+    return {"methods": _registry_list_methods(kind)}

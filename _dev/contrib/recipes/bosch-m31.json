@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "M3.1",
+  "file_size": 262144,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases: One of DETECTION_SIGNATURES ('1350000M3' family marker) in the ident area.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.bosch.m3x.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "313335303030304d33"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M3.1"
+  }
+}

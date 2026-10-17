@@ -361,3 +361,29 @@ class TestCalibrationDefault:
         out = json.loads(result.stdout)
         assert out["layout_filtered"] is False
         assert out["tables_hidden"] == 0
+
+
+class TestWriteCsvFiles:
+    """The CSV *writing* half — it lives in the CLI since 0.7.7.
+
+    ``services/maps/map_exporter.render_tables_csv`` returns text only; these
+    tests guard the half that touches the disk.
+    """
+
+    def test_writes_each_document_and_creates_the_directory(self, tmp_path):
+        from openremap.core.cli.commands.scan_maps import _write_csv_files
+
+        out = tmp_path / "nested" / "csv"
+        written = _write_csv_files({"a.csv": ",1,2\n5,3,4\n", "b.csv": "9\n"}, out)
+
+        assert written == 2
+        assert (out / "a.csv").read_text(encoding="utf-8") == ",1,2\n5,3,4\n"
+        assert (out / "b.csv").read_text(encoding="utf-8") == "9\n"
+        assert b"\r" not in (out / "a.csv").read_bytes()
+
+    def test_empty_render_still_creates_the_directory(self, tmp_path):
+        from openremap.core.cli.commands.scan_maps import _write_csv_files
+
+        out = tmp_path / "empty"
+        assert _write_csv_files({}, out) == 0
+        assert out.is_dir()

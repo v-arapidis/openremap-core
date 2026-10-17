@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "EDC1",
+  "file_size": 32768,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.bosch.edc1.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.edc1.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x7fd0",
+      "seq": [
+        {
+          "hex": "30323831303031323134ff32353337333535333432"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "EDC1"
+  }
+}

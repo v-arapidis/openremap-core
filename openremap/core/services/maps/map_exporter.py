@@ -1,15 +1,19 @@
 """
 Calibration map CSV exporter — WinOLS-compatible grid format.
 
-Re-reads axis values and cell data from the original binary (``MapTable``
-stores byte offsets, not decoded values) and writes one CSV file per table.
+**Pure**: re-reads axis values and cell data from the original binary
+(``MapTable`` stores byte offsets, not decoded values) and returns one CSV
+*document per table*, keyed by the file name it should be saved under.  No
+file I/O happens here — the caller (CLI/API) decides where files land, so this
+module keeps the service-layer contract (``bytes``/``dict`` in, no paths, no
+side effects).
 """
 
 from __future__ import annotations
 
 import csv
+import io
 import struct
-from pathlib import Path
 
 from openremap._rust import read_cells as _rs_read_cells  # type: ignore[import-untyped]
 from openremap.core.services.maps.map_hunter import MapTable
@@ -19,12 +23,11 @@ from openremap.core.services.maps.map_hunter import MapTable
 # ---------------------------------------------------------------------------
 
 
-def export_tables_csv(
+def render_tables_csv(
     data: bytes,
     tables: list[MapTable],
-    output_dir: Path,
-) -> int:
-    """Write each table as a CSV file in *output_dir*.
+) -> dict[str, str]:
+    """Render each table as a CSV document, keyed by output file name.
 
     Parameters
     ----------
@@ -32,13 +35,12 @@ def export_tables_csv(
         The original ECU binary — axis and cell values are re-read from here.
     tables:
         Tables to export (already filtered by ``--min-score`` / ``--top``).
-    output_dir:
-        Directory to write CSV files into.  Created if it doesn't exist.
 
     Returns
     -------
-    int
-        Number of CSV files written.
+    dict[str, str]
+        ``{file name: CSV text}``, one entry per table, in input order.  The
+        table offset is part of the name, so geometry can never collide.
 
     Format — 2D tables (WinOLS grid)
     --------------------------------
@@ -55,16 +57,7 @@ def export_tables_csv(
     ----------------------------------------------
     Two columns: ``AxisValue, DataValue``.
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    written = 0
-    for t in tables:
-        path = output_dir / _filename(t)
-        rows_data = _read_table(data, t)
-        _write_csv(path, rows_data)
-        written += 1
-
-    return written
+    return {_filename(t): _render_csv(_read_table(data, t)) for t in tables}
 
 
 # ---------------------------------------------------------------------------
@@ -142,8 +135,9 @@ def _read_cells(
     )
 
 
-def _write_csv(path: Path, rows: list[list[str]]) -> None:
-    """Write rows to a CSV file."""
-    with open(path, "w", newline="") as f:
-        writer = csv.writer(f, lineterminator="\n")
-        writer.writerows(rows)
+def _render_csv(rows: list[list[str]]) -> str:
+    """Serialise rows to CSV text (LF line endings, same quoting as ``csv``)."""
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerows(rows)
+    return buf.getvalue()

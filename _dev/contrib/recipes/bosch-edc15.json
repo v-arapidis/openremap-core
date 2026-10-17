@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "EDC15",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.bosch.edc15.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.edc15.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x8000",
+      "seq": [
+        {
+          "hex": "54535720"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "EDC15"
+  }
+}

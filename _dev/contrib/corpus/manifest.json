@@ -1,0 +1,1479 @@
+{
+  "schema": 1,
+  "purpose": "wizard-only fixture corpus \u2014 not evidence about real ECUs",
+  "generated_by": "_dev/contrib/build_corpus.py",
+  "files": [
+    {
+      "name": "bosch-dme-3.2-32k.mimic",
+      "sha256": "ce73f5e556bbfbaf27e5cbda32a735842d341fa5b0dcf9f9297380ee8bc540fb",
+      "bytes": 32768,
+      "recipe": "bosch-dme-3.2.json",
+      "recipe_sha256": "bacec013a1475df9283306cdb8622a2f54d5fd9522867845dcbe51b882731e16",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "DME-3.2",
+        "ecu_variant": "DME-3.2"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "DME-3.2",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc1-32k.mimic",
+      "sha256": "1931551b3018b20b8553802ea292dc05ee2455c3f55d20178622eae345d10e8b",
+      "bytes": 32768,
+      "recipe": "bosch-edc1.json",
+      "recipe_sha256": "68d43d5063603b38772f733ced9539061b152ebabae222e66a9e5590605eb750",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC1"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC1",
+        "match_key": "EDC1::2537355342"
+      }
+    },
+    {
+      "name": "bosch-edc15-512k.mimic",
+      "sha256": "9fefdcdc509a981477a8cad8cd2685223c3f4cea3452176dd9ebb90cd358a3da",
+      "bytes": 524288,
+      "recipe": "bosch-edc15.json",
+      "recipe_sha256": "cebeca221079dc3429c7222f8fda8194216778229a02d3551febdfe3eb5bb2f7",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC15"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC15",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16-256k.mimic",
+      "sha256": "aaafc0fea01391880107c4a15f0879f1388859e87e0bf060d0ff11fde454dc39",
+      "bytes": 262144,
+      "recipe": "bosch-edc16.json",
+      "recipe_sha256": "74aa245d32fdc5b5eae97cb27b4cfce8bfea3e63ac9758a93b1b0974f71f5bbf",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16c31-256k.mimic",
+      "sha256": "5ea25fa99747127e9395bfdddb7183fe54989d7579be3359b2b08e7cac9cb836",
+      "bytes": 262144,
+      "recipe": "bosch-edc16c31.json",
+      "recipe_sha256": "05b6625718c26b850145838a6e33283e52713d5d9dfce49d01bda1ba8556c156",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16C31"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16c34-256k.mimic",
+      "sha256": "6de2b5748c974c78e58e2b55bde0212160ebd769a62d960a403ce83bab4e5006",
+      "bytes": 262144,
+      "recipe": "bosch-edc16c34.json",
+      "recipe_sha256": "c4a1f55d90192e3491e628903a88d01acf037c73de5750aeade1e0b306cdfd70",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16C34"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16c35-256k.mimic",
+      "sha256": "b6a5457000b649c4a86ad67933554c53fffa25276c308e52d446b7f99784ef37",
+      "bytes": 262144,
+      "recipe": "bosch-edc16c35.json",
+      "recipe_sha256": "83941139de98bfa3d21c4aa62a645ee1d804e1f0e3f84a8eb4d599dee85be319",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16C35"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16c36-256k.mimic",
+      "sha256": "3736b3ff5a9964587810a207d4f5c66508ea734ad5266a296b8587ec09d88376",
+      "bytes": 262144,
+      "recipe": "bosch-edc16c36.json",
+      "recipe_sha256": "9f5cfe30718ff95ccfdd59d7a1a5997456815ed1c01de4a32a74bae51725d6d6",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16C36"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16c39-256k.mimic",
+      "sha256": "519dd7f207c4cc53b3e234bbdb7f3cf7a32107d8eb198a90db9374f1ed2c4173",
+      "bytes": 262144,
+      "recipe": "bosch-edc16c39.json",
+      "recipe_sha256": "ce11e2d727f279b56533b4fb577b19b3b94013d2a083441e3869ae4af7debf33",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16C39"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16c8-256k.mimic",
+      "sha256": "0a810b8e9c9d66c03b88414b846f59760dd99e4877ec4bcf367ab0d2be4bc3e3",
+      "bytes": 262144,
+      "recipe": "bosch-edc16c8.json",
+      "recipe_sha256": "f1f0df45fae1ab249e186141e107d92484b8a79ec9625d139a47e980000ec99b",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16C8"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16c9-256k.mimic",
+      "sha256": "f8bde33704364750b66773b6f8eb10b307c8cc3bb0ce52cf84c30aaa8745acd1",
+      "bytes": 262144,
+      "recipe": "bosch-edc16c9.json",
+      "recipe_sha256": "39864541b1a69f73a285c618ce231e0e2663adb5d6ce3295c98d51aa128cf891",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16C9"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16cp33-256k.mimic",
+      "sha256": "c3033a58e6dcda667e0ce3015a46ae98efe2282138fdcc6d8dc2130979a8197e",
+      "bytes": 262144,
+      "recipe": "bosch-edc16cp33.json",
+      "recipe_sha256": "c526ef1c565cf9c7ba43def5960439e6c316d1579da7d14edb5f1bf3941d1dd0",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16CP33"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16cp34-256k.mimic",
+      "sha256": "9680d2c35479509c035bfefa9e1d5d10e7067746526c2aa76ee2907b63c6931d",
+      "bytes": 262144,
+      "recipe": "bosch-edc16cp34.json",
+      "recipe_sha256": "a146191d514e21b40b0d0234baa32db0dd3993975600832f7ea2db92b6389cb5",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16CP34"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16cp35-256k.mimic",
+      "sha256": "6cc522c6f3a93bbf4323cecf48daef2f813ca28701bf9fdd578de0ccabba3542",
+      "bytes": 262144,
+      "recipe": "bosch-edc16cp35.json",
+      "recipe_sha256": "6f32a7f46e4c1ba77a15bc7c6e111ac94ca6042424d91bed777c5b21cdb029af",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16CP35"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16u1-256k.mimic",
+      "sha256": "339eaffabd2adcb0f5944d5efd405152b1892986a71cc7ce49c49481f1a0e963",
+      "bytes": 262144,
+      "recipe": "bosch-edc16u1.json",
+      "recipe_sha256": "04d8ad8b1c384fbfc4832abb38acefde835252c8eb37bacce2d483145ce9a747",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16U1"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc16u31-256k.mimic",
+      "sha256": "36d855bc7730c85da5f7f29666d2d28c647adeec8509af52c64d3f82fc40a9df",
+      "bytes": 262144,
+      "recipe": "bosch-edc16u31.json",
+      "recipe_sha256": "3055d2461919aeb90a3cb2fededa56273e2b2650d5bc6eec7b0f03ad3d7d2c83",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "ecu_variant": "EDC16U31"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC16",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc17-2048k.mimic",
+      "sha256": "171b4102a3230bb4b73e9227d2c18eb56baac544ca056494501d0a3e80105eb9",
+      "bytes": 2097152,
+      "recipe": "bosch-edc17.json",
+      "recipe_sha256": "4b96aea27f907644ba8e4a5bb6d68fac6ef5aff810c3eacf5472e9c655a30a24",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC17"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC17",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-edc3-256k.mimic",
+      "sha256": "63d47c366ab05f89440efc4cd0f9f2ab87a23d250d52b1ec1539ce2c9cfb9b3f",
+      "bytes": 262144,
+      "recipe": "bosch-edc3.json",
+      "recipe_sha256": "e7c50ca6ce47fcdbc77e3163b786794dcb86b4be96fff3d703b2bdf547880776",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC3"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EDC3",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-ezk-32k.mimic",
+      "sha256": "5dea8d798d447865904723dccc51c5451b10e47c6a32aa6bbf0fceb09e5f65e7",
+      "bytes": 32768,
+      "recipe": "bosch-ezk.json",
+      "recipe_sha256": "af208d21795ab20c75c7115695658ff7acd28b17663bd2c7740eabab2d074e4a",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EZK",
+        "ecu_variant": "EZK"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "EZK",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-ke-jetronic-32k.mimic",
+      "sha256": "dc02646d5011d45927b60e736b5efa399141ca4df3e19cad254e9bde1cd6775e",
+      "bytes": 32768,
+      "recipe": "bosch-ke-jetronic.json",
+      "recipe_sha256": "a99ebcce160bc40da838edd4c2a48ea9784f4c04d9ae14e5f7baafff28540884",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "KE-Jetronic"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "KE-Jetronic",
+        "match_key": "KE-JETRONIC::0280800447::01"
+      }
+    },
+    {
+      "name": "bosch-lh-jetronic-16k.mimic",
+      "sha256": "450a4704c646823d93f03ad230f0b77ff1653a756939997603603e4090d23554",
+      "bytes": 16384,
+      "recipe": "bosch-lh-jetronic.json",
+      "recipe_sha256": "2a125d40c828712365ee5f16f05645646f671516ab6d139418822e0c069e3a0c",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "LH-Jetronic"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "LH-Jetronic",
+        "match_key": "LH-JETRONIC::2287356486"
+      }
+    },
+    {
+      "name": "bosch-m1.3-32k.mimic",
+      "sha256": "7022d36d226eadc133820fa8db2547f359bd7f417ed41fb0e39ac82204a9975c",
+      "bytes": 32768,
+      "recipe": "bosch-m1.3.json",
+      "recipe_sha256": "f2856d4c2e160b569ff5f2af0c8854b8026458d4a19ab51dc8446a879a3e9866",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.3",
+        "ecu_variant": "M1.3"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.3",
+        "match_key": "M1.3::1267356378"
+      }
+    },
+    {
+      "name": "bosch-m1.55-128k.mimic",
+      "sha256": "84da7fcdb39fbb9d9cc4c5dbafa847d294c8ae1e8941e8109a8738fe320505cd",
+      "bytes": 131072,
+      "recipe": "bosch-m1.55.json",
+      "recipe_sha256": "3d4e790d146dc0ed489f81c2c08c5fde73d6ddb5e169404d2586214d15e96e7b",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.55",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.55",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m1.7-32k.mimic",
+      "sha256": "41515a8ae094bf2c81acc2c6328303b521a9821fe7212f1783522cb7c72e7430",
+      "bytes": 32768,
+      "recipe": "bosch-m1.7.json",
+      "recipe_sha256": "6e0363cbd3b28d76d9caa35f3a651c5998a99266921ac48eebbd6a836655ab6e",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.7",
+        "ecu_variant": "M1.7"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.7",
+        "match_key": "M1.7::1267356378"
+      }
+    },
+    {
+      "name": "bosch-m1.8-32k.mimic",
+      "sha256": "a2f42deecae8558decedb99e4091be7e38a3fe58e476af03df3d03828509e0f0",
+      "bytes": 32768,
+      "recipe": "bosch-m1.8.json",
+      "recipe_sha256": "00c73b8139121871a64663543a54933eb768830bf117f5691672e86aaf8a5cba",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.8",
+        "ecu_variant": "M1.8"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.8",
+        "match_key": "M1.8::1267356378"
+      }
+    },
+    {
+      "name": "bosch-m1.x-early-32k.mimic",
+      "sha256": "c64ee538edca1fd768c295b24c7b70ee8e8f4ad0cd7a6f3d72655f2a417d0824",
+      "bytes": 32768,
+      "recipe": "bosch-m1.x-early.json",
+      "recipe_sha256": "7136ea4e0de7071910b7732b276489e77b5254dd6fdbcf003c3ecee61984b14c",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.x-early",
+        "ecu_variant": "M1.x-early"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.x-early",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m155-128k.mimic",
+      "sha256": "e80b3d92372961d22a19abf3072e450f3697eec974db75ccbecbc777e996d35a",
+      "bytes": 131072,
+      "recipe": "bosch-m155.json",
+      "recipe_sha256": "1e6c354e2a440015dbad59a42bd86f647f9f1ab228d6c937e6fcc3e0ba8c6ad2",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.5.5"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.5.5",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m1x-32k.mimic",
+      "sha256": "da8e43f4c593c333d8beb015876ad3453ed3866e03f8e6a405a0c049b3b5953e",
+      "bytes": 32768,
+      "recipe": "bosch-m1x.json",
+      "recipe_sha256": "e5c0abae6adb7b00b43cfc4695316ae33919c857e86bb5c2e5f0dc0f1c73bb7c",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.x"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M1.x",
+        "match_key": "M1.x::1267356378"
+      }
+    },
+    {
+      "name": "bosch-m2.8-64k.mimic",
+      "sha256": "297a6aab08ca6b38d8901dad0ad25e100d20ebc9263a141a39b70b2b0adedd16",
+      "bytes": 65536,
+      "recipe": "bosch-m2.8.json",
+      "recipe_sha256": "647491eb551d46a844bd0bb463205fdbbace3c98b861cc2d14e06812790370e8",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.8",
+        "ecu_variant": "M2.8"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.8",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m2.9-64k.mimic",
+      "sha256": "acf3db1589e8ee3adebc1a6ab89243e052ee89f3389632888dd64df47ef81bcb",
+      "bytes": 65536,
+      "recipe": "bosch-m2.9.json",
+      "recipe_sha256": "f32e402e50427c2e96a712a91f92d557976158e19270757bda2bd8ef62c9b0ee",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.9",
+        "ecu_variant": "M2.9"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.9",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m23-64k.mimic",
+      "sha256": "f861091a174e61416339ac2445e7f8315ac4fc66d89d6b32b42826e5301a07da",
+      "bytes": 65536,
+      "recipe": "bosch-m23.json",
+      "recipe_sha256": "d9b5fa87f6d6a7887bcbcbbb9a97f15f2d26449fd1288834be1ce7b0548400e3",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.3"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.3",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m27-64k.mimic",
+      "sha256": "bbc8dc3d37b17428d8c4ce011edbcf2eb661b2c8ae9fe4799ba05712c4e8d241",
+      "bytes": 65536,
+      "recipe": "bosch-m27.json",
+      "recipe_sha256": "2fbbc53bdb28c379d4dd99427b2fc9867fa68e236a37133665076a1576cd3cd5",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.7"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M2.7",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m3.3-256k.mimic",
+      "sha256": "2245f2fcf989617535d8d3dbdc78eb29e3ab97db73741462d01afe4c0ef0204c",
+      "bytes": 262144,
+      "recipe": "bosch-m3.3.json",
+      "recipe_sha256": "e510e829d4c4619d639e522cb1b3f33e88577cd09dcaf9f8386ff73019788e53",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M3.3",
+        "ecu_variant": "M3.3"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M3.3",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m3.8-512k.mimic",
+      "sha256": "90a5e91bf4215dbfda17a7092ee98c75eac900b07d40ba721d8a441f40704ddf",
+      "bytes": 524288,
+      "recipe": "bosch-m3.8.json",
+      "recipe_sha256": "b85a45f08ca464c4ec0c81df0243940a1106aeea9e508a6ccb73e74f68cbe746",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M3.8",
+        "ecu_variant": "M3.8"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M3.8",
+        "match_key": "M3.8::1234567890"
+      }
+    },
+    {
+      "name": "bosch-m31-256k.mimic",
+      "sha256": "1f5cabdcd230df0185c0f8656f1613c9c4b552f925f004d636fcbb1dcbb28433",
+      "bytes": 262144,
+      "recipe": "bosch-m31.json",
+      "recipe_sha256": "179823497ff38c1d10649ac08095f3ad8c1e1ee41a24c124dc8cc57033f5b237",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M3.1"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M3.1",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-m4.4-64k.mimic",
+      "sha256": "aec26e1f99aef92da38d74867b898d168e6da7bdec28c1d29650e77b0b68608e",
+      "bytes": 65536,
+      "recipe": "bosch-m4.4.json",
+      "recipe_sha256": "350db41bca48b9148bb113af9277fe7d25cc83052467fef4b63bf10f18295589",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M4.4",
+        "ecu_variant": "M4.4"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M4.4",
+        "match_key": "M4.4::2227355899"
+      }
+    },
+    {
+      "name": "bosch-m43-64k.mimic",
+      "sha256": "d5886aa86ed32a0b63354cb1c832e41077d07dbcf2b8cbc782ace6ab8089aebc",
+      "bytes": 65536,
+      "recipe": "bosch-m43.json",
+      "recipe_sha256": "8b2e034b6995de6d70170df8886ce72f8270570c19654df6462cd6a3ada2401a",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M4.3"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M4.3",
+        "match_key": "M4.3::2227355899"
+      }
+    },
+    {
+      "name": "bosch-m5.9-512k.mimic",
+      "sha256": "d6743cda698b55eb4f16fea4372a482ca738fd9c0fb77b1ab08323913f96e9f8",
+      "bytes": 524288,
+      "recipe": "bosch-m5.9.json",
+      "recipe_sha256": "12088a1b0e06d43c802e2602c5fcb4ab911ab308d2144f6e23f8d6d3ebba5c62",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M5.9",
+        "ecu_variant": "M5.9"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "M5.9",
+        "match_key": "M5.9::1234567890"
+      }
+    },
+    {
+      "name": "bosch-md1-2048k.mimic",
+      "sha256": "b3bd6feb9e9ff2ab47ece27256e6dc66b7ba927776bc0474b3a356ccd9ed5d6c",
+      "bytes": 2097152,
+      "recipe": "bosch-md1.json",
+      "recipe_sha256": "5e408ca0497c7a711ffeb49d33a95d4523175ac5db6300a3c426e78c8a071031",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MD1",
+        "ecu_variant": "MD1A"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MD1",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me155-512k.mimic",
+      "sha256": "73c1ae105dcbe7fccdbf2768baf8cc0c3125fc92b120e3f15c91d11e08de2849",
+      "bytes": 524288,
+      "recipe": "bosch-me155.json",
+      "recipe_sha256": "9599fb233b630f5be96c77d7bedc022658e400b6a7bb600edd90898e829c27cc",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME1.5.5"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME1.5.5",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me17-2048k.mimic",
+      "sha256": "b68d605453e3a11da93675272410cbdb7c8904232d5ab6ecd5a8c298d686e507",
+      "bytes": 2097152,
+      "recipe": "bosch-me17.json",
+      "recipe_sha256": "70dc55c586413fa8d008a9e4a40c5143c8565596d4440140cdd23d8e7b8017ef",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME17",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME17",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me7.0-512k.mimic",
+      "sha256": "a0220423e33e43858d46c3126453034b514ff25b867539b84ada7b372363a1ad",
+      "bytes": 524288,
+      "recipe": "bosch-me7.0.json",
+      "recipe_sha256": "d3d5d172585c703afe38b99971d44f28674c6d243c461649832c0ca3f12f10f6",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.0",
+        "ecu_variant": "ME7.0"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.0",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me7.1-512k.mimic",
+      "sha256": "090b2ec22dfb0a72b1a00862e56622ce5339583dbda316246cc5757a7bf00011",
+      "bytes": 524288,
+      "recipe": "bosch-me7.1.json",
+      "recipe_sha256": "76cd320876a34d7e98aa2d8fe9ce0fade890aedab829ca7c9adc3d729b1826c9",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.1",
+        "ecu_variant": "ME7.1"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.1",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me7.5.5-512k.mimic",
+      "sha256": "9b1c417e801e7bc92fd8ba59d91e5128a217a3e2b72f693aa01c75ba6f196e75",
+      "bytes": 524288,
+      "recipe": "bosch-me7.5.5.json",
+      "recipe_sha256": "ec6d956fa5264fd31e72da36f70be8473187dff640dd08056600fbe962ed6d1b",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.5.5",
+        "ecu_variant": "ME7.5.5"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.5.5",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me7-512k.mimic",
+      "sha256": "b2c88bba2f3d2fd989cd15b4df0e5dacf5745aa26091115b6b0e52501f278a1b",
+      "bytes": 524288,
+      "recipe": "bosch-me7.json",
+      "recipe_sha256": "b6c414818602eb574dd93d4e3cc6ee1dcc1d38882b0ce4d7c11bf8102f304031",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me71-512k.mimic",
+      "sha256": "8b02338658c502bc66815ca0011ef9de8d45fb9ac586bd097cd94cab9e273386",
+      "bytes": 524288,
+      "recipe": "bosch-me71.json",
+      "recipe_sha256": "a2f7dcf9990bc71809eb3ef9c11107a465ee594874c75c947282330f01fd82a9",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME71",
+        "ecu_variant": "ME71"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME71",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me711-512k.mimic",
+      "sha256": "1864e245ce7ec5721a930bf6c99c05b36cdee5647555228ddf0eea428742cbff",
+      "bytes": 524288,
+      "recipe": "bosch-me711.json",
+      "recipe_sha256": "df253317ded6958950969ea6bd25c493ceaad7bde03b1c57f1220635fab9f8c7",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.1.1",
+        "ecu_variant": "ME7.1.1"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.1.1",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me73-512k.mimic",
+      "sha256": "d0417262f636d089189eba8c24f157e200a119b1cdac96968f6a58374a3df113",
+      "bytes": 524288,
+      "recipe": "bosch-me73.json",
+      "recipe_sha256": "3b314783f17efa9b9295c6d8b24e8524f596128ad0ffea214872fccb76711902",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.3"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.3",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me731-512k.mimic",
+      "sha256": "cc6eb5c5226c0facd9c9a5f37bf2e700f3006b769b8f0f607a37b48041bb7592",
+      "bytes": 524288,
+      "recipe": "bosch-me731.json",
+      "recipe_sha256": "73d4dd7b3f4a6487a738cab2a35590b53daf8dfcb8a9ed74910a3cc9d012c143",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME731"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME731",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me75-512k.mimic",
+      "sha256": "69e4473e51cc4f323ae361382981693c05032fbd775079773682539c9138db83",
+      "bytes": 524288,
+      "recipe": "bosch-me75.json",
+      "recipe_sha256": "8508eb6fc37863156fa3f8b87a8ed54f8fed0accf496b1dd740ae960cfc33a2c",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.5"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.5",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me7510-512k.mimic",
+      "sha256": "4ced6e67b4033f9345971ff81d9b9936399a2980309440891eb1740887903685",
+      "bytes": 524288,
+      "recipe": "bosch-me7510.json",
+      "recipe_sha256": "8d9fb90f00a091259e5662c172e5fe8a40f76dfcb2a4a9fb9535b033ed02f38e",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.5.10",
+        "ecu_variant": "ME7.5.10"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.5.10",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me762-512k.mimic",
+      "sha256": "8437c9faaaecd93aca6ddbdefb4bb051c0598b9793af883e1df77727f44fd7c1",
+      "bytes": 524288,
+      "recipe": "bosch-me762.json",
+      "recipe_sha256": "756f89d7d51a1ab94d7694ecad1989898ad0be2fa4b7dd21c874ff64f3f176a1",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.6.2",
+        "ecu_variant": "ME7.6.2"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.6.2",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me7910-832k.mimic",
+      "sha256": "61f423e211f0203b9d704b6619a74c80124166f65785224b1ac85efb16c62ffb",
+      "bytes": 851968,
+      "recipe": "bosch-me7910.json",
+      "recipe_sha256": "3f8c80b69f1fd292e2f31cec95fbdd9e239fd2df72a2ee4d310e07f503aed15f",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.9.10"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7.9.10",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-me7early-512k.mimic",
+      "sha256": "c5778373a631b0addbbce4b5b1e410c994e613816a4ea09a746e8693b842604d",
+      "bytes": 524288,
+      "recipe": "bosch-me7early.json",
+      "recipe_sha256": "767bae4ba3ca4bbd116afafcccc1da4fe4c55afb0b64249f8c789e01fe4180a7",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7early",
+        "ecu_variant": "ME7early"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME7early",
+        "match_key": "ME7EARLY::D04"
+      }
+    },
+    {
+      "name": "bosch-me9-2048k.mimic",
+      "sha256": "b21376cef2cee0f1e5bd638ca5df53a6708a94aa805969f1c81542bcfa466a96",
+      "bytes": 2097152,
+      "recipe": "bosch-me9.json",
+      "recipe_sha256": "8b38e104ae7e620b54e153f22c1f590610fa46e115f81e4e414a6efc63c2baa8",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME9"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "ME9",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-med17-2048k.mimic",
+      "sha256": "9f5c7fec4eebb83da097f79d476283e1e0265c4010e2ad9d9255ba3e8498ce47",
+      "bytes": 2097152,
+      "recipe": "bosch-med17.json",
+      "recipe_sha256": "a2b1176fe8d156cb40bff84bad951ec0603c1954ad71f808d0881b5e483c8604",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MED17",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MED17",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-med9-2048k.mimic",
+      "sha256": "02ccf44c832a475c1d4c8f9514bc792a3d1e21142e71d63557ced04d4f238e61",
+      "bytes": 2097152,
+      "recipe": "bosch-med9.json",
+      "recipe_sha256": "fb4732177727a04af322ed8624228f9e2d7e9514e76ff81caa618616815904a8",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MED9",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MED9",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-medc17-2048k.mimic",
+      "sha256": "8b270d579c984078387d4f5f27b1aecc1603485f1c65af7f8dd8826fbf23ee52",
+      "bytes": 2097152,
+      "recipe": "bosch-medc17.json",
+      "recipe_sha256": "09b0e1d388fd2e0ae239600b83e548c3a5508960d2059aac48d185b68ab87245",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MEDC17",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MEDC17",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-mono-motronic-32k.mimic",
+      "sha256": "5ed06a7f99bd885ed5622b1c894faba51967fff14307badee2651088cae037fd",
+      "bytes": 32768,
+      "recipe": "bosch-mono-motronic.json",
+      "recipe_sha256": "00eedac8e1b59b52cf6d80011222108b4c9d98d8287c00ceb55f8af8cdb8facf",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "Mono-Motronic"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "Mono-Motronic",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-mp3.2-256k.mimic",
+      "sha256": "4c6b2792310d9381d5f2f89b81726706fc3a65a973420ffb91c7f0e209b33f89",
+      "bytes": 262144,
+      "recipe": "bosch-mp3.2.json",
+      "recipe_sha256": "f7a15e797e7dca4becbdc9d0f7fc7007f86e2b883bfa14b1858b2413e51ced8f",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP3.2",
+        "ecu_variant": "MP3.2"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP3.2",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-mp3.x-psa-256k.mimic",
+      "sha256": "fa3b2bd8133b8b26e2aa48bdef15827080ad08a16a45f161bacd6afd4a81398e",
+      "bytes": 262144,
+      "recipe": "bosch-mp3.x-psa.json",
+      "recipe_sha256": "68fb556a1472770317dcaf55b540d0194f33df5a959835abfe50be561c221c6e",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP3.x-PSA",
+        "ecu_variant": "MP3.x-PSA"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP3.x-PSA",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-mp7.2-256k.mimic",
+      "sha256": "646134117245416b38fc022a9ca3aa05e1bd2a1f73a61aad48fd93d156082eb6",
+      "bytes": 262144,
+      "recipe": "bosch-mp7.2.json",
+      "recipe_sha256": "5f02482446bdafb259d494c06e6cc917b11b4436a91e582c7c18b84bea443c6c",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP7.2",
+        "ecu_variant": "MP7.2"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP7.2",
+        "match_key": null
+      }
+    },
+    {
+      "name": "bosch-mp9.0-64k.mimic",
+      "sha256": "dd132fe992ed8fe77de4b4a9691e0daa82ff5398352fac7d0bd152d22f487b32",
+      "bytes": 65536,
+      "recipe": "bosch-mp9.0.json",
+      "recipe_sha256": "876f7ee6f7b01f6d2d3b631da523dae48d61c739501b28a4aa4d376a488d33fa",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP9",
+        "ecu_variant": "MP9.0"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP9",
+        "match_key": "MP9::1037357494"
+      }
+    },
+    {
+      "name": "bosch-mp9-64k.mimic",
+      "sha256": "4841c0b33e19ac69cb62684496240a6b718048084d887a1a12b12a57171ab068",
+      "bytes": 65536,
+      "recipe": "bosch-mp9.json",
+      "recipe_sha256": "61d6a34ccef1682f8a282b1f68c72672ddb782d5ebc281e44acc1d7d93131daa",
+      "expect": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP9"
+      },
+      "observed": {
+        "manufacturer": "Bosch",
+        "ecu_family": "MP9",
+        "match_key": "MP9::1037357494"
+      }
+    },
+    {
+      "name": "delphi-multec-s-128k.mimic",
+      "sha256": "b31700988164166a5a077bfd86da02ed0e49bfe855fb18dbc52adef1a4381033",
+      "bytes": 131072,
+      "recipe": "delphi-multec-s.json",
+      "recipe_sha256": "04772321c4abb09c59e65253c49b995806e2257f67dd1aaf18f6f1f95681e0b4",
+      "expect": {
+        "manufacturer": "Delphi",
+        "ecu_family": "Multec S"
+      },
+      "observed": {
+        "manufacturer": "Delphi",
+        "ecu_family": "Multec S",
+        "match_key": "MULTEC S::12345678"
+      }
+    },
+    {
+      "name": "delphi-multec-208k.mimic",
+      "sha256": "a3964e11311e3894e8ccf3a4784cb4c5f36eb758648684791c75093d8744f367",
+      "bytes": 212992,
+      "recipe": "delphi-multec.json",
+      "recipe_sha256": "40f78886d7408046a9777daef150f815f360ad22f252b4cd112b79988061cc53",
+      "expect": {
+        "manufacturer": "Delphi",
+        "ecu_family": "Multec"
+      },
+      "observed": {
+        "manufacturer": "Delphi",
+        "ecu_family": "Multec",
+        "match_key": "MULTEC::11111111"
+      }
+    },
+    {
+      "name": "denso-68hc16y5-160k.mimic",
+      "sha256": "fcc02a18ef34e3297914fab2de426acfd8cd535325a3ee6e0cf3880f801f4cfd",
+      "bytes": 163840,
+      "recipe": "denso-68hc16y5.json",
+      "recipe_sha256": "d2c63ecd1ddd160a96dd624a41c70da49a622d3dde966010b350ef812ea2c427",
+      "expect": {
+        "manufacturer": "Denso",
+        "ecu_family": "68HC16Y5"
+      },
+      "observed": {
+        "manufacturer": "Denso",
+        "ecu_family": "68HC16Y5",
+        "match_key": "68HC16Y5::A8DH100E"
+      }
+    },
+    {
+      "name": "denso-diesel-1024k.mimic",
+      "sha256": "b08be0e0b3a6f33c5b206aab1136fdc8162e83b5aa2f12168014eede88b40572",
+      "bytes": 1048576,
+      "recipe": "denso-diesel.json",
+      "recipe_sha256": "8fec131f8692726d0513b0771861a82eda4798d29b7564cabb19084cae232ed1",
+      "expect": {
+        "manufacturer": "Denso",
+        "ecu_family": "Diesel"
+      },
+      "observed": {
+        "manufacturer": "Denso",
+        "ecu_family": "Diesel",
+        "match_key": "DIESEL::JZ2F422A"
+      }
+    },
+    {
+      "name": "denso-sh7055-512k.mimic",
+      "sha256": "132e14edd214e6825b26eb80591d0b575d0c680e157f252f5571736378e56b69",
+      "bytes": 524288,
+      "recipe": "denso-sh7055.json",
+      "recipe_sha256": "478f944653962901346c1963c29f2a1768551940d0bb9bf3e56b4f7ab25ce6ac",
+      "expect": {
+        "manufacturer": "Denso",
+        "ecu_family": "SH7055"
+      },
+      "observed": {
+        "manufacturer": "Denso",
+        "ecu_family": "SH7055",
+        "match_key": "SH7055::A8DH100E"
+      }
+    },
+    {
+      "name": "denso-sh7058-1024k.mimic",
+      "sha256": "76e553a116c9a9137dc152d78a894fb867b93db43518e73867a028c584f1f74e",
+      "bytes": 1048576,
+      "recipe": "denso-sh7058.json",
+      "recipe_sha256": "095b9f1366afa6c1ef7f5ea64351598ee2337d30b72bfd3c44b58c540da6b51d",
+      "expect": {
+        "manufacturer": "Denso",
+        "ecu_family": "SH7058"
+      },
+      "observed": {
+        "manufacturer": "Denso",
+        "ecu_family": "SH7058",
+        "match_key": "SH7058::A8DH100E"
+      }
+    },
+    {
+      "name": "hitachi-sh72546-1536k.mimic",
+      "sha256": "e66cb356487a4f5e64f7f1583ea8a0040b08a885c0d76695cec2bfe9140d70cb",
+      "bytes": 1572864,
+      "recipe": "hitachi-sh72546.json",
+      "recipe_sha256": "36d4460ea47808f6562b0697b3c56d8dff56845e7726bc80ed2519d5be682ded",
+      "expect": {
+        "manufacturer": "Hitachi",
+        "ecu_family": "SH72546"
+      },
+      "observed": {
+        "manufacturer": "Hitachi",
+        "ecu_family": "SH72546",
+        "match_key": "SH72546::A8DH100E"
+      }
+    },
+    {
+      "name": "marelli-iaw-1ap-64k.mimic",
+      "sha256": "36ac4eb7af237e741e9e1e6399c69a03e1b9eac5c0ed7fd0bc18e43f8c0d4ecb",
+      "bytes": 65536,
+      "recipe": "marelli-iaw-1ap.json",
+      "recipe_sha256": "05e80af259cdb7aa266ff666d94a0155552048a4c8dc53dcfad211121677b406",
+      "expect": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "IAW 1AP"
+      },
+      "observed": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "IAW 1AP",
+        "match_key": "IAW 1AP::FFFFFFFF"
+      }
+    },
+    {
+      "name": "marelli-iaw-1av-64k.mimic",
+      "sha256": "f3169fe432593172fc29cc59ef8c8eee105c166fa4f22155d1efabdf14069b96",
+      "bytes": 65536,
+      "recipe": "marelli-iaw-1av.json",
+      "recipe_sha256": "5baccba48fa26d1c4a16b189e67a4448f56c8dfbe539bdd22cf5b7e895f4a5d8",
+      "expect": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "IAW 1AV"
+      },
+      "observed": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "IAW 1AV",
+        "match_key": null
+      }
+    },
+    {
+      "name": "marelli-iaw-4lv-512k.mimic",
+      "sha256": "013911795e1d51b0b1a3a34d016778ff8e6cc6f4b3401194c0d9ee94c32068de",
+      "bytes": 524288,
+      "recipe": "marelli-iaw-4lv.json",
+      "recipe_sha256": "782b78038ba85c22c0ac2a5031c9fe2e485456c26c138011e0a5b168d8fac367",
+      "expect": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "IAW 4LV"
+      },
+      "observed": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "IAW 4LV",
+        "match_key": null
+      }
+    },
+    {
+      "name": "marelli-mjd-6jf-448k.mimic",
+      "sha256": "258ffe17691dbe020e39b99b2a587598ca3241941aad371139dfe759ae8428a5",
+      "bytes": 458752,
+      "recipe": "marelli-mjd-6jf.json",
+      "recipe_sha256": "0a0ab92e73064d420300050078f6f922cce02db21596cad06310967b09ec3d09",
+      "expect": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "MJD 6JF"
+      },
+      "observed": {
+        "manufacturer": "Magneti Marelli",
+        "ecu_family": "MJD 6JF",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-ems2000-256k.mimic",
+      "sha256": "87198d2124c115fa365de534ea6d21cc3650c0c5393df121b68db3fd10e47ecc",
+      "bytes": 262144,
+      "recipe": "siemens-ems2000.json",
+      "recipe_sha256": "e7240b55e74e02d2e319f15a3477003cea4ac58c4310bf10fe49bbe776d16877",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "EMS2000"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "EMS2000",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-gs20-64k.mimic",
+      "sha256": "42967cecf2de327366b8b5d46e56e3fe081ef8c59dce301a1931a31169c8792a",
+      "bytes": 65536,
+      "recipe": "siemens-gs20.json",
+      "recipe_sha256": "02b3ead5aa730d1ed5a213553656ec65cd2177ce5e836d909589e00cc5858cb8",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "GS20"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "GS20",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-ms43-512k.mimic",
+      "sha256": "8459f2d3e9344fa42d5a04ac2c2d638214b23ab3ede8404103ed59ce44b80dd2",
+      "bytes": 524288,
+      "recipe": "siemens-ms43.json",
+      "recipe_sha256": "c95c9f0595aaaaa0b9e068e9a4ed299f2770411e65e241e9fa277c046956f055",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "MS43"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "MS43",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-ppd11-2048k.mimic",
+      "sha256": "27a753868cbe8a166509bae85e3a73f8731c10c38f60d6819e32dfcaad5105a3",
+      "bytes": 2097152,
+      "recipe": "siemens-ppd11.json",
+      "recipe_sha256": "216be47309d394c18b545238d29aef8f8fa248bb52b4aad6dc8fad70496e3e83",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "PPD1.1",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "PPD1.1",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-ppd12-2048k.mimic",
+      "sha256": "12277cfd303957a24594b3db96c8f3415fee88cd07be849a57246169af9b15df",
+      "bytes": 2097152,
+      "recipe": "siemens-ppd12.json",
+      "recipe_sha256": "42b52cf60a747794e6c23136c89cb19c02bd7e0e06d21cee62f98f8f110560bc",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "PPD1.2",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "PPD1.2",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-ppd15-2048k.mimic",
+      "sha256": "e544af49113ea28e6ae1f0a1b5abc9742ef65b60dfb670c05c478a317f695a57",
+      "bytes": 2097152,
+      "recipe": "siemens-ppd15.json",
+      "recipe_sha256": "9c726616994e2eab72c44a3ed7fcf338e705e58415372d68897b12f33b9709e0",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "PPD1.5"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "PPD1.5",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-sid801-512k.mimic",
+      "sha256": "e4b26e6b98e0dc82d067672571cba541b945fab3b43a6e64ba633ddb5518abd2",
+      "bytes": 524288,
+      "recipe": "siemens-sid801.json",
+      "recipe_sha256": "eeac3cd5bd1861941ea73bbe44f49844580c49a3657942eb35be7431ab972766",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID801"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID801",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-sid801a-512k.mimic",
+      "sha256": "61917fdc52fbcc146689d01d40828502ad06e27ce2205033d2f699e447fe80ee",
+      "bytes": 524288,
+      "recipe": "siemens-sid801a.json",
+      "recipe_sha256": "3e55e19f850c80e16af998b4ad05d1fbce5d0197aada9130d239761a9d69f638",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID801A",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID801A",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-sid803-448k.mimic",
+      "sha256": "f81a8ee058fd2f667fc7dd604cc2e9e90ee2e9dc5f8d301154631bdec04e00f8",
+      "bytes": 458752,
+      "recipe": "siemens-sid803.json",
+      "recipe_sha256": "ffadd7dd9ef59968affdfd7677e4d3437004ce2e81e2a869b45f267ddfc085c8",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID803"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID803",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-sid803a-448k.mimic",
+      "sha256": "9b8b2951f09515426f3da118ef82f70a040626193a1b591f22b17552c8586491",
+      "bytes": 458752,
+      "recipe": "siemens-sid803a.json",
+      "recipe_sha256": "607dc1bac1f5872e979c24862518d90845d1c73593e17d0b5df5bae5a4e6586d",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID803A",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SID803A",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-simos-128k.mimic",
+      "sha256": "d1f5a47707670b107485f0d2f96139bb42dc3cba90aa375afe8a52621ba359a6",
+      "bytes": 131072,
+      "recipe": "siemens-simos.json",
+      "recipe_sha256": "037b989d12c7757dda9b4b005d045dc5871cc8ff52a36a9a7ce55cbe2c850c86",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SIMOS"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SIMOS",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-simos2-256k.mimic",
+      "sha256": "7a02e318ec892da0d15da262638ac69cb4bb4966c0bdaf6a154328c3916776a9",
+      "bytes": 262144,
+      "recipe": "siemens-simos2.json",
+      "recipe_sha256": "6afc89a3a1d40422535c05caa686599ce6bf01e794f8f1a4d4f9e3d3b6e20c01",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SIMOS2",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SIMOS2",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-simos3-512k.mimic",
+      "sha256": "bb9eff4625da4b3ac11c1cdd2a14529c41a648fb4353030a853f36cdff4ad105",
+      "bytes": 524288,
+      "recipe": "siemens-simos3.json",
+      "recipe_sha256": "4baa4a56626ef012b7ac9d7647c827e9753aa96ee3d107eafe5e143f45e3c217",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SIMOS3",
+        "ecu_variant": null
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "SIMOS3",
+        "match_key": null
+      }
+    },
+    {
+      "name": "siemens-simtec56-128k.mimic",
+      "sha256": "883f6e85f1828f474e725720bf59ee777d7dc859223b1e6bf2321198ebbee20c",
+      "bytes": 131072,
+      "recipe": "siemens-simtec56.json",
+      "recipe_sha256": "856d08eec52bf0e16e175fa1957c43e55217e900bac1911ebae448e766dd9c24",
+      "expect": {
+        "manufacturer": "Siemens",
+        "ecu_family": "Simtec56"
+      },
+      "observed": {
+        "manufacturer": "Siemens",
+        "ecu_family": "Simtec56",
+        "match_key": null
+      }
+    }
+  ]
+}

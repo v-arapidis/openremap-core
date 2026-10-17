@@ -294,10 +294,24 @@ def _export_for_file(
     file_stem: str,
 ) -> int:
     """Export tables for one file into a subdirectory named after the file stem."""
-    from openremap.core.services.maps.map_exporter import export_tables_csv
+    from openremap.core.services.maps.map_exporter import render_tables_csv
 
     sub = export_dir / f"{file_stem}_maps"
-    return export_tables_csv(data, tables[:top], sub)
+    return _write_csv_files(render_tables_csv(data, tables[:top]), sub)
+
+
+def _write_csv_files(rendered: dict[str, str], output_dir: Path) -> int:
+    """Write rendered CSV documents into *output_dir* (created if missing).
+
+    The task: the service returns CSV *text*; writing it is the CLI's job
+    (same split as ``tune --output``, where the caller writes the patched
+    bytes).  ``newline=""`` keeps LF endings on every platform.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for name, text in rendered.items():
+        with open(output_dir / name, "w", newline="", encoding="utf-8") as f:
+            f.write(text)
+    return len(rendered)
 
 
 # ---------------------------------------------------------------------------
@@ -424,10 +438,10 @@ def scan_maps(
 
         # CSV export
         if export is not None:
-            from openremap.core.services.maps.map_exporter import export_tables_csv
+            from openremap.core.services.maps.map_exporter import render_tables_csv
 
             to_export = tables[:top]
-            n = export_tables_csv(data, to_export, export)
+            n = _write_csv_files(render_tables_csv(data, to_export), export)
             typer.echo(
                 typer.style(
                     f"  Exported {n} CSV file{'s' if n != 1 else ''} to {export}/",

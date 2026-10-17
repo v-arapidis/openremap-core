@@ -1,0 +1,81 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "M2.3",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.bosch.m2x.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.m2x.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x2000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x4000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x7fd9",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0x8000",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0xffc0",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    },
+    {
+      "at": "0xff00",
+      "seq": [
+        {
+          "hex": "4d31314d4f54524f4e4943313131313131313131313130323631313131313131"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M2.3"
+  }
+}

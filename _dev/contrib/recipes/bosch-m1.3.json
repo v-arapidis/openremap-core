@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "M1.3",
+  "file_size": 32768,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'M1.3'; identify reports family='M1.3' variant='M1.3'.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.m1x.extractor",
+    "family_target": "M1.3"
+  },
+  "plants": [
+    {
+      "at": "0x7f00",
+      "seq": [
+        {
+          "hex": "2f3537313030323136323038373336353337363231313331343337313130303037322e3130"
+        }
+      ]
+    },
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "22303030303030304d312e33"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M1.3",
+    "ecu_variant": "M1.3"
+  }
+}

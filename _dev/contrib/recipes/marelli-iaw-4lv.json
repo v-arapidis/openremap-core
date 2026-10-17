@@ -1,0 +1,41 @@
+{
+  "manufacturer": "Magneti Marelli",
+  "ecu_family": "IAW 4LV",
+  "file_size": 524288,
+  "fill": "00",
+  "notes": "Hand-authored from the extractor's phases: 512 KB + header magic 0x0E00E683 at offset 0 + the BYTE-SWAPPED 'AMERLL' text (plain 'MARELLI' is not enough \u2014 the extractor looks for the swapped form) + the footer sync marker inside the last 0x100 bytes.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.marelli.iaw_4lv.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "0e00e683"
+        }
+      ]
+    },
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "414d45524c4c"
+        }
+      ]
+    },
+    {
+      "at": "0x7ffc0",
+      "seq": [
+        {
+          "hex": "55aa33cc"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Magneti Marelli",
+    "ecu_family": "IAW 4LV"
+  }
+}

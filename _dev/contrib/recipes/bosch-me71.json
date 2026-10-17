@@ -1,0 +1,107 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "ME71",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'ME71'; identify reports family='ME71' variant='ME71'.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.me7.extractor",
+    "family_target": "ME71"
+  },
+  "plants": [
+    {
+      "at": "0x10000",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x10000",
+      "seq": [
+        {
+          "hex": "4d453731"
+        }
+      ]
+    },
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x2000",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x4000",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x7fd9",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x8000",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x7ffc0",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x7ff00",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    },
+    {
+      "at": "0x40000",
+      "seq": [
+        {
+          "hex": "5a5affff"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "ME71",
+    "ecu_variant": "ME71"
+  }
+}

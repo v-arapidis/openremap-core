@@ -1,0 +1,27 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "MED9",
+  "file_size": 2097152,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'MED9'; identify reports family='MED9' variant=None.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.edc17.extractor",
+    "family_target": "MED9"
+  },
+  "plants": [
+    {
+      "at": "0x100000",
+      "seq": [
+        {
+          "hex": "352f352f4d454439412d5a302d392f5c772f2e5f5c2d31302c"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "MED9",
+    "ecu_variant": null
+  }
+}

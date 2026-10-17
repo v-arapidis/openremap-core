@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "MP9",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.bosch.mp9.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.mp9.extractor"
+  },
+  "plants": [
+    {
+      "at": "0xff00",
+      "seq": [
+        {
+          "hex": "303236313230343539332031303337333537343934204d503920303030364b303930363032374520204d4f54524f4e4943204d5020392e302020202053303233"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "MP9"
+  }
+}

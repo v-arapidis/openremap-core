@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "MP3.x-PSA",
+  "file_size": 262144,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'MP3.x-PSA'; identify reports family='MP3.x-PSA' variant='MP3.x-PSA'.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.bosch.m3x.extractor",
+    "family_target": "MP3.x-PSA"
+  },
+  "plants": [
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "313335303030304d33"
+        }
+      ]
+    },
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "303030303030304d33"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "MP3.x-PSA",
+    "ecu_variant": "MP3.x-PSA"
+  }
+}

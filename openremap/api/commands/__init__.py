@@ -11,6 +11,7 @@ pipeline compositions live in ``openremap.api.workflows`` instead, and
 from openremap.api.commands import (  # noqa: F401
     audit,
     checksum,
+    contribute,
     convert,
     identify,
     layout,
@@ -20,6 +21,7 @@ from openremap.api.commands import (  # noqa: F401
     scan,
     scan_maps,
     scan_vins,
+    synth,
     tune,
     validate,
 )
@@ -27,6 +29,7 @@ from openremap.api.commands import (  # noqa: F401
 __all__ = [
     "audit",
     "checksum",
+    "contribute",
     "convert",
     "identify",
     "layout",
@@ -36,6 +39,7 @@ __all__ = [
     "scan",
     "scan_maps",
     "scan_vins",
+    "synth",
     "tune",
     "validate",
 ]

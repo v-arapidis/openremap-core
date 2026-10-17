@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "MS43",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.siemens.ms43.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.ms43.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x10000",
+      "seq": [
+        {
+          "hex": "35574b39303032372d2d313036313333303033374d533433303630343134303531313538343136353737333537363034622d363537373335353131372d2d"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "MS43"
+  }
+}

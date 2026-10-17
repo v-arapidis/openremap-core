@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "EMS2000",
+  "file_size": 262144,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.siemens.ems2000.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.ems2000.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "c0f068a6"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "EMS2000"
+  }
+}

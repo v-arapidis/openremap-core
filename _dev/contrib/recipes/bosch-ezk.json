@@ -1,0 +1,33 @@
+{
+  "manufacturer": "Bosch",
+  "file_size": 32768,
+  "fill": "FF",
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "81"
+        }
+      ]
+    },
+    {
+      "at": "0x1",
+      "seq": [
+        {
+          "hex": "5c"
+        }
+      ]
+    }
+  ],
+  "ecu_family": "EZK",
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "EZK",
+    "ecu_variant": "EZK"
+  },
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'EZK'; identify reports family='EZK' variant='EZK'.",
+  "derived_from": {
+    "family_target": "EZK"
+  }
+}

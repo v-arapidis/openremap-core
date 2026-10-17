@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "SIMOS",
+  "file_size": 131072,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.siemens.simos.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.simos.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x1ff00",
+      "seq": [
+        {
+          "hex": "63617332313131312e444154"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "SIMOS"
+  }
+}

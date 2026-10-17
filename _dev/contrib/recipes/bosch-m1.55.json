@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "file_size": 131072,
+  "fill": "FF",
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "4d312e3535"
+        }
+      ]
+    }
+  ],
+  "ecu_family": "M1.55",
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M1.55",
+    "ecu_variant": null
+  },
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'M1.55'; identify reports family='M1.55' variant=None.",
+  "derived_from": {
+    "family_target": "M1.55"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "ME731",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.bosch.me7.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.me7.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x40000",
+      "seq": [
+        {
+          "hex": "34312f312f4d453733312f392f3930335f372f413134442f2f31344435357830302f3236303830332f"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "ME731"
+  }
+}

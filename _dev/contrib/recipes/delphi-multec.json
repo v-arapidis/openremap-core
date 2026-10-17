@@ -1,0 +1,33 @@
+{
+  "manufacturer": "Delphi",
+  "ecu_family": "Multec",
+  "file_size": 212992,
+  "fill": "00",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.delphi.multec.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.delphi.multec.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "313131313131313120414141414141"
+        }
+      ]
+    },
+    {
+      "at": "0x33f00",
+      "seq": [
+        {
+          "hex": "313131313131313120414141414141"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Delphi",
+    "ecu_family": "Multec"
+  }
+}

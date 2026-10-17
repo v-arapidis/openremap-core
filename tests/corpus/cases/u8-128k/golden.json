@@ -1,0 +1,448 @@
+{
+  "case": "u8-128k",
+  "params": {
+    "size": 131072,
+    "maps": 2,
+    "seed": 21,
+    "cell_width": 1,
+    "byte_order": "little"
+  },
+  "tune_percent": 8.0,
+  "stock_sha256": "61315fd21c43986f5af0b31eb98b7117f8e891397734e1881293716348124983",
+  "tuned_sha256": "09cdf38f1ef461f80df1328155bee826eed85e07d5784ba8b3f5cc51d4fc8626",
+  "planted": [
+    {
+      "map_id": 0,
+      "offset": 32824,
+      "cols": 8,
+      "rows": 8,
+      "cell_width": 1,
+      "byte_order": "little"
+    },
+    {
+      "map_id": 1,
+      "offset": 33000,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little"
+    }
+  ],
+  "identify": {
+    "manufacturer": null,
+    "match_key": null,
+    "ecu_family": null,
+    "ecu_variant": null,
+    "software_version": null,
+    "hardware_number": null,
+    "calibration_id": null,
+    "oem_part_number": null,
+    "detection_strength": null,
+    "detection_evidence": [],
+    "file_size": 131072,
+    "sha256": "61315fd21c43986f5af0b31eb98b7117f8e891397734e1881293716348124983",
+    "md5": "",
+    "calibration_version": null,
+    "sw_base_version": null,
+    "serial_number": null,
+    "dataset_number": null,
+    "raw_strings": [],
+    "ident_block": null,
+    "ecu_endian": "little",
+    "ecu_cell_bytes": 2
+  },
+  "scan_maps": [
+    {
+      "offset": 32824,
+      "cols": 8,
+      "rows": 8,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32792,
+      "y_axis_offset": 32808,
+      "score": 0.96
+    },
+    {
+      "offset": 33000,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.95
+    },
+    {
+      "offset": 25894,
+      "cols": 4,
+      "rows": 4,
+      "cell_width": 1,
+      "byte_order": "big",
+      "x_axis_offset": 25870,
+      "y_axis_offset": 25886,
+      "score": 0.76
+    },
+    {
+      "offset": 65522,
+      "cols": 4,
+      "rows": 3,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 65504,
+      "y_axis_offset": 65512,
+      "score": 0.75
+    },
+    {
+      "offset": 33840,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.73
+    },
+    {
+      "offset": 33720,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.72
+    },
+    {
+      "offset": 33900,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.72
+    },
+    {
+      "offset": 33120,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.71
+    },
+    {
+      "offset": 33300,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.71
+    },
+    {
+      "offset": 33060,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.7
+    },
+    {
+      "offset": 33180,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.7
+    },
+    {
+      "offset": 33240,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.7
+    },
+    {
+      "offset": 33420,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.7
+    },
+    {
+      "offset": 33480,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.7
+    },
+    {
+      "offset": 33600,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.7
+    },
+    {
+      "offset": 32888,
+      "cols": 8,
+      "rows": 8,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32792,
+      "y_axis_offset": 32808,
+      "score": 0.69
+    },
+    {
+      "offset": 33540,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.69
+    },
+    {
+      "offset": 33660,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.69
+    },
+    {
+      "offset": 33780,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.69
+    },
+    {
+      "offset": 33360,
+      "cols": 10,
+      "rows": 6,
+      "cell_width": 1,
+      "byte_order": "little",
+      "x_axis_offset": 32968,
+      "y_axis_offset": 32988,
+      "score": 0.68
+    }
+  ],
+  "recipe": {
+    "type": "recipe",
+    "schema_version": "4.4",
+    "source": "full_cook",
+    "application": "openremap-core",
+    "creator": {
+      "name": "",
+      "handle": "",
+      "id": "",
+      "created_at": "<normalised:wall-clock>",
+      "signature": null,
+      "trust_level": "UNSIGNED"
+    },
+    "fingerprint": "sha256:7cce2a8ea567000202a3f2883af4f8c61baef9330216e75d4cecc0fd870694b7",
+    "metadata": {
+      "name": "tuned.bin",
+      "description": "",
+      "tags": [],
+      "instruction_count": 2,
+      "original_file": "stock.bin",
+      "modified_file": "tuned.bin",
+      "original_size": 131072,
+      "modified_size": 131072,
+      "tune_id": null,
+      "annotated_maps": true
+    },
+    "ecu": {
+      "manufacturer": null,
+      "match_key": null,
+      "ecu_family": null,
+      "ecu_variant": null,
+      "software_version": null,
+      "hardware_number": null,
+      "calibration_id": null,
+      "oem_part_number": null,
+      "platform": null,
+      "calibration_version": null,
+      "serial_number": null,
+      "dataset_number": null,
+      "file_size": 131072,
+      "sha256": "61315fd21c43986f5af0b31eb98b7117f8e891397734e1881293716348124983",
+      "cook_warnings": []
+    },
+    "statistics": {
+      "total_changes": 2,
+      "total_bytes_changed": 124,
+      "percentage_changed": 0.0946,
+      "single_byte_changes": 0,
+      "multi_byte_changes": 2,
+      "largest_change_size": 64,
+      "smallest_change_size": 60,
+      "min_context_size": 32,
+      "max_context_size": 512
+    },
+    "instructions": [
+      {
+        "offset": 32824,
+        "offset_hex": "8038",
+        "size": 64,
+        "ob": "151A1E23272B2F321D21262A2E32363925292D3135393C402C3034383C40434634383C3F43464A4D3B3F43464A4D515442464A4D5154575B494D5054575B5E61",
+        "mb": "171820262A2E33361F1E29272A36323E282C3135393E4145282C38344145484038343744484044474044484C4453575B47405047575B5E544353565B5E545669",
+        "ctx": "F401EE02E803E204DC05D606D007CA0800006400C8002C019001F4015802BC02",
+        "context_after": "BD8EA70C0CAC67917104DD98A82F56FF928061F9B7DB27D27C75821CC9D6A634",
+        "context_size": 32,
+        "ctx_entropy": 4.2889,
+        "ctx_unique": true,
+        "ctx_expanded": false,
+        "description": "64 bytes at 0x8038 modified",
+        "flags": [],
+        "region": "calibration"
+      },
+      {
+        "offset": 33000,
+        "offset_hex": "80E8",
+        "size": 60,
+        "ob": "151A1E23272B2F3236392024292D3135383C3F432A2F33373B3F4245494C35393D4145484C4F52563F43474B4E5255595C5F494D5155585B5F626669",
+        "mb": "131820202A282B363A3E232126292D313C3744482D33373B4044474B4F463934383C3F4252494B5D44484151544B4E5255674F474B4E5F54676A6E71",
+        "ctx": "F401EE02E803E204DC05D606D007CA08C409BE0A00006400C8002C019001F401",
+        "context_after": "108A27DA1646E4F4471BD9A324E3E8070F46AF4A0996A4AB7192EEEC79D7E4C0",
+        "context_size": 32,
+        "ctx_entropy": 4.4375,
+        "ctx_unique": true,
+        "ctx_expanded": false,
+        "description": "60 bytes at 0x80E8 modified",
+        "flags": [],
+        "region": "calibration"
+      }
+    ],
+    "maps": [
+      {
+        "id": "m1",
+        "offset": 32824,
+        "cols": 8,
+        "rows": 8,
+        "cell_width": 1,
+        "byte_order": "little",
+        "stride": null,
+        "x_axis": {
+          "offset": 32792,
+          "values": [
+            500,
+            750,
+            1000,
+            1250,
+            1500,
+            1750,
+            2000,
+            2250
+          ]
+        },
+        "y_axis": {
+          "offset": 32808,
+          "values": [
+            0,
+            100,
+            200,
+            300,
+            400,
+            500,
+            600,
+            700
+          ]
+        },
+        "score": 0.957,
+        "label": "duration",
+        "label_confidence": 0.64,
+        "instruction_refs": [
+          1
+        ]
+      },
+      {
+        "id": "m2",
+        "offset": 33000,
+        "cols": 10,
+        "rows": 6,
+        "cell_width": 1,
+        "byte_order": "little",
+        "stride": null,
+        "x_axis": {
+          "offset": 32968,
+          "values": [
+            500,
+            750,
+            1000,
+            1250,
+            1500,
+            1750,
+            2000,
+            2250,
+            2500,
+            2750
+          ]
+        },
+        "y_axis": {
+          "offset": 32988,
+          "values": [
+            0,
+            100,
+            200,
+            300,
+            400,
+            500
+          ]
+        },
+        "score": 0.953,
+        "label": "duration",
+        "label_confidence": 0.64,
+        "instruction_refs": [
+          2
+        ]
+      }
+    ]
+  },
+  "repatch": {
+    "all_ok": true,
+    "apply_error": null,
+    "target_md5": "2287a2c6d7f4766a832657ee81752768",
+    "tuned_md5": "46c16e872de62edacf53b05835d4e44c",
+    "tuned_sha256": "09cdf38f1ef461f80df1328155bee826eed85e07d5784ba8b3f5cc51d4fc8626"
+  },
+  "tamper": {
+    "ctx": {
+      "all_ok": false,
+      "apply_error": "Apply rejected — 1/2 instruction(s) failed to apply.\n  #  1  0x00008038  ctx+ob+ctx_after pattern not found near 0x8038 (±2048 bytes window, anchor=128 bytes [32 ctx + 64 ob + 32 ctx_after]). The target binary is likely a different SW revision than the recipe source. (ob bytes found elsewhere in binary — map likely shifted)",
+      "wrote_nothing": true
+    },
+    "ob": {
+      "all_ok": false,
+      "apply_error": null,
+      "wrote_nothing": true
+    }
+  }
+}

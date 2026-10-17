@@ -11,7 +11,8 @@ optional 1-2 trailing letters (spaces allowed between groups).
 The distinguishing rule vs. everything else in a dump: a part number must
 contain at least one LETTER.  Pure-digit runs are Bosch HW numbers
 ("0261xxxxxx", "0281xxxxxx"), Bosch SW numbers ("1037xxxxxx") or
-calibration codes ("037906259") — never part numbers.
+calibration codes ("037906259") — never part numbers.  Those are *skipped*,
+not treated as the end of the search: see find_vag_part_number().
 """
 
 import re
@@ -31,12 +32,14 @@ def find_vag_part_number(data: bytes):
     Return the first VAG part number found anywhere in *data*, or None.
 
     Normalises the match by stripping internal spaces.  All-digit matches
-    (HW/SW/calibration numbers) are rejected by the letter-content guard.
+    (HW/SW/calibration numbers) are rejected by the letter-content guard, and
+    the scan **continues past them**: a calibration code of the same shape can
+    sit earlier in the dump than the real part number, and aborting on the
+    first structural match would report "no part number" for a binary that has
+    one.
     """
-    m = _VAG_PN_RE.search(data)
-    if not m:
-        return None
-    val = m.group(0).decode("ascii", errors="ignore").replace(" ", "").strip()
-    if re.search(r"[A-Z]", val):
-        return val
+    for m in _VAG_PN_RE.finditer(data):
+        val = m.group(0).decode("ascii", errors="ignore").replace(" ", "").strip()
+        if re.search(r"[A-Z]", val):
+            return val
     return None

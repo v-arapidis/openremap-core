@@ -1,0 +1,27 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "SIMOS3",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'SIMOS3'; identify reports family='SIMOS3' variant=None.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.simos.extractor",
+    "family_target": "SIMOS3"
+  },
+  "plants": [
+    {
+      "at": "0x1ff00",
+      "seq": [
+        {
+          "hex": "63617332313131312e444154"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "SIMOS3",
+    "ecu_variant": null
+  }
+}

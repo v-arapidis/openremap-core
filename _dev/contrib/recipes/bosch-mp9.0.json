@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "MP9",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'MP9.0'; identify reports family='MP9' variant='MP9.0'.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.mp9.extractor",
+    "family_target": "MP9.0"
+  },
+  "plants": [
+    {
+      "at": "0xff00",
+      "seq": [
+        {
+          "hex": "303236313230343539332031303337333537343934204d50392e3020303030364b303930363032374520204d4f54524f4e4943204d5020392e302020202053303233"
+        }
+      ]
+    },
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "4d50392e30"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "MP9",
+    "ecu_variant": "MP9.0"
+  }
+}

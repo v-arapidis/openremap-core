@@ -1,0 +1,33 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "Mono-Motronic",
+  "file_size": 32768,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases: 8051 LJMP header (0x02 0x05 at offset 0) PLUS the VAG part code '907311': the header alone is not enough \u2014 the extractor's second accept path needs both.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.bosch.mono.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "0205"
+        }
+      ]
+    },
+    {
+      "at": "0x100",
+      "seq": [
+        {
+          "hex": "393037333131"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "Mono-Motronic"
+  }
+}

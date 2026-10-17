@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "SID803",
+  "file_size": 458752,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.siemens.sid803.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.sid803.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x38000",
+      "seq": [
+        {
+          "hex": "313131504f313131"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "SID803"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "manufacturer": "Bosch",
+  "file_size": 32768,
+  "fill": "FF",
+  "plants": [
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "22"
+        }
+      ]
+    },
+    {
+      "at": "0x5",
+      "seq": [
+        {
+          "hex": "02"
+        }
+      ]
+    },
+    {
+      "at": "0x1",
+      "seq": [
+        {
+          "hex": "ffffffff"
+        }
+      ]
+    }
+  ],
+  "ecu_family": "DME-3.2",
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "DME-3.2",
+    "ecu_variant": "DME-3.2"
+  },
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'DME-3.2'; identify reports family='DME-3.2' variant='DME-3.2'.",
+  "derived_from": {
+    "family_target": "DME-3.2"
+  }
+}

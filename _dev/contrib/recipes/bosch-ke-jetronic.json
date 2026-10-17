@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "KE-Jetronic",
+  "file_size": 32768,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.bosch.motronic_legacy.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.motronic_legacy.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x7f00",
+      "seq": [
+        {
+          "hex": "3032383038303034343730312f36202e3236303433382e32382033333842"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "KE-Jetronic"
+  }
+}

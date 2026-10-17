@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "PPD1.5",
+  "file_size": 2097152,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.siemens.ppd.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.ppd.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x100000",
+      "seq": [
+        {
+          "hex": "505044312e35"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "PPD1.5"
+  }
+}

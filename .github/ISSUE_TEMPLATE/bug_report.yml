@@ -1,0 +1,88 @@
+name: Bug report
+description: Something behaved incorrectly, crashed, or produced a wrong result.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please keep it to things that are *wrong*, not
+        things that are missing — a missing ECU family has its own form in the
+        issue chooser.
+
+  - type: input
+    id: version
+    attributes:
+      label: openremap version
+      description: Output of `openremap --version`.
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system and Python version, e.g. Windows 11 / Python 3.12, or Ubuntu 24.04 / Python 3.11.
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command
+      description: Copy it verbatim, including flags.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Paste the output or the traceback as text. A screenshot cannot be searched or copied.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: binary
+    attributes:
+      label: Which kind of file was involved?
+      options:
+        - A synthetic dump (`openremap synth`) — feel free to attach it
+        - A file already in the repository (`tests/data/`)
+        - A dump from a real car — describe it, but do not attach it
+        - No file involved (command line, install, docs)
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Smallest way to reproduce it
+      description: |
+        A synthetic dump plus the command is ideal, because it can be regenerated
+        byte-for-byte by anyone:
+
+        ```bash
+        openremap synth -o demo.bin --seed 7
+        ```
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have not attached proprietary firmware. If a real dump is involved I described it instead.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true

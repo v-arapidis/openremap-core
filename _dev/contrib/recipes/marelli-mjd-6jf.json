@@ -1,0 +1,40 @@
+{
+  "manufacturer": "Magneti Marelli",
+  "ecu_family": "MJD 6JF",
+  "file_size": 458752,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases: 448/452 KB \u00b7 AA55CC33 sync marker anywhere \u00b7 'MAG' inside 0x60000-0x61000 \u00b7 '6JF' inside 0x60000-0x70000.",
+  "derived_from": {
+    "script": "hand-authored (see notes)"
+  },
+  "plants": [
+    {
+      "at": "0x100",
+      "seq": [
+        {
+          "hex": "aa55cc33"
+        }
+      ]
+    },
+    {
+      "at": "0x60000",
+      "seq": [
+        {
+          "hex": "4d4147"
+        }
+      ]
+    },
+    {
+      "at": "0x60100",
+      "seq": [
+        {
+          "hex": "364a46"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Magneti Marelli",
+    "ecu_family": "MJD 6JF"
+  }
+}

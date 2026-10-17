@@ -1,0 +1,43 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "MP7.2",
+  "file_size": 262144,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'MP7.2'; identify reports family='MP7.2' variant='MP7.2'.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.bosch.m3x.extractor",
+    "family_target": "MP7.2"
+  },
+  "plants": [
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "313335303030304d33"
+        }
+      ]
+    },
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "313533303030304d33"
+        }
+      ]
+    },
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "4d50372e32"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "MP7.2",
+    "ecu_variant": "MP7.2"
+  }
+}

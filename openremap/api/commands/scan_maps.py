@@ -13,6 +13,12 @@ Methods:
   scan_map_axes   — stage 1 of the two-stage scan: detect axes only (cached).
   scan_map_tables — stage 2: pair axes into tables (cached).
   scan_classify   — scan + content-label classification (atomic).
+
+Both stages read through :func:`openremap.api._io.load_binary`, so Intel HEX /
+S-Record containers are decoded exactly as every other command does.  The
+two-stage caches are keyed on **(path, mtime, size) plus every parameter that
+shapes the result** — keying on the file alone would serve a result computed
+with different thresholds back for a new request.
 """
 
 from __future__ import annotations
@@ -84,9 +90,40 @@ def _serialise_tables(tables) -> list[dict]:
     ]
 
 
-def _cache_key(path: str) -> tuple[str, int, int]:
+def _cache_key(path: str, *extra: object) -> tuple:
+    """Cache key: file identity **plus** every param that shapes the result.
+
+    The params belong in the key.  Keyed on the file alone, a result computed
+    with different thresholds is silently served back for the new request
+    (same path + mtime + size, different question, same answer).
+    """
     st = os.stat(path)
-    return (str(Path(path).resolve()), st.st_mtime_ns, st.st_size)
+    return (str(Path(path).resolve()), st.st_mtime_ns, st.st_size, *extra)
+
+
+def _axis_kwargs(params: dict) -> dict[str, int]:
+    """The four axis-detection knobs, with the schema defaults applied.
+
+    Shared by both stages: stage 2 re-detects axes when stage 1 was skipped,
+    so the two stages must read these identically.
+    """
+    return {
+        "min_axis_length": int(params.get("min_axis_length", 4)),
+        "max_axis_length": int(params.get("max_axis_length", 32)),
+        "min_step": int(params.get("min_step", 1)),
+        "max_step": int(params.get("max_step", 10000)),
+    }
+
+
+def _axis_key(params: dict) -> tuple[int, int, int, int]:
+    """Hashable form of :func:`_axis_kwargs` for the cache keys."""
+    kw = _axis_kwargs(params)
+    return (
+        kw["min_axis_length"],
+        kw["max_axis_length"],
+        kw["min_step"],
+        kw["max_step"],
+    )
 
 
 @register(
@@ -166,16 +203,11 @@ def scan_classify(params: dict) -> dict:
 )
 def scan_map_axes_cmd(params: dict) -> dict:
     path = params["path"]
-    key = _cache_key(path)
-    data = Path(path).read_bytes()
+    axes_kwargs = _axis_kwargs(params)
+    key = _cache_key(path, *_axis_key(params))
+    data = load_binary(path)
 
-    axes = scan_map_axes(
-        data,
-        min_axis_length=int(params.get("min_axis_length", 4)),
-        max_axis_length=int(params.get("max_axis_length", 32)),
-        min_step=int(params.get("min_step", 1)),
-        max_step=int(params.get("max_step", 10000)),
-    )
+    axes = scan_map_axes(data, **axes_kwargs)
     serialised = _serialise_axes(axes)
 
     if len(_AXES_CACHE) >= _AXES_CACHE_MAX:
@@ -194,11 +226,18 @@ def scan_map_axes_cmd(params: dict) -> dict:
         "path": {"type": "str", "required": True, "description": "Path to the binary."},
         "min_table_score": {"type": "float", "default": 0.55, "min": 0.0, "max": 1.0},
         "max_series_tables": {"type": "int", "default": 16, "min": 1},
+        "min_axis_length": {"type": "int", "default": 4},
+        "max_axis_length": {"type": "int", "default": 32},
+        "min_step": {"type": "int", "default": 1},
+        "max_step": {"type": "int", "default": 10000},
     },
 )
 def scan_map_tables_cmd(params: dict) -> dict:
     path = params["path"]
-    key = _cache_key(path)
+    axis_key = _axis_key(params)
+    min_table_score = float(params.get("min_table_score", 0.55))
+    max_series_tables = int(params.get("max_series_tables", 16))
+    key = _cache_key(path, *axis_key, min_table_score, max_series_tables)
 
     cached_tables = _TABLES_CACHE.get(key)
     if cached_tables is not None:
@@ -207,24 +246,18 @@ def scan_map_tables_cmd(params: dict) -> dict:
         )
         return {"tables": cached_tables, "total_tables": len(cached_tables)}
 
-    cached = _AXES_CACHE.get(key)
+    cached = _AXES_CACHE.get(_cache_key(path, *axis_key))
     if cached is not None:
         data, _axes_serialised, axes = cached
     else:
-        data = Path(path).read_bytes()
-        axes = scan_map_axes(
-            data,
-            min_axis_length=int(params.get("min_axis_length", 4)),
-            max_axis_length=int(params.get("max_axis_length", 32)),
-            min_step=int(params.get("min_step", 1)),
-            max_step=int(params.get("max_step", 10000)),
-        )
+        data = load_binary(path)
+        axes = scan_map_axes(data, **_axis_kwargs(params))
 
     tables = scan_map_tables(
         data,
         axes=axes,
-        min_score=float(params.get("min_table_score", 0.55)),
-        max_series_tables=int(params.get("max_series_tables", 16)),
+        min_score=min_table_score,
+        max_series_tables=max_series_tables,
     )
 
     serialised = _serialise_tables(tables)

@@ -20,7 +20,6 @@ const TABLE_MIN_DISTINCT_RATIO: f64 = 0.18;
 const TABLE_ASCII_FRACTION: f64 = 0.75;
 const PADDING_OFFSETS: [usize; 3] = [0, 2, 4];
 const MAX_Y_LEN: usize = 32;
-const MAX_SERIES_TABLES: usize = 16;
 const COMMON_AXIS_SIZES: std::ops::RangeInclusive<usize> = 4..=32;
 
 const SENTINELS_U16: [u16; 4] = [0x0000, 0xFFFF, 0x8000, 0x7FFF];
@@ -45,7 +44,7 @@ fn is_trivial_block(data: &[u8], start: usize, length: usize) -> bool {
     data[start..end].iter().all(|&b| b == first)
 }
 
-fn try_axis_at(data: &[u8], offset: usize, le: bool, min_len: usize,
+fn try_axis_at(data: &[u8], offset: usize, le: bool,
                max_len: usize, min_step: i32, max_step: i32) -> usize {
     let mut prev = match read_u16(data, offset, le) { Some(v) => v as i32, None => return 0 };
     let limit = (offset + max_len * 2).min(data.len());
@@ -493,7 +492,7 @@ pub fn scan_map_axes(
             if is_trivial_block(buf, offset, SKIP_WINDOW) { offset += SKIP_WINDOW; continue; }
             if claimed.contains(&offset) { offset += 2; continue; }
 
-            let run = try_axis_at(buf, offset, le, min_axis_length, max_axis_length, min_step, max_step);
+            let run = try_axis_at(buf, offset, le, max_axis_length, min_step, max_step);
             if run >= min_axis_length {
                 let vals: Vec<u16> = (0..run).map(|i| read_u16(buf, offset + i * 2, le).unwrap_or(0)).collect();
                 for i in 0..run { claimed.insert(offset + i * 2); }
@@ -616,7 +615,7 @@ pub fn scan_map_tables(
                     }
 
                     // 2b: re-scan for absorbed Y
-                    let run = try_axis_at(buf, x_end_t, le, min_y_length, MAX_Y_LEN, 1, 10000);
+                    let run = try_axis_at(buf, x_end_t, le, MAX_Y_LEN, 1, 10000);
                     if run >= min_y_length {
                         let yv: Vec<u16> = (0..run).map(|k| read_u16(buf, x_end_t + k * 2, le).unwrap_or(0)).collect();
                         if let Some(cand) = try_pair_with_y(buf, x_off, xl, x_end_t, run,

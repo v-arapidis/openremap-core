@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Siemens",
+  "ecu_family": "SID801A",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'SID801A'; identify reports family='SID801A' variant=None.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.siemens.sid801.extractor",
+    "family_target": "SID801A"
+  },
+  "plants": [
+    {
+      "at": "0x10000",
+      "seq": [
+        {
+          "hex": "504d3331313131412d5a302d39302c33"
+        }
+      ]
+    },
+    {
+      "at": "0x0",
+      "seq": [
+        {
+          "hex": "53494438303141"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Siemens",
+    "ecu_family": "SID801A",
+    "ecu_variant": null
+  }
+}

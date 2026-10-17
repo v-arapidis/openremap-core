@@ -1,0 +1,140 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "ME7.3",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Plants an ident block at 0x7FD9 (the Bosch ident offset) using the raw_strings that identify reported for a REAL file (source sha256 in derived_from), so the mimic carries the same discriminators. Gate is manufacturer+family only: fields are not reproduced (the real file's match_key was 'ME7.3::1277356302'; the mimic does not yield it).",
+  "derived_from": {
+    "snapshot": "_dev/oracle/smallfixes-snapshot/after/identify.jsonl",
+    "source_sha256": "e7f07604038a89efde75bb6391737b989ea68ab0e7d0519c63d184b5bc9a157c",
+    "match_key": "ME7.3::1277356302"
+  },
+  "plants": [
+    {
+      "at": "0x7FD9",
+      "seq": [
+        {
+          "text": "d}43/1/ME7.3/69/117/F131_EU//14e50m01/160399/"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "#*-3:CXq"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "(5<@G]kx"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "%/7<GRXcmx"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "t0691175H"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "069117/14E50M01"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "F131 EU c.m."
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "0261204841"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "1277356302"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "178285.002"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "2?K]bgv}"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "#+0&$((#01264"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "0+::9:9041::::9::::::::"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "#+0&$((#01264"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "0+::9:9041::::9::::::::????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "!\"&)(&&(&&("
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": ")&&)(')-+&&)(')-"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "!\"&)(&&(&&("
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": ")&&)(')-+&&)(')-????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????"
+        },
+        {
+          "hex": "FF"
+        },
+        {
+          "text": "!$&)+-&!'*+,--&#)++,--&%*++--."
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "ME7.3"
+  }
+}

@@ -4,7 +4,7 @@ Unified binary analysis — ``openremap analyze``.
 One pass that describes a whole ECU binary: identity + confidence, VIN,
 flash layout, map discovery, checksums, and the health verdict.  Composes
 the existing domain services — this is the "reverse-engineering mode"
-(roadmap item 10) whose prototype was ``health_report``; this module is
+whose prototype was ``health_report``; this module is
 the descriptive (non-gate) presentation of the same services.
 
 Pure ``bytes``-in/``dict``-out (``container`` is an optional display

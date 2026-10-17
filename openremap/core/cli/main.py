@@ -34,6 +34,7 @@ import typer
 from openremap.core.cli.commands import validate
 from openremap.core.cli.commands.analyze import analyze
 from openremap.core.cli.commands.cmds import commands
+from openremap.core.cli.commands import contribute
 from openremap.core.cli.commands.convert import convert
 from openremap.core.cli.commands.cook import cook
 from openremap.core.cli.commands.cook_volatile import cook_volatile
@@ -49,6 +50,7 @@ from openremap.core.cli.commands.layout import layout
 from openremap.core.cli.commands.routine import routine
 from openremap.core.cli.commands.scan_maps import scan_maps
 from openremap.core.cli.commands.scan_vins import scan_vins_cmd
+from openremap.core.cli.commands.synth import synth
 from openremap.core.cli.commands.tune import tune
 from openremap.core.cli.commands.workflow import workflow
 
@@ -192,6 +194,7 @@ app.command(
 # validate has real sub-commands (before / check / after) and uses
 # @app.command() internally — add_typer works correctly for it.
 app.add_typer(validate.app, name="validate")
+app.add_typer(contribute.app, name="contribute")
 
 app.command(
     name="tune",
@@ -229,6 +232,17 @@ app.command(
     help="Locate VIN candidates in an ECU binary and score them.",
     no_args_is_help=True,
 )(scan_vins_cmd)
+
+app.command(
+    name="synth",
+    help=(
+        "Generate a synthetic ECU-like binary from scratch — no ECU data needed.\n\n"
+        "Deterministic (same parameters + seed = same file), so it can be used "
+        "as a test fixture, committed, or sent with a bug report. Generated "
+        "files identify as Unknown by design: they carry no manufacturer "
+        "fingerprints."
+    ),
+)(synth)
 
 app.command(
     name="routine",

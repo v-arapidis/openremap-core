@@ -1,0 +1,33 @@
+{
+  "manufacturer": "Magneti Marelli",
+  "ecu_family": "IAW 1AP",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases: 64 KB + the '1ap' family anchor plus the AA55CC33 sync marker at its fixed offset (same shape as the existing unit test fixture).",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.marelli.iaw_1ap.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x5f8d",
+      "seq": [
+        {
+          "hex": "316170"
+        }
+      ]
+    },
+    {
+      "at": "0x4810",
+      "seq": [
+        {
+          "hex": "aa55cc33"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Magneti Marelli",
+    "ecu_family": "IAW 1AP"
+  }
+}

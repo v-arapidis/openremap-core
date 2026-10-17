@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Denso",
+  "ecu_family": "Diesel",
+  "file_size": 1048576,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.denso.diesel): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.denso.diesel"
+  },
+  "plants": [
+    {
+      "at": "0x4000",
+      "seq": [
+        {
+          "hex": "4b3334325a513244543136324a5a324634323241ff437079722e44454e534f3230313030"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Denso",
+    "ecu_family": "Diesel"
+  }
+}

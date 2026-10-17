@@ -237,17 +237,3 @@ pub fn me7_multipoint_scan(data: Vec<u8>, base: u32) -> Vec<(usize, u32, u32, u3
     out
 }
 
-#[inline]
-fn read_store(data: &[u8], off: usize, size: usize, le: bool) -> u64 {
-    let mut v: u64 = 0;
-    if le {
-        for i in 0..size {
-            v |= (data[off + i] as u64) << (8 * i);
-        }
-    } else {
-        for i in 0..size {
-            v = (v << 8) | data[off + i] as u64;
-        }
-    }
-    v
-}

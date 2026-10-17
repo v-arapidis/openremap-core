@@ -1,0 +1,35 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "M5.9",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Family-level fixture derived from the extractor's base recipe by steering the ident payload to 'M5.9'; identify reports family='M5.9' variant='M5.9'.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.bosch.m5x.extractor",
+    "family_target": "M5.9"
+  },
+  "plants": [
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "4d352e"
+        }
+      ]
+    },
+    {
+      "at": "0x2000",
+      "seq": [
+        {
+          "hex": "4d4f54524f4e4943204d352e3920413132303236313132333435363132333435363738393031322f312f4d352e39"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "M5.9",
+    "ecu_variant": "M5.9"
+  }
+}

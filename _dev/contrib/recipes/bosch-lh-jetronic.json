@@ -1,0 +1,25 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "LH-Jetronic",
+  "file_size": 16384,
+  "fill": "FF",
+  "notes": "Derived by _dev/contrib/derive_recipes.py from the extractor itself (openremap.core.manufacturers.bosch.lh.extractor): payloads and anchors were harvested from its module constants and byte-string literals, then searched. Gate is manufacturer + family; extracted fields are not reproduced.",
+  "derived_from": {
+    "script": "_dev/contrib/derive_recipes.py",
+    "extractor": "openremap.core.manufacturers.bosch.lh.extractor"
+  },
+  "plants": [
+    {
+      "at": "0x3f00",
+      "seq": [
+        {
+          "hex": "30323830303032353036323238373335363438364c30314c482d4a455420203932383631383132333134"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "LH-Jetronic"
+  }
+}

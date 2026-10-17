@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "generator": "openremap.core.synth",
+  "generator_version": 1,
+  "note": [
+    "Every case is a parameter set, not a file: the input binary is regenerated",
+    "from these parameters (seed included), which is what lets this corpus be",
+    "committed and run in CI without shipping anyone's ROM data.",
+    "Expected outputs live in cases/<id>/golden.json and are rewritten by",
+    "_dev/corpus/update_golden.py — after READING the diff, never blind.",
+    "If a diff appears and the generator was not touched, the engine moved:",
+    "that is the signal this corpus exists for."
+  ],
+  "cases": [
+    {
+      "id": "basic-256k-u16-le",
+      "params": {
+        "size": 262144,
+        "maps": 3,
+        "seed": 7,
+        "cell_width": 2,
+        "byte_order": "little"
+      },
+      "tune_percent": 5.0,
+      "note": "The default shape: 256 KB, three 16-bit maps, little-endian."
+    },
+    {
+      "id": "u8-128k",
+      "params": {
+        "size": 131072,
+        "maps": 2,
+        "seed": 21,
+        "cell_width": 1,
+        "byte_order": "little"
+      },
+      "tune_percent": 8.0,
+      "note": "8-bit cells — separate detection path (cell_widths (2, 1))."
+    },
+    {
+      "id": "big-endian-512k",
+      "params": {
+        "size": 524288,
+        "maps": 5,
+        "seed": 33,
+        "cell_width": 2,
+        "byte_order": "big"
+      },
+      "tune_percent": 6.0,
+      "note": "Big-endian axes + cells, five maps of different shapes."
+    }
+  ]
+}

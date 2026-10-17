@@ -1,0 +1,40 @@
+{
+  "manufacturer": "Magneti Marelli",
+  "ecu_family": "IAW 1AV",
+  "file_size": 65536,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own phases: 64 KB \u00b7 first 16 bytes all 0xFF (ERASED_HEADER_BYTE = 255) \u00b7 exclusions clear \u00b7 'MARELLI' anywhere \u00b7 '1AV' inside the ident area 15616-15872 (not just anywhere) \u00b7 lowercase 'iaw1av' anywhere.",
+  "derived_from": {
+    "script": "hand-authored (see notes)"
+  },
+  "plants": [
+    {
+      "at": "0x1000",
+      "seq": [
+        {
+          "hex": "4d4152454c4c49"
+        }
+      ]
+    },
+    {
+      "at": "0x3d00",
+      "seq": [
+        {
+          "hex": "314156"
+        }
+      ]
+    },
+    {
+      "at": "0x1100",
+      "seq": [
+        {
+          "hex": "696177316176"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Magneti Marelli",
+    "ecu_family": "IAW 1AV"
+  }
+}

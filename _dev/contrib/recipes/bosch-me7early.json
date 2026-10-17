@@ -1,0 +1,43 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "ME7early",
+  "file_size": 524288,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own early-ME7 gate: the file needs BOTH the pre-production ZZ marker 'ZZ\\x01\\x02' at 0x10000 AND the ERCOS RTOS string at 0x200, plus an early ECU label ('<oem part>  <engine>   <rev>' terminated by \\x80) to fill the fields. No slash-delimited variant string exists in this generation, which is why steering a family token can never reach it.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.bosch.me7.extractor",
+    "family_target": "ME7early"
+  },
+  "plants": [
+    {
+      "at": "0x200",
+      "seq": [
+        {
+          "hex": "4552434f53"
+        }
+      ]
+    },
+    {
+      "at": "0x10000",
+      "seq": [
+        {
+          "hex": "5a5a0102"
+        }
+      ]
+    },
+    {
+      "at": "0x10040",
+      "seq": [
+        {
+          "hex": "384430393037353531202020322c376c2056362f355654202020202020202044303480"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "ME7early",
+    "ecu_variant": "ME7early"
+  }
+}

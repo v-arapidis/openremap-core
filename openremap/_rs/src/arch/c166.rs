@@ -144,8 +144,9 @@ fn mnemonic(b0: u8) -> &'static str {
 }
 
 /// EXTP/EXTS/EXTPR/EXTSR — the 0xD7/0xDC opcode's actual name is selected
-/// by the two high bits of the second byte (``op1415``).
-fn exts_name(b0: u8, b1: u8) -> &'static str {
+/// by the two high bits of the second byte (``op1415``); the caller has
+/// already established that the opcode is 0xD7/0xDC.
+fn exts_name(b1: u8) -> &'static str {
     match (b1 >> 6) & 0x3 {
         0 => "EXTS",
         2 => "EXTSR",
@@ -219,7 +220,7 @@ fn op2(b1: u8) -> String {
 /// low/high nibble of the second byte, ``mem/data1631`` = the 16-bit
 /// little-endian word at bytes 2–3.  Not the full ISA — register + direct
 /// memory + immediate forms (the phrasebook use case).
-fn operands(data: &[u8], off: usize, b0: u8, size: usize) -> String {
+fn operands(data: &[u8], off: usize, b0: u8) -> String {
     if b0 & 0x0F == 0x0D {
         // JMPR cc, rel — render the absolute target (rel is signed).
         let rel = data[off + 1] as i8 as i32;
@@ -297,12 +298,12 @@ pub fn c166_disasm(data: &[u8], regions: Vec<(i64, i64)>) -> Vec<(u32, u8, Strin
     for_each_insn(data, &regions, |off, size| {
         let b0 = data[off];
         let b1 = data[off + 1];
-        let mnem = if b0 == 0xD7 || b0 == 0xDC { exts_name(b0, b1) } else { mnemonic(b0) };
+        let mnem = if b0 == 0xD7 || b0 == 0xDC { exts_name(b1) } else { mnemonic(b0) };
         out.push((
             off as u32,
             size as u8,
             mnem.to_string(),
-            operands(data, off, b0, size),
+            operands(data, off, b0),
         ));
     });
     out

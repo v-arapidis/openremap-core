@@ -1,0 +1,34 @@
+{
+  "manufacturer": "Bosch",
+  "ecu_family": "ME7.9.10",
+  "file_size": 851968,
+  "fill": "FF",
+  "notes": "Hand-authored from the extractor's own three phases: >=512KB, the 'ZZ<<' ident dialect at exactly 0x10000 followed by printable ASCII, and the 'ME7910' family marker. The '<<' is load-bearing: the ME7 extractor sits earlier in the registry and rejects a ZZ block whose third byte is printable (Marelli ME1.5.5 uses 'ZZ43/...'), which is what keeps this file on ME7.9.10 instead of being claimed as ME7.",
+  "derived_from": {
+    "script": "hand-authored (see notes)",
+    "extractor": "openremap.core.manufacturers.bosch.me79.extractor",
+    "family_target": "ME7.9.10"
+  },
+  "plants": [
+    {
+      "at": "0x10000",
+      "seq": [
+        {
+          "hex": "5a5a3c3c45524353552056312e312e36205341425f433136782028632945544153204a756c2032342031393937"
+        }
+      ]
+    },
+    {
+      "at": "0x20000",
+      "seq": [
+        {
+          "hex": "4d4537393130"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "manufacturer": "Bosch",
+    "ecu_family": "ME7.9.10"
+  }
+}

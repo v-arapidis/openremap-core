@@ -1,0 +1,16 @@
+# Issue chooser.
+#
+# Blank issues stay enabled on purpose: the two forms cover bugs and family
+# requests, and anything that fits neither (a docs mistake, a question about a
+# result) should not have to be bent into a form that asks the wrong questions.
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/v-arapidis/openremap-core/discussions
+    about: Ask how something works, or discuss an approach before opening an issue.
+  - name: Documentation
+    url: https://docs.openremap.com
+    about: Commands, concepts and per-manufacturer notes, written for newcomers.
+  - name: Contributing guide
+    url: https://github.com/v-arapidis/openremap-core/blob/main/CONTRIBUTING.md
+    about: How to add an ECU family, a checksum or a decoder — including the wizard.

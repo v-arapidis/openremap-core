@@ -59,6 +59,44 @@ def test_list_methods_over_rpc():
     assert {"ping", "version", "list_methods"} <= names
 
 
+def test_list_methods_kind_filter_over_rpc():
+    """``kind`` was accepted and dropped: the RPC handler called the registry
+    with no argument, so a filter request silently returned everything."""
+    line = jsonrpc.handle_line(
+        '{"id": 6, "method": "list_methods", "params": {"kind": "workflow"}}'
+    )
+    methods = json.loads(line)["result"]["methods"]
+    assert methods, "expected at least one registered workflow"
+    assert all(m["kind"] == "workflow" for m in methods)
+    assert "ping" not in {m["name"] for m in methods}
+
+
+def test_list_methods_kind_filter_matches_in_process_filter():
+    over_rpc = json.loads(
+        jsonrpc.handle_line(
+            '{"id": 8, "method": "list_methods", "params": {"kind": "composite"}}'
+        )
+    )["result"]["methods"]
+    assert [m["name"] for m in over_rpc] == [
+        m["name"] for m in api.call("list_methods", {"kind": "composite"})["methods"]
+    ]
+
+
+def test_list_methods_declares_kind_param():
+    meta = next(m for m in api.list_methods() if m["name"] == "list_methods")
+    assert "kind" in meta["input_schema"]
+    assert meta["input_schema"]["kind"]["type"] == "str"
+
+
+def test_list_methods_unknown_kind_is_empty_not_an_error():
+    line = jsonrpc.handle_line(
+        '{"id": 9, "method": "list_methods", "params": {"kind": "nonsense"}}'
+    )
+    resp = json.loads(line)
+    assert resp["result"]["methods"] == []
+    assert "error" not in resp
+
+
 # --- JSON-RPC framing + error mapping ---------------------------------------
 
 
