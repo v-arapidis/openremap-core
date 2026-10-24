@@ -43,6 +43,11 @@ def serve(inp: IO[str], out: IO[str]) -> None:
 
 
 def main() -> None:
+    from openremap.console import force_utf8
+
+    # The transport negotiates UTF-8 JSON; the *stream* has to agree, or a
+    # non-ASCII byte in a payload becomes an encoding error on Windows.
+    force_utf8()
     log.info("openremap-api started (pid=%d)", os.getpid())
 
     # Restore the default SIGPIPE handler so a broken stdout pipe terminates

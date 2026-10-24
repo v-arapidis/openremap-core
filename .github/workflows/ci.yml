@@ -7,6 +7,8 @@ on:
     branches: [main]
 
 jobs:
+  # The gate. Linux only, every supported Python — this is the run that decides
+  # whether a change may land.
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -24,3 +26,41 @@ jobs:
 
       - name: Run tests
         run: uv run pytest tests/ -x
+
+  # Does any of this work off Linux? Wheels were built for macOS and Windows and
+  # the suite had never *run* there — so "the TUI works on Windows" was an
+  # assumption, not a fact (see the console-encoding and drive-picker fixes in
+  # 0.9.0, both of which were Windows-only defects nobody could have seen here).
+  #
+  # Advisory for now, and narrow on purpose:
+  #
+  #   * `continue-on-error` — the suite was written on Linux and some tests may
+  #     encode POSIX assumptions. Turning a red job into a blocked pull request
+  #     before the first run has been looked at would be the wrong order. **Drop
+  #     this flag once the job is green twice in a row.**
+  #   * the TUI is what we are unsure about, so it is what runs. Widen to the
+  #     whole suite when it is green, not before.
+  portability:
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        python-version: ["3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No `-x`: the first run is worth a full list of what differs, not the
+      # first thing that differs.
+      - name: Run TUI + console tests
+        run: uv run --python ${{ matrix.python-version }} pytest tests/tui tests/test_console.py

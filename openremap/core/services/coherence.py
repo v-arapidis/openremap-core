@@ -119,7 +119,7 @@ def _make_report(checks: list[CoherenceCheck]) -> CoherenceReport:
 # Checksum side — detector → family derivation
 # ---------------------------------------------------------------------------
 # The extended ``_summarize_checksums`` dict carries one key per detector
-# (mirroring ``health._check_checksums``).  Each fired detector is
+# (mirroring ``health.check_checksums``).  Each fired detector is
 # normalised to ``_Detector(label, tokens, verified)`` where ``tokens``
 # are ECU-family prefixes (or exact manufacturer names) it implies.
 

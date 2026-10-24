@@ -99,7 +99,18 @@ static CRC32_TABLE: [u32; 256] = make_crc32_table();
 /// (final XOR, stored value, endianness, complement) comparisons are
 /// cheap and belong in Python where the config space explodes for free.
 #[pyfunction(signature = (data, jobs))]
-pub fn checksum_compute(data: Vec<u8>, jobs: Vec<(u8, u64, i64, i64)>) -> Vec<u64> {
+pub fn checksum_compute(
+    py: Python<'_>,
+    data: Vec<u8>,
+    jobs: Vec<(u8, u64, i64, i64)>,
+) -> Vec<u64> {
+    py.detach(move || checksum_compute_inner(data, jobs))
+}
+
+fn checksum_compute_inner(
+    data: Vec<u8>,
+    jobs: Vec<(u8, u64, i64, i64)>,
+) -> Vec<u64> {
     let mut out = Vec::with_capacity(jobs.len());
     for (algo, init, rs, re) in jobs {
         let start = if rs < 0 { 0 } else { rs as usize };
@@ -196,7 +207,18 @@ pub fn checksum_compute(data: Vec<u8>, jobs: Vec<(u8, u64, i64, i64)>) -> Vec<u6
 /// checksum, valid) where valid means the u16-LE sum (u32 accumulator)
 /// over [start-base, end-base) equals the stored checksum.
 #[pyfunction(signature = (data, base = 0x800000))]
-pub fn me7_multipoint_scan(data: Vec<u8>, base: u32) -> Vec<(usize, u32, u32, u32, bool)> {
+pub fn me7_multipoint_scan(
+    py: Python<'_>,
+    data: Vec<u8>,
+    base: u32,
+) -> Vec<(usize, u32, u32, u32, bool)> {
+    py.detach(move || me7_multipoint_scan_inner(data, base))
+}
+
+fn me7_multipoint_scan_inner(
+    data: Vec<u8>,
+    base: u32,
+) -> Vec<(usize, u32, u32, u32, bool)> {
     let mut out = Vec::new();
     let n = data.len();
     if n < 16 {

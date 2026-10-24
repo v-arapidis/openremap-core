@@ -15,8 +15,8 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from openremap.core.cli.commands.scan_maps import _parse_region
-from openremap.core.cli.main import app
+from openremap.cli.commands.scan_maps import _parse_region
+from openremap.cli.main import app
 from tests.conftest import make_layout_bin
 
 runner = CliRunner()
@@ -154,12 +154,12 @@ class TestBoLabel:
     """Endianness label helper — LE/BE, not truncated words."""
 
     def test_little_endian_label(self):
-        from openremap.core.cli.commands.diff_maps import _bo_label
+        from openremap.cli.commands.diff_maps import _bo_label
 
         assert _bo_label("little") == "LE"
 
     def test_big_endian_label(self):
-        from openremap.core.cli.commands.diff_maps import _bo_label
+        from openremap.cli.commands.diff_maps import _bo_label
 
         assert _bo_label("big") == "BE"
 
@@ -371,7 +371,7 @@ class TestWriteCsvFiles:
     """
 
     def test_writes_each_document_and_creates_the_directory(self, tmp_path):
-        from openremap.core.cli.commands.scan_maps import _write_csv_files
+        from openremap.cli.commands.scan_maps import _write_csv_files
 
         out = tmp_path / "nested" / "csv"
         written = _write_csv_files({"a.csv": ",1,2\n5,3,4\n", "b.csv": "9\n"}, out)
@@ -382,7 +382,7 @@ class TestWriteCsvFiles:
         assert b"\r" not in (out / "a.csv").read_bytes()
 
     def test_empty_render_still_creates_the_directory(self, tmp_path):
-        from openremap.core.cli.commands.scan_maps import _write_csv_files
+        from openremap.cli.commands.scan_maps import _write_csv_files
 
         out = tmp_path / "empty"
         assert _write_csv_files({}, out) == 0

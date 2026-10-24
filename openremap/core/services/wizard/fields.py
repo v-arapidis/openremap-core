@@ -8,8 +8,10 @@ candidates from the dump and — more usefully — **sorts them by the distincti
 that decides where they belong**:
 
 * a value that is **identical in every dump the contributor provided** is a
-  family constant: it belongs in `can_handle()` (or in a fixed field), because
-  it does not identify the individual file;
+  family constant: it belongs in a fixed field, because it does not identify the
+  individual file. It is *not* thereby a signature — two dumps of the same
+  calibration cannot distinguish a family token from that calibration's version
+  string, which is the trap this module refuses to talk a contributor into;
 * a value that **differs between dumps of the same family** is a per-file
   field: that is what a `match_key` needs, because a key that is the same for
   every member of the family cannot tell two calibrations apart.
@@ -33,7 +35,20 @@ from openremap.core.manufacturers.bosch._vag import find_vag_part_number
 # shapes are tried before the generic ones.
 PATTERNS: tuple[tuple[str, re.Pattern[bytes], str], ...] = (
     ("bosch_hw", re.compile(rb"0261\d{6}"), "Bosch hardware part number (0261……)"),
-    ("bosch_sw", re.compile(rb"1037\d{6,10}"), "Bosch software version (1037……)"),
+    # The trailing group is not decoration: a real Bosch software version is
+    # ``1037541778126241V0`` — digits *and* a revision suffix. Capping the digit
+    # run at 10 (the earlier shape) truncated it to ``10375417781262``, which is
+    # a version no binary carries and a match_key that can never match.
+    (
+        "bosch_sw",
+        re.compile(rb"1037\d{6,}[A-Z0-9]{0,4}"),
+        "Bosch software version (1037……)",
+    ),
+    (
+        "calibration_version",
+        re.compile(rb"(?<![A-Z0-9])CV\d{4,8}(?!\d)"),
+        "calibration version token (CV……)",
+    ),
     ("sw_12digit", re.compile(rb"(?<![\dA-Z])\d{12}(?![\dA-Z])"), "12-digit run"),
     (
         "descriptor",
@@ -69,10 +84,16 @@ class FieldCandidate:
             "value": self.value,
             "values": dict(self.values),
             "offsets": {k: v for k, v in self.offsets.items()},
+            # "Stable" means stable *in the dumps the contributor supplied* —
+            # which is exactly the evidence that produced a marker made of one
+            # calibration's version string. So the advice must not say "put it in
+            # can_handle()": a value being constant across two dumps of the same
+            # calibration says nothing about the family, and a fixed field is the
+            # only use that is safe on this evidence.
             "suggested_use": (
-                "constant — usable in can_handle() or a fixed field"
+                "constant in your dumps — a fixed field, not proven as a signature"
                 if self.stable
-                else "varies per dump — candidate for match_key"
+                else "varies between your dumps — candidate for match_key"
             ),
         }
 
@@ -153,10 +174,18 @@ def suggest_identifiers(dumps: list[tuple[str, bytes]]) -> dict:
         for kind, pattern, _desc in PATTERNS:
             if kind != "descriptor":
                 continue
-            for match in pattern.finditer(data[:0x20000]):
+            # The whole file, not the header: the authoritative descriptor of a
+            # 4 MB Bosch dump sits past 0x40000 (measured: 0x40E14), so a
+            # 0x20000 window reported "no descriptor" for a dump that has one.
+            # Bounded by the early exit rather than by the window.
+            for match in pattern.finditer(data):
                 found = descriptor_family(match.group(0).decode("ascii", "ignore"))
                 if found and found not in families:
                     families.append(found)
+                    if len(families) >= 8:
+                        break
+            if len(families) >= 8:
+                break
 
     return {
         "from_descriptors": families[:8],

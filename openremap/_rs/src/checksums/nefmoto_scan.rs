@@ -13,6 +13,18 @@ use pyo3::prelude::*;
 
 #[pyfunction]
 pub fn locate_pattern(
+    py: Python<'_>,
+    data: &[u8],
+    pat: &[u8],
+    mask: &[u8],
+    offset: i64,
+    max_offset: i64,
+    step: usize,
+) -> i64 {
+    py.detach(move || locate_pattern_inner(data, pat, mask, offset, max_offset, step))
+}
+
+fn locate_pattern_inner(
     data: &[u8],
     pat: &[u8],
     mask: &[u8],
@@ -58,6 +70,16 @@ pub fn locate_pattern(
 
 #[pyfunction]
 pub fn rolling_checksum(
+    py: Python<'_>,
+    data: &[u8],
+    seed_table_offset: usize,
+    ranges: Vec<(i64, i64)>,
+    init: u32,
+) -> PyResult<u32> {
+    py.detach(move || rolling_checksum_inner(data, seed_table_offset, ranges, init))
+}
+
+fn rolling_checksum_inner(
     data: &[u8],
     seed_table_offset: usize,
     ranges: Vec<(i64, i64)>,

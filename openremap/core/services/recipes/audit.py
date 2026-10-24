@@ -4,7 +4,7 @@ Tune audit — the receipt check of the recipe ecosystem.
 Given ``stock.bin``, ``tuned.bin`` and a ``.remap`` recipe, answer
 **"do these three actually belong together?"** with three verdicts:
 
-1. **Provenance** — does the recipe's ``ecu.sha256`` match the stock
+1. **Provenance** — does the recipe's recorded source hash match the stock
    binary?  (Was the recipe built from THIS original?)
 2. **Fingerprint** — re-cook stock vs tuned and compare fingerprints.
    (Is the recipe the honest record of this tune pair — nothing more,
@@ -32,6 +32,7 @@ import hashlib
 from dataclasses import dataclass, field
 
 from openremap.core.services.maps.layout import find_ident_blocks, segment
+from openremap.core.services.recipes import recipe_facts
 from openremap.core.services.recipes.patcher import ECUPatcher
 from openremap.core.services.recipes.recipe_builder import (
     ECUDiffAnalyzer,
@@ -122,8 +123,11 @@ def _region_kind_for(regions, offset: int) -> tuple[str, float]:
 
 
 def _is_volatile_recipe(recipe: dict) -> bool:
-    """A recipe is volatile when it carries a ``volatile`` dict section
-    (schema 4.5, produced by ``cook-volatile``)."""
+    """A recipe is volatile when it carries a ``volatile`` dict section.
+
+    Only legacy 4.5 documents do: the removed 4.x ``cook-volatile`` wrote that
+    section, and the current producer writes no exclusions at all. It is kept
+    here so old documents still audit correctly."""
     return isinstance(recipe.get("volatile"), dict)
 
 
@@ -210,7 +214,7 @@ def audit(
     )
 
     # ── 1. Provenance ──────────────────────────────────────────────────
-    result.recipe_sha256 = recipe.get("ecu", {}).get("sha256")
+    result.recipe_sha256 = recipe_facts.sha256(recipe)
     result.stock_sha256 = hashlib.sha256(stock_data).hexdigest()
     result.provenance_ok = (
         result.recipe_sha256 is not None
@@ -295,7 +299,7 @@ def audit(
     if not result.provenance_ok:
         result.warnings.append(
             "provenance mismatch — the recipe was built from a different "
-            "original (ecu.sha256 differs from the stock's hash)."
+            "original (the recorded source sha256 differs from the stock's)."
         )
     if not result.fingerprint_ok:
         result.warnings.append(

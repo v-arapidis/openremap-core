@@ -15,5 +15,5 @@ params = { path = "$input.modified_path" }
 as = "modified_id"
 
 [[steps]]
-call = "cook"
-params = { original_path = "$input.original_path", modified_path = "$input.modified_path" }
+call = "cook_strict"
+params = { stock_path = "$input.original_path", tuned_path = "$input.modified_path" }

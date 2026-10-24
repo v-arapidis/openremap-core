@@ -82,6 +82,14 @@ fn is_direct_mem(b0: u8) -> bool {
 /// window base (see `core/arch/c166.py`).
 #[pyfunction]
 pub fn c166_references(
+    py: Python<'_>,
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> (Vec<(u32, u32)>, u32) {
+    py.detach(move || c166_references_inner(data, regions))
+}
+
+fn c166_references_inner(
     data: &[u8],
     regions: Vec<(i64, i64)>,
 ) -> (Vec<(u32, u32)>, u32) {
@@ -105,7 +113,18 @@ pub fn c166_references(
 /// corpus-validated nefmoto parser, and the Ghidra diff) and future arch
 /// tooling.  `c166_references` is a projection of this walk.
 #[pyfunction]
-pub fn c166_walk(data: &[u8], regions: Vec<(i64, i64)>) -> Vec<(u32, u8)> {
+pub fn c166_walk(
+    py: Python<'_>,
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8)> {
+    py.detach(move || c166_walk_inner(data, regions))
+}
+
+fn c166_walk_inner(
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8)> {
     let mut out: Vec<(u32, u8)> = Vec::new();
     for_each_insn(data, &regions, |off, size| {
         out.push((off as u32, size as u8));
@@ -293,7 +312,18 @@ fn operands(data: &[u8], off: usize, b0: u8) -> String {
 /// consumes.  Operand strings are readable but not full-ISA (register +
 /// direct-memory + immediate forms); unknown opcodes render as ``DB 0xXX``.
 #[pyfunction]
-pub fn c166_disasm(data: &[u8], regions: Vec<(i64, i64)>) -> Vec<(u32, u8, String, String)> {
+pub fn c166_disasm(
+    py: Python<'_>,
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8, String, String)> {
+    py.detach(move || c166_disasm_inner(data, regions))
+}
+
+fn c166_disasm_inner(
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8, String, String)> {
     let mut out: Vec<(u32, u8, String, String)> = Vec::new();
     for_each_insn(data, &regions, |off, size| {
         let b0 = data[off];
@@ -343,7 +373,7 @@ mod tests {
     use super::*;
 
     fn refs(data: &[u8], start: usize, end: usize) -> Vec<(u32, u32)> {
-        c166_references(data, vec![(start as i64, end as i64)]).0
+        c166_references_inner(data, vec![(start as i64, end as i64)]).0
     }
 
     #[test]
@@ -409,7 +439,7 @@ mod tests {
         let d = [0xF2, 0x00, 0x34, 0x12];
         assert_eq!(refs(&d, 0, 3), Vec::<(u32, u32)>::new());
         // Empty / inverted regions are skipped.
-        assert_eq!(c166_references(&d, vec![(4, 2), (0, 0)]).0, Vec::<(u32, u32)>::new());
+        assert_eq!(c166_references_inner(&d, vec![(4, 2), (0, 0)]).0, Vec::<(u32, u32)>::new());
     }
 
     #[test]
@@ -418,7 +448,7 @@ mod tests {
         // NB: 0x92 is a 4-byte form per the Ghidra spec (CMP mem, dec-2) —
         // the trailing bytes are 0x93/0x93 so the count stays deterministic.
         let d = [0xF2, 0x00, 0x00, 0x10, 0x90, 0x91, 0xF6, 0x01, 0x00, 0x20, 0x93, 0x93];
-        let (refs, count) = c166_references(&d, vec![(0, 12)]);
+        let (refs, count) = c166_references_inner(&d, vec![(0, 12)]);
         assert_eq!(refs, vec![(0x1000, 0), (0x2000, 6)]);
         assert_eq!(count, 4);
     }
@@ -442,18 +472,18 @@ mod tests {
         // MOV R0,mem (4B) + unknown (2B) + MOVB mem,Rbn (4B)
         let d = [0xF2, 0x00, 0x00, 0x10, 0x90, 0x91, 0xF7, 0x08, 0x78, 0x56];
         assert_eq!(
-            c166_walk(&d, vec![(0, 10)]),
+            c166_walk_inner(&d, vec![(0, 10)]),
             vec![(0, 4), (4, 2), (6, 4)]
         );
         // region clipping: truncated tail instruction is dropped
-        assert_eq!(c166_walk(&d, vec![(0, 9)]), vec![(0, 4), (4, 2)]);
+        assert_eq!(c166_walk_inner(&d, vec![(0, 9)]), vec![(0, 4), (4, 2)]);
     }
 
     #[test]
     fn disasm_renders_moves_and_arithmetic() {
         // MOV R0, 0x1234  (F2 F0 34 12: reg0815 high-nibble=0xF) + ADD R5, #6 (06 F5 06 00)
         let d = [0xF2, 0xF0, 0x34, 0x12, 0x06, 0xF5, 0x06, 0x00];
-        let out = c166_disasm(&d, vec![(0, 8)]);
+        let out = c166_disasm_inner(&d, vec![(0, 8)]);
         assert_eq!(
             out,
             vec![
@@ -468,7 +498,7 @@ mod tests {
         // MOV R3, R1 (F0 31: Rn=hi nibble, Rm=lo nibble) + MOV R7, [R2] (A8 72)
         // + MOV [R4], 0x00B3 (84 04 B3 00: Rn=lo nibble)
         let d = [0xF0, 0x31, 0xA8, 0x72, 0x84, 0x04, 0xB3, 0x00];
-        let out = c166_disasm(&d, vec![(0, 8)]);
+        let out = c166_disasm_inner(&d, vec![(0, 8)]);
         assert_eq!(
             out,
             vec![
@@ -483,7 +513,7 @@ mod tests {
     fn disasm_renders_byte_forms_and_branches() {
         // MOVB RB3, 0x12 (E7 F3 12 00) + JMPR cc, -2 (2D FE)
         let d = [0xE7, 0xF3, 0x12, 0x00, 0x2D, 0xFE];
-        let out = c166_disasm(&d, vec![(0, 6)]);
+        let out = c166_disasm_inner(&d, vec![(0, 6)]);
         assert_eq!(
             out,
             vec![
@@ -498,7 +528,7 @@ mod tests {
         // MOV DPP0, #0x0004 (E6 00 04 00) — reg0815 with high-nibble != 0xF
         // is an SFR, not a register.
         let d = [0xE6, 0x00, 0x04, 0x00];
-        let out = c166_disasm(&d, vec![(0, 4)]);
+        let out = c166_disasm_inner(&d, vec![(0, 4)]);
         assert_eq!(out, vec![(0, 4, "MOV".to_string(), "SFR 0x00, #0x0004".to_string())]);
     }
 
@@ -506,7 +536,7 @@ mod tests {
     fn disasm_unknown_opcode_is_data_byte() {
         // 0x90 is not in the phrasebook table -> DB 0x90
         let d = [0x90, 0x91];
-        let out = c166_disasm(&d, vec![(0, 2)]);
+        let out = c166_disasm_inner(&d, vec![(0, 2)]);
         assert_eq!(out, vec![(0, 2, "DB".to_string(), "0x90".to_string())]);
     }
 
@@ -515,7 +545,7 @@ mod tests {
         // EXTP #page (D7 with op1415=1) vs EXTS (D7 with op1415=0)
         // op1415 = high 2 bits of byte 1; 0x40 -> 1, 0x00 -> 0
         let d = [0xD7, 0x40, 0x00, 0x00, 0xD7, 0x00, 0x00, 0x00];
-        let out = c166_disasm(&d, vec![(0, 8)]);
+        let out = c166_disasm_inner(&d, vec![(0, 8)]);
         assert_eq!(out[0].2, "EXTP");
         assert_eq!(out[1].2, "EXTS");
     }

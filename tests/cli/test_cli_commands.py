@@ -22,7 +22,7 @@ from __future__ import annotations
 import pytest
 from typer.testing import CliRunner
 
-from openremap.core.cli.main import app
+from openremap.cli.main import app
 
 # ---------------------------------------------------------------------------
 # Shared runner
@@ -71,7 +71,7 @@ class TestCommandsCommand:
 
     def test_stdout_lists_cook_entry(self) -> None:
         result = runner.invoke(app, ["commands"])
-        assert "cook" in result.stdout
+        assert "cook-strict" in result.stdout
 
     def test_stdout_lists_tune_entry(self) -> None:
         result = runner.invoke(app, ["commands"])
@@ -122,7 +122,7 @@ class TestWorkflowCommand:
 
     def test_stdout_mentions_cook_step(self) -> None:
         result = runner.invoke(app, ["workflow"])
-        assert "cook" in result.stdout.lower()
+        assert "cook-strict" in result.stdout.lower()
 
     def test_stdout_mentions_tune_step(self) -> None:
         result = runner.invoke(app, ["workflow"])

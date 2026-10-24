@@ -117,6 +117,51 @@ class Candidate:
         }
 
 
+#: Shortest / longest motif that a data run can be built from.
+_MOTIF_MIN, _MOTIF_MAX = 2, 8
+
+
+def repeated_motif(marker: bytes) -> str | None:
+    """A description when *marker* is mostly one short motif, else ``None``.
+
+    Printable calibration data is not an identifier. Measured on a real family
+    (Denso SH7058): two dumps of the same model year produced the candidate
+    ``'gCaCA$3:f3F$&j4j3j#WD$3TD$3TD$3TD…'`` — 152 printable bytes, of which 120
+    are ``$3TD`` repeated. It was ranked first, recommended, and covered 22 of the
+    family's 35 dumps; two dumps from different years produced
+    ``'Copyright 1999 Hitachi,Ltd.Ho7058 Operating System, Version '`` and covered
+    35/35. The difference is not length or letters — it is that one of them is a
+    repeating pattern and the other is a sentence.
+    """
+    body = marker.strip()
+    if len(body) < 16:
+        return None
+    best: tuple[int, int, bytes] = (0, 0, b"")
+    for period in range(_MOTIF_MIN, _MOTIF_MAX + 1):
+        # Every alignment, not just offset 0: in the measured case the repeating
+        # part starts after 20 bytes of real text ("gCaCA$3:f3F$&j4j3j#WD").
+        for offset in range(period):
+            chunks = [
+                body[start : start + period]
+                for start in range(offset, len(body) - period + 1, period)
+            ]
+            index = 0
+            while index < len(chunks):
+                end = index
+                while end < len(chunks) and chunks[end] == chunks[index]:
+                    end += 1
+                if end - index > best[0]:
+                    best = (end - index, (end - index) * period, chunks[index])
+                index = max(end, index + 1)
+    repeats, covered, unit = best
+    if repeats >= 6 and covered >= len(body) * 0.6:
+        return (
+            f"one motif ({unit.decode('latin-1')!r}) repeated {repeats} times — "
+            "printable data, not an identifier"
+        )
+    return None
+
+
 def _generic_reason(marker: bytes) -> str | None:
     """Why this run cannot be a family signature, or None if it might be.
 
@@ -135,6 +180,9 @@ def _generic_reason(marker: bytes) -> str | None:
         return "a manufacturer/toolchain label shared by many families"
     if stripped.isdigit():
         return "digits only — a value, and the engine's SW/HW patterns cover those"
+    motif = repeated_motif(marker)
+    if motif:
+        return motif
     return None
 
 

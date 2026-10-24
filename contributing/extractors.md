@@ -18,9 +18,13 @@ another family used to identify correctly. You cannot check it by reading your
 own file.
 
 ```bash
-openremap contribute extractor stock.bin --also tuned.bin --brand Siemens --family SID206
+openremap contribute extractor stock.bin tuned.bin third.bin --brand Siemens --family SID206
 openremap contribute extractor stock.bin --also tuned.bin --brand Siemens --family SID206 --write
 ```
+
+Pass **as many dumps of the same family as you have** — as separate paths or
+with `--also`, mixed freely. Two is the minimum that can show a marker is stable;
+every extra dump is another calibration the marker has to survive.
 
 Run it **from your clone of this repository**. The collision check uses the
 committed fixtures in `_dev/contrib/recipes/`, so from a plain `pip install` the
@@ -32,16 +36,24 @@ request, so you need the clone anyway.
 
 The first form only measures and prints: who claims your dump today, ranked
 candidate signatures (each one *tested against every known family*), the
-collisions with offsets, and candidate identity fields split into "constant in
-your family" (belongs in `can_handle()`) and "varies per dump" (what a
-`match_key` needs). The second form additionally writes four files:
+collisions with offsets, and the identity fields your dumps actually contain —
+each labelled "constant in your dumps" (a fixed field, *not* a proven signature)
+or "varies between your dumps" (what a `match_key` needs). The second form
+additionally writes four files:
 
 | file | what it is |
 |---|---|
 | `_dev/contrib/recipes/<brand>-<family>.json` | your family as fill byte + planted payloads — the fixture that goes in the PR **instead of your dump** |
-| `openremap/core/manufacturers/<brand>/<family>/extractor.py` | a skeleton that already passes the review bar below, with the measured marker, size gate and exclusion guards |
+| `openremap/core/manufacturers/<brand>/<family>/extractor.py` | a skeleton that already passes the review bar below, with the measured marker, size gate, exclusion guards, and the measured identity patterns wired into `extract()` |
 | `tests/tuning/manufacturers/test_<family>_extractor.py` | the fixture-driven test, runnable with no ECU data |
-| `<family>-contribution.md` | the PR description, including a **Not verified** section |
+| `<family>-contribution.md` | the PR description, including a **Fields measured** section and a **Not verified** section |
+
+`extract()` is filled from the measurement: software version, hardware number,
+variant and calibration version come out of the *pattern* that found them in your
+dumps. The pattern is what travels, not the value — a value copied in as a
+literal would only ever match the calibration it came from, which is the same
+mistake as a marker made of one version string. Whatever the dumps could not
+decide stays a `TODO`, and the report lists exactly which fields those are.
 
 Before calling anything verified, the wizard **executes the skeleton it just
 generated** against every known-family fixture: it must claim your fixture and
@@ -50,9 +62,20 @@ guard from the colliding family's own ident token and re-checks — and if no
 guard can work (your marker *is* their token), it exits non-zero instead of
 producing a file that looks done.
 
-Give it **two or more dumps of the same family** (`--also`). With one dump, a
-byte that simply varies between calibrations is indistinguishable from a family
-constant, and the report says so rather than pretending.
+Give it **dumps from different calibrations of the same family** — a different
+year or model, not two copies of one file and not a stock/tuned pair. Two dumps
+of *one* calibration cannot, with any algorithm, tell a family token from that
+calibration's version string; the report measures this and says which case you
+are in (`same-calibration` / `different-calibrations`), because it decides what
+the marker is worth:
+
+- Denso SH7058, two dumps of one model year → the generated extractor claimed
+  **22 of 35** of the family's dumps, using a marker made of repeated data;
+- Denso SH7058, two dumps six years apart → **35 of 35**, using the ECU's own OS
+  banner as the marker.
+
+The reverse trap is just as real: a byte that is identical in all your dumps is
+not thereby a family signature either.
 
 If you only want to know whether your ECU is already recognised, that needs no
 clone at all — and no family name:
@@ -82,9 +105,10 @@ edit to an extractor.
 
 Three things the wizard deliberately does **not** do: it does not register the
 extractor for you (position is behaviour — that is the judgement call), it does
-not fill in the identity fields (only your dumps can decide those), and it does
-not claim your extractor is *correct* — a fixture built from your own marker
-proves self-consistency, not that real ECUs of this family look like that.
+not invent a field your dumps never showed (those stay `TODO`, listed in the
+report), and it does not claim your extractor is *correct* — a fixture built from
+your own marker proves self-consistency, not that real ECUs of this family look
+like that.
 
 ## How the extractor system works
 
@@ -200,7 +224,7 @@ BUILTIN_EXTRACTORS: list[BaseManufacturerExtractor] = [
 
 ```bash
 uv run openremap identify your_binary.bin
-uv run openremap cook stock.bin modified.bin --output recipe.remap
+uv run openremap cook-strict stock.bin modified.bin --output recipe.remap
 ```
 
 ## Priority order is the risky part — treat it as your main design decision

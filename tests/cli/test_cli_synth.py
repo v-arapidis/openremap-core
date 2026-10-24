@@ -15,7 +15,7 @@ import json
 from typer.testing import CliRunner
 
 import openremap.api as api
-from openremap.core.cli.main import app
+from openremap.cli.main import app
 
 runner = CliRunner()
 

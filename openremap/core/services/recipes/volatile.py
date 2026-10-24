@@ -17,8 +17,9 @@ This module classifies each instruction into one of two actions:
                default; ``exclude_uncertain=True`` promotes them to
                excluded (caller's explicit choice).
 
-Nothing is removed here — the report is pure data.  The CLI
-(``cook-volatile``, Phase 2) decides how to act on it.
+Nothing is removed here — the report is pure data. The 4.x ``cook-volatile``
+CLI that acted on it has been removed; the classifier survives because
+``audit`` uses it to read legacy 4.5 documents.
 
 Honest-by-construction notes
 ----------------------------

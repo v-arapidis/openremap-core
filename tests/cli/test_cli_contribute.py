@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.core.cli.main import app
+from openremap.cli.main import app
 
 runner = CliRunner()
 
@@ -402,3 +402,58 @@ class TestContributeCheck:
     def test_missing_file_exits_non_zero(self, workspace):
         result = runner.invoke(app, ["contribute", "check", "nope.py"])
         assert result.exit_code == 1
+
+
+class TestManyDumps:
+    """The family's evidence is however many dumps the contributor has.
+
+    Two is the minimum that can prove a marker is stable; more dumps of the same
+    family are more evidence, and the wizard has no reason to cap them.
+    """
+
+    def test_three_dumps_on_the_command_line(self, workspace, no_checkout):
+        dumps = [
+            write_dump(workspace / f"dump{i}.bin", sw=f"103735965{i}")
+            for i in range(3)
+        ]
+        result = runner.invoke(
+            app,
+            ["contribute", "extractor", *[str(d) for d in dumps], "--measure-only"],
+        )
+        assert result.exit_code == 0, result.output
+        for dump in dumps:
+            assert dump.name in result.output
+
+    def test_positional_and_also_mix(self, workspace, no_checkout):
+        first = write_dump(workspace / "a.bin")
+        second = write_dump(workspace / "b.bin", sw="1037359651")
+        third = write_dump(workspace / "c.bin", sw="1037359652")
+        result = runner.invoke(
+            app,
+            [
+                "contribute",
+                "extractor",
+                str(first),
+                str(second),
+                "--also",
+                str(third),
+                "--measure-only",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        for dump in (first, second, third):
+            assert dump.name in result.output
+
+    def test_measure_only_does_not_invent_a_missing_checkout(self, workspace):
+        """Inside a clone, `--measure-only` must not claim the clone is absent.
+
+        The reason collisions were skipped is the flag, not the machine — the
+        earlier copy said "no checkout" whenever the check had not run.
+        """
+        dump = write_dump(workspace / "stock.bin")
+        result = runner.invoke(
+            app, ["contribute", "extractor", str(dump), "--measure-only"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "no checkout" not in result.output
+        assert "--measure-only" in result.output

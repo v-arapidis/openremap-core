@@ -104,6 +104,19 @@ fn read_cells_values(
 #[pyfunction]
 #[pyo3(signature = (data, offset, cols, rows, cell_width, byte_order, stride = None))]
 pub fn read_cells(
+    py: Python<'_>,
+    data: &[u8],
+    offset: usize,
+    cols: usize,
+    rows: usize,
+    cell_width: usize,
+    byte_order: &str,
+    stride: Option<usize>,
+) -> Vec<u32> {
+    py.detach(move || read_cells_inner(data, offset, cols, rows, cell_width, byte_order, stride))
+}
+
+fn read_cells_inner(
     data: &[u8],
     offset: usize,
     cols: usize,
@@ -126,6 +139,21 @@ pub fn read_cells(
 #[pyfunction]
 #[pyo3(signature = (stock_data, tuned_data, stock_guess, tuned_guess, cols, rows, cell_width, byte_order, stride = None))]
 pub fn best_alignment(
+    py: Python<'_>,
+    stock_data: &[u8],
+    tuned_data: &[u8],
+    stock_guess: isize,
+    tuned_guess: isize,
+    cols: usize,
+    rows: usize,
+    cell_width: usize,
+    byte_order: &str,
+    stride: Option<usize>,
+) -> Option<(Vec<u32>, Vec<u32>, isize, isize)> {
+    py.detach(move || best_alignment_inner(stock_data, tuned_data, stock_guess, tuned_guess, cols, rows, cell_width, byte_order, stride))
+}
+
+fn best_alignment_inner(
     stock_data: &[u8],
     tuned_data: &[u8],
     stock_guess: isize,
@@ -199,6 +227,14 @@ pub fn best_alignment(
 /// The caller guarantees equal-length inputs (the wrapper checks first).
 #[pyfunction]
 pub fn diff_cells(
+    py: Python<'_>,
+    stock_cells: Vec<i64>,
+    tuned_cells: Vec<i64>,
+) -> (f64, f64, f64, f64, usize, usize) {
+    py.detach(move || diff_cells_inner(stock_cells, tuned_cells))
+}
+
+fn diff_cells_inner(
     stock_cells: Vec<i64>,
     tuned_cells: Vec<i64>,
 ) -> (f64, f64, f64, f64, usize, usize) {

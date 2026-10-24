@@ -470,9 +470,26 @@ fn probe_table_series(
                     min_axis_length = 4, max_axis_length = 32,
                     min_step = 1, max_step = 10000))]
 pub fn scan_map_axes(
-    data: &[u8], region_start: isize, region_end: isize,
-    min_axis_length: usize, max_axis_length: usize,
-    min_step: i32, max_step: i32,
+    py: Python<'_>,
+    data: &[u8],
+    region_start: isize,
+    region_end: isize,
+    min_axis_length: usize,
+    max_axis_length: usize,
+    min_step: i32,
+    max_step: i32,
+) -> Vec<(usize, usize, String, Vec<u16>)> {
+    py.detach(move || scan_map_axes_inner(data, region_start, region_end, min_axis_length, max_axis_length, min_step, max_step))
+}
+
+fn scan_map_axes_inner(
+    data: &[u8],
+    region_start: isize,
+    region_end: isize,
+    min_axis_length: usize,
+    max_axis_length: usize,
+    min_step: i32,
+    max_step: i32,
 ) -> Vec<(usize, usize, String, Vec<u16>)> {
     let base_offset = if region_start >= 0 { region_start as usize } else { 0 };
     let raw_end = if region_end >= 0 { region_end as usize } else { data.len() };
@@ -541,10 +558,33 @@ pub fn scan_map_axes(
                     cell_widths = vec![2usize, 1], max_results = 8000,
                     max_series_tables = 16))]
 pub fn scan_map_tables(
-    data: &[u8], region_start: isize, region_end: isize,
+    py: Python<'_>,
+    data: &[u8],
+    region_start: isize,
+    region_end: isize,
     axes: Option<Vec<(usize, usize, String, Vec<u16>)>>,
-    min_score: f64, max_gap: usize, min_y_length: usize,
-    min_axis_length: usize, cell_widths: Vec<usize>, max_results: usize,
+    min_score: f64,
+    max_gap: usize,
+    min_y_length: usize,
+    min_axis_length: usize,
+    cell_widths: Vec<usize>,
+    max_results: usize,
+    max_series_tables: usize,
+) -> Vec<(usize, usize, usize, usize, String, usize, Option<usize>, f64, Option<usize>)> {
+    py.detach(move || scan_map_tables_inner(data, region_start, region_end, axes, min_score, max_gap, min_y_length, min_axis_length, cell_widths, max_results, max_series_tables))
+}
+
+fn scan_map_tables_inner(
+    data: &[u8],
+    region_start: isize,
+    region_end: isize,
+    axes: Option<Vec<(usize, usize, String, Vec<u16>)>>,
+    min_score: f64,
+    max_gap: usize,
+    min_y_length: usize,
+    min_axis_length: usize,
+    cell_widths: Vec<usize>,
+    max_results: usize,
     max_series_tables: usize,
 ) -> Vec<(usize, usize, usize, usize, String, usize, Option<usize>, f64, Option<usize>)> {
     let base_offset = if region_start >= 0 { region_start as usize } else { 0 };
@@ -554,7 +594,7 @@ pub fn scan_map_tables(
     let buf = &data[start..end];
 
     let axes_list = axes.unwrap_or_else(|| {
-        scan_map_axes(buf, -1, -1, min_axis_length, 32, 1, 10000)
+        scan_map_axes_inner(buf, -1, -1, min_axis_length, 32, 1, 10000)
     });
 
     if axes_list.is_empty() { return Vec::new(); }

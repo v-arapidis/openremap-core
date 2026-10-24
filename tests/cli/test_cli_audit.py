@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.core.cli.main import app
+from openremap.cli.main import app
 
 runner = CliRunner()
 
@@ -40,7 +40,7 @@ def _write(tmp_path, stock, tuned, name_stock="stock.bin", name_tuned="tuned.bin
 def _cook(tmp_path, sp, tp, name="t.remap"):
     result = runner.invoke(
         app,
-        ["cook", "--no-annotate-maps", str(sp), str(tp), "--output", str(tmp_path / name)],
+        ["cook-strict", str(sp), str(tp), "--output", str(tmp_path / name)],
     )
     assert result.exit_code == 0
     return tmp_path / name
@@ -144,9 +144,8 @@ class TestAuditCLI:
             res = runner.invoke(
                 app,
                 [
-                    "cook",
-                    "--no-annotate-maps",
-                    str(stock),
+                    "cook-strict",
+                                        str(stock),
                     str(tuned),
                     "--output",
                     str(rp),

@@ -142,12 +142,49 @@ LIVING_DOCS = [f for f in _committed_markdown() if _is_living(f)]
 TRACKED_FILES, TRACKED_DIRS = _tracked_tree()
 
 
+_IGNORED_CACHE: dict[str, bool] = {}
+
+
+def _git_ignores(posix: str) -> bool:
+    """True when git ignores *posix* — the class of path that will never ship."""
+    if posix not in _IGNORED_CACHE:
+        try:
+            result = subprocess.run(
+                ["git", "check-ignore", "-q", posix],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                check=False,  # exit 1 means "not ignored", which is an answer
+            )
+            _IGNORED_CACHE[posix] = result.returncode == 0
+        except OSError:  # pragma: no cover - no git at all
+            _IGNORED_CACHE[posix] = False
+    return _IGNORED_CACHE[posix]
+
+
 def _in_committed_tree(posix: str) -> bool:
-    """True when *posix* (a repo-relative path) exists in the committed tree."""
+    """True when *posix* ships: tracked by git, or on disk and not gitignored.
+
+    The ``git ls-files`` rule exists because a plain ``Path.exists()`` check made
+    this guard **green locally and red in CI** for ``tests/data/`` (commit
+    31336a8) — the worst property a guard can have. That lesson stands: a path git
+    *ignores* is still rejected here, because it will never be in a fresh clone.
+
+    What the old rule broke is the release cut. Dating the changelog removes the
+    word "unreleased", which stops it being a living doc and makes the
+    ``CHANGELOG.md`` index row point at a file that is *released but not yet
+    committed* — the maintainer's own next five minutes, and the window in which
+    every gate is supposed to be run. Such a file is untracked but **not**
+    ignored, so it is accepted here; if it is still untracked when CI runs, CI
+    fails, which is exactly the right moment to fail.
+    """
     normalized = posixpath.normpath(posix).lstrip("./")
     if normalized in (".", ""):
         return True
-    return normalized in TRACKED_FILES or normalized in TRACKED_DIRS
+    if normalized in TRACKED_FILES or normalized in TRACKED_DIRS:
+        return True
+    if not (REPO_ROOT / normalized).exists():
+        return False
+    return not _git_ignores(normalized)
 
 
 def _is_local_only(bare: str) -> bool:
@@ -225,6 +262,25 @@ class TestDocumentationPaths:
         # every release.
         if not unreleased:
             assert not [f for f in LIVING_DOCS if f.startswith("changelog/")]
+
+    def test_a_gitignored_path_never_counts_as_shipped(self):
+        """The 31336a8 lesson: green locally, red in CI is the worst property.
+
+        `notes/` is gitignored and sits on this machine; it is in no fresh clone,
+        so a doc pointing at it must fail here as well as in CI.
+        """
+        if not (REPO_ROOT / "notes").is_dir():
+            pytest.skip("no local notes/ directory to test against")
+        assert _in_committed_tree("notes") is False
+
+    def test_an_untracked_but_not_ignored_path_is_the_release_window(self):
+        """The changelog is dated — and therefore linked — before it is committed."""
+        probe = REPO_ROOT / "changelog" / "0.9.0.md"
+        if not probe.is_file():
+            pytest.skip("the release-cut window is not open")
+        ignored = _git_ignores("changelog/0.9.0.md")
+        tracked = "changelog/0.9.0.md" in TRACKED_FILES
+        assert _in_committed_tree("changelog/0.9.0.md") is (tracked or not ignored)
 
     @pytest.mark.parametrize("rel", LIVING_DOCS)
     def test_documented_paths_exist(self, rel):

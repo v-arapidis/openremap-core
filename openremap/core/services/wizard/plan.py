@@ -150,19 +150,76 @@ def build_spec(
     )
 
 
+# Which measured field kind fills which key of the skeleton's ``extract()``.
+# ``sw_12digit`` is deliberately absent: it is usually erased-flash filler
+# (measured on a real dump: '222222222222'), and wiring that into
+# software_version would be worse than the TODO it replaced.
+FIELD_TO_RESULT = {
+    "bosch_sw": "software_version",
+    "bosch_hw": "hardware_number",
+    "calibration_version": "calibration_version",
+}
+
+# The keys a skeleton starts with, and the hint its TODO carries.
+RESULT_TODOS = {
+    "software_version": "extract the software version from the binary",
+    "hardware_number": "extract the hardware part number",
+    "oem_part_number": "extract the OEM part number, if the family has one",
+    "calibration_id": "extract the calibration id, if the family has one",
+}
+
+
 def _field_hints(fields: list[dict]) -> dict:
-    """Turn measured fields into TODOs and comments for the skeleton."""
-    hints: dict = {}
-    stable = [f for f in fields if f.get("stable") and f.get("value")]
+    """Turn measured fields into extraction code and TODOs for the skeleton.
+
+    The skeleton gets the *pattern* that found the value in the contributor's
+    dumps, never the value itself. Emitting the value would repeat, in the
+    extractor, the same mistake a version-string marker makes in ``can_handle()``
+    — a constant that only ever matches the calibration it came from.
+    """
+    from openremap.core.services.wizard.fields import PATTERNS
+
+    source = {kind: pattern.pattern for kind, pattern, _desc in PATTERNS}
+    by_kind = {field["kind"]: field for field in fields if field.get("value")}
+
+    extract: dict = {}
+    for kind, key in FIELD_TO_RESULT.items():
+        measured = by_kind.get(kind)
+        if not measured or kind not in source:
+            continue
+        extract[key] = {
+            "pattern": source[kind],
+            "measured": measured["value"],
+            "offsets": sorted(set((measured.get("offsets") or {}).values())),
+        }
+
+    descriptor = by_kind.get("descriptor")
+    if descriptor:
+        parts = descriptor["value"].split("/")
+        variant = parts[2] if len(parts) > 2 else None
+        extract["ecu_variant"] = {
+            "pattern": source["descriptor"],
+            "measured": variant,
+            "descriptor": descriptor["value"],
+            "offsets": sorted(set((descriptor.get("offsets") or {}).values())),
+            "field": 2,
+        }
+
     varying = [f for f in fields if not f.get("stable")]
-    if stable:
-        hints["stable"] = {f["kind"]: f["value"] for f in stable}
+    hints: dict = {"extract": extract}
+    hints["todos"] = {
+        key: hint for key, hint in RESULT_TODOS.items() if key not in extract
+    }
     if varying:
         hints["software_version_hint"] = ", ".join(
             f"{f['kind']} ({', '.join(sorted(set(f['values'].values())))})"
             for f in varying
             if f["kind"] in ("bosch_sw", "sw_12digit")
         )
+    if by_kind.get("vag_part_number"):
+        # The VAG scan is a hand-written helper, not a regex this module owns, so
+        # it stays a measured hint instead of generated code.
+        hints["oem_part_number_hint"] = by_kind["vag_part_number"]["value"]
     return hints
 
 
@@ -190,15 +247,11 @@ def prepare(
       without a checkout can still do, and it takes an explicit opt-in so nobody
       mistakes an unchecked ranking for a contribution-ready answer.
     """
-    full_pool = fixtures if fixtures is not None else known_fixtures()
-    if fixtures is None and not fixtures_available():
-        if not measure_only:
-            raise ValueError(
-                "no fixture recipes found (_dev/contrib/recipes/): the collision "
-                "check and artifact generation need a checkout of openremap-core. "
-                "Re-run with measure_only (CLI: --measure-only) to get the "
-                "measurement without the collision check."
-            )
+    # ``measure_only`` is honoured *first*, not as a fallback for a missing
+    # checkout: it is the mode that promises "measurement and nothing else", and
+    # falling through to the artifact branch on a checkout demanded brand and
+    # family — the exact thing the mode says it does not need.
+    if measure_only:
         analysis = analyze(
             dumps, fixtures=(), exclude_families=(family,) if family else ()
         )
@@ -210,6 +263,15 @@ def prepare(
             "verification": None,
             "paths": {},
         }
+
+    full_pool = fixtures if fixtures is not None else known_fixtures()
+    if fixtures is None and not fixtures_available():
+        raise ValueError(
+            "no fixture recipes found (_dev/contrib/recipes/): the collision "
+            "check and artifact generation need a checkout of openremap-core. "
+            "Re-run with measure_only (CLI: --measure-only) to get the "
+            "measurement without the collision check."
+        )
     if not brand or not family:
         raise ValueError(
             "brand and family are required to generate artifacts (they name the "
@@ -230,6 +292,8 @@ def prepare(
     )
 
     spec = build_spec(analysis, brand=brand, family=family, marker=marker, fixtures=pool)
+    # Decides what the marker is worth, so it travels with it into the artifacts.
+    spec.stability = dict(analysis.get("calibration_diversity") or {})
 
     own_fixture = _build_own_fixture(spec, dumps)
     source = render_extractor(spec)
@@ -273,6 +337,7 @@ def prepare(
             "collides_with": spec.collides_with,
         },
         "analysis": analysis,
+        "calibration_diversity": analysis.get("calibration_diversity"),
         "artifacts": artifacts,
         "verification": verification,
         "paths": paths,

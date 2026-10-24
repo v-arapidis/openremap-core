@@ -43,6 +43,15 @@ use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(signature = (original, modified, merge_threshold = 16))]
 pub fn find_changed_blocks(
+    py: Python<'_>,
+    original: &[u8],
+    modified: &[u8],
+    merge_threshold: usize,
+) -> Vec<(usize, usize, Vec<u8>, Vec<u8>)> {
+    py.detach(move || find_changed_blocks_inner(original, modified, merge_threshold))
+}
+
+fn find_changed_blocks_inner(
     original: &[u8],
     modified: &[u8],
     merge_threshold: usize,

@@ -1,710 +1,637 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   OpenRemap TUI — Dark Automotive Theme
-   A precision instrument deserves a precision interface.
-═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Palette ─────────────────────────────────────────────────────────────── */
-
-$bg:            #08080f;
-$surface:       #101020;
-$surface-alt:   #181828;
-$surface-hover: #1e1e32;
-
-$border:        #1c1c30;
-$border-bright: #2a2a45;
-
-$accent:        #ff6d00;
-$accent-dim:    #c45200;
-$accent-glow:   #ff8c33;
-
-$blue:          #0ea5e9;
-$blue-dim:      #0284c7;
-
-$text:          #c8d1e0;
-$text-mid:      #7a8499;
-$text-dim:      #3c4560;
-
-$success:       #22c55e;
-$warning:       #eab308;
-$error:         #ef4444;
-
-$sidebar-bg:    #090912;
-$sidebar-w:     22;
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Global
-═══════════════════════════════════════════════════════════════════════════ */
+/* OpenRemap TUI — one accent, dark, no chrome noise. */
 
 Screen {
-    background: $bg;
-    color: $text;
+    background: #0b0f14;
+    color: #c8d1e0;
 }
 
+/* ── boot screen ─────────────────────────────────────────────────────── */
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Header & Footer
-═══════════════════════════════════════════════════════════════════════════ */
-
-Header {
-    background: $surface;
-    color: $accent;
-    border-bottom: solid $border;
-    height: 3;
-}
-
-Header > .header--title {
-    color: $accent;
-    text-style: bold;
-}
-
-Header > .header--sub-title {
-    color: $text-dim;
-}
-
-Footer {
-    background: $surface;
-    color: $text-dim;
-    border-top: solid $border;
-    height: 1;
-}
-
-Footer > .footer--key {
-    background: $accent;
-    color: $bg;
-    text-style: bold;
-}
-
-Footer > .footer--description {
-    color: $text-mid;
-}
-
-Footer > .footer--highlight {
-    background: $accent-dim;
-    color: $bg;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Main layout
-═══════════════════════════════════════════════════════════════════════════ */
-
-#main-layout {
-    height: 1fr;
+#boot-center {
     width: 100%;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Sidebar
-═══════════════════════════════════════════════════════════════════════════ */
-
-#sidebar {
-    width: $sidebar-w;
     height: 100%;
-    background: $sidebar-bg;
-    border-right: solid $border;
+    align: center middle;
 }
 
-#brand {
-    width: 100%;
-    height: 5;
+#boot-panel {
+    width: 90;
+    height: auto;
     padding: 1 2;
-    border-bottom: solid $border;
-    content-align: left top;
 }
 
-#nav-items {
-    width: 100%;
+#boot-wordmark {
+    color: #4ad6a8;
+    text-style: bold;
+    width: 1fr;
+    text-align: center;
+}
+
+#boot-tagline {
+    color: #5a6b85;
+    text-align: center;
+    padding: 0 0 1 0;
+}
+
+#boot-steps {
+    height: auto;
     padding: 1 0;
 }
 
-.nav-item {
-    width: 100%;
-    height: 3;
-    background: transparent;
-    color: $text-dim;
-    border: none;
-    text-align: left;
-    padding: 0 3;
-    margin: 0;
+.boot-step {
+    width: 1fr;
+    height: 1;
 }
 
-.nav-item:hover {
-    background: $surface;
-    color: $text;
+.step-label {
+    width: 15;
+    height: 1;
+    padding: 0 0 0 1;
 }
 
-.nav-item:focus {
-    background: $surface;
-    color: $text;
+.step-detail {
+    width: 1fr;
+    height: 1;
 }
 
-.nav-item.nav-active {
-    background: $surface-alt;
-    color: $accent;
-    border-left: thick $accent;
+.step-timing {
+    width: 9;
+    height: 1;
+    text-align: right;
+}
+
+.boot-step.pending {
+    color: #3a4557;
+}
+
+.boot-step.running {
+    color: #8aa0c0;
+}
+
+.boot-step.ok {
+    color: #c8d1e0;
+}
+
+.boot-step.failed {
+    color: #ff6b6b;
     text-style: bold;
 }
 
-.nav-item.nav-active:hover {
-    background: $surface-hover;
-    color: $accent-glow;
+#boot-progress {
+    width: 1fr;
+    height: 1;
+    margin: 1 0 1 1;
+    color: #4ad6a8;
 }
 
-.sidebar-spacer {
-    height: 1fr;
+.boot-status {
+    width: 1fr;
+    height: auto;
+    padding: 0 0 0 1;
+    color: #8aa0c0;
 }
 
-#sidebar-version {
+.boot-status.dim {
+    color: #5a6b85;
+}
+
+.boot-status.ready {
+    color: #4ad6a8;
+    text-style: bold;
+}
+
+.boot-status.failed {
+    color: #ff6b6b;
+    text-style: bold;
+}
+
+#boot-repair {
+    width: 1fr;
+    height: auto;
+    border: round #ff6b6b;
+    color: #ffd7d7;
+    padding: 0 1;
+    margin: 1 0 0 0;
+}
+
+/* ── home ────────────────────────────────────────────────────────────── */
+
+#home-panel {
     width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+#home-title {
+    color: #e8eef7;
+    text-style: bold;
+    padding: 0 0 1 1;
+}
+
+.card-row {
+    height: auto;
+}
+
+.card {
+    width: 1fr;
+    height: 5;
+    margin: 0 1 1 0;
+    padding: 0 1;
+    border: round #1e2a38;
+    background: #0e141b;
+    color: #c8d1e0;
+}
+
+.card:hover {
+    border: round #2f4256;
+    background: #111922;
+}
+
+.card.focused {
+    border: round #4ad6a8;
+    background: #101b18;
+}
+
+#home-recent {
+    width: 1fr;
+    height: auto;
+    padding: 1 1 0 1;
+}
+
+#home-status {
+    width: 1fr;
+    height: 1;
+    dock: bottom;
+    padding: 0 0 0 1;
+    background: #0b0f14;
+}
+
+#home-status-left {
+    width: 1fr;
+    height: 1;
+}
+
+#home-status-hints {
+    width: auto;
+    height: 1;
+    color: #5a6b85;
+}
+
+/* ── identify ────────────────────────────────────────────────────────── */
+
+#identify-panel {
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+#identify-file {
+    height: 3;
+    border: round #1e2a38;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+#identify-file-path {
+    width: 1fr;
+    height: 1;
+    color: #c8d1e0;
+}
+
+#identify-file-meta {
+    width: auto;
+    height: 1;
+    color: #5a6b85;
+}
+
+#identify-headline {
+    width: 1fr;
+    height: auto;
+    padding: 0 0 1 1;
+}
+
+ActivityBar {
+    width: 1fr;
+    height: 1;
+    color: #8aa0c0;
+}
+
+#identify-body {
+    width: 1fr;
+    height: auto;
+    padding: 0 0 1 0;
+}
+
+#identify-analysis {
+    width: 1fr;
+    height: auto;
+    padding: 1 0 0 0;
+}
+
+#identify-next {
+    width: 1fr;
+    height: auto;
+    dock: bottom;
+    padding: 1 0 1 1;
+    border-top: solid #1e2a38;
+}
+
+/* ── file picker ─────────────────────────────────────────────────────── */
+
+FilePicker {
+    align: center middle;
+}
+
+#picker-panel {
+    width: 80%;
+    max-width: 96;
+    height: 80%;
+    border: round #2f4256;
+    background: #0e141b;
+    padding: 1 2;
+}
+
+#picker-title {
+    color: #e8eef7;
+    text-style: bold;
+    padding: 0 0 1 0;
+}
+
+#picker-breadcrumb {
+    height: 1;
+    color: #5a6b85;
+    padding: 0 0 0 0;
+}
+
+#picker-path {
+    border: none;
+    background: #111922;
+    color: #c8d1e0;
+}
+
+#picker-tree {
+    height: 1fr;
+    background: #0e141b;
+    padding: 1 0;
+}
+
+#picker-hint {
+    color: #3a4557;
+    dock: bottom;
+    height: 1;
+}
+
+/* ── inspect ─────────────────────────────────────────────────────────── */
+
+#inspect-panel {
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+#inspect-file {
+    height: 3;
+    border: round #1e2a38;
+    padding: 0 1;
+    margin: 0 0 1 0;
+}
+
+#inspect-file-path {
+    width: 1fr;
+    height: 1;
+    color: #c8d1e0;
+}
+
+#inspect-file-meta {
+    width: auto;
+    height: 1;
+    color: #5a6b85;
+}
+
+#inspect-health,
+#inspect-checksums,
+#inspect-coherence,
+#inspect-layout {
+    width: 1fr;
+    height: auto;
+    padding: 0 0 0 1;
+}
+
+#inspect-next {
+    width: 1fr;
+    height: 3;   /* border 1 + padding 1 + one row of text */
+    dock: bottom;
+    padding: 1 0 0 1;
+    border-top: solid #1e2a38;
+}
+
+/* ── maps ────────────────────────────────────────────────────────────── */
+
+#maps-panel {
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+#maps-head {
+    height: 1;
+}
+
+#maps-file {
+    width: 1fr;
+    height: 1;
+    color: #c8d1e0;
+}
+
+#maps-count {
+    width: auto;
+    height: 1;
+    color: #5a6b85;
+}
+
+#maps-table {
+    height: 1fr;
+    background: #0e141b;
+}
+
+#maps-detail {
+    height: 1;
+    color: #8aa0c0;
+}
+
+#maps-profile {
+    height: 1;
+    color: #4ad6a8;
+}
+
+#maps-hints {
     height: 2;
-    padding: 0 2;
-    border-top: solid $border;
-    content-align: left middle;
+    dock: bottom;
+    padding: 0 0 0 1;
+    color: #3a4557;
+    border-top: solid #1e2a38;
 }
 
+/* ── cook ────────────────────────────────────────────────────────────── */
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   ContentSwitcher
-═══════════════════════════════════════════════════════════════════════════ */
-
-ContentSwitcher {
-    width: 1fr;
-    height: 100%;
-    background: $bg;
-}
-
-#content {
-    width: 1fr;
-    height: 100%;
-    background: $bg;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Panels (base layout)
-═══════════════════════════════════════════════════════════════════════════ */
-
-.panel {
+#cook-panel {
     width: 100%;
     height: 100%;
-    padding: 1 4;
-    background: $bg;
+    padding: 1 2;
 }
 
-.page-title {
-    color: $accent;
-    text-style: bold;
+#cook-title {
+    height: 2;
+    color: #5a6b85;
+}
+
+#cook-stock, #cook-tuned {
     height: 1;
-    padding: 0;
-    margin-bottom: 0;
+    color: #c8d1e0;
 }
 
-.page-desc {
-    color: $text-dim;
-    height: 1;
-    margin-bottom: 0;
+#cook-basis {
+    height: 2;
+    color: #3a4557;
 }
 
-.field-label {
-    color: $text-mid;
-    height: 1;
-    margin-bottom: 0;
-}
-
-.status-label {
-    height: 1;
-    margin-top: 1;
-    color: $text-dim;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Input fields
-═══════════════════════════════════════════════════════════════════════════ */
-
-Input {
-    background: $surface;
-    color: $text;
-    border: solid $border;
-    padding: 0 1;
-    margin-bottom: 1;
-    height: 3;
-}
-
-Input:focus {
-    background: $surface-alt;
-    border: solid $accent;
-    color: $text;
-}
-
-Input.-invalid {
-    border: solid $error;
-}
-
-.input-row {
-    height: 3;
-    margin-bottom: 1;
-    width: 100%;
-}
-
-.input-row Input {
-    width: 1fr;
-    margin-right: 1;
-    margin-bottom: 0;
-}
-
-.input-row .btn-primary {
-    width: 14;
-    height: 3;
-    margin-bottom: 0;
-    margin-right: 1;
-}
-
-.input-row .btn-secondary {
-    width: 16;
-    height: 3;
-    min-width: 16;
-    margin-bottom: 0;
-    padding: 0 2;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Buttons
-═══════════════════════════════════════════════════════════════════════════ */
-
-.btn-primary {
-    background: $accent;
-    color: $bg;
-    text-style: bold;
-    border: none;
-    padding: 0 3;
-    height: 3;
-    min-width: 16;
-    margin-right: 0;
-    margin-bottom: 1;
-}
-
-.btn-primary:hover {
-    background: $accent-glow;
-    color: $bg;
-}
-
-.btn-primary:focus {
-    background: $accent-glow;
-    color: $bg;
-}
-
-.btn-primary:disabled {
-    background: $border;
-    color: $text-dim;
-}
-
-.btn-secondary {
-    background: transparent;
-    color: $text-mid;
-    border: solid $border;
-    padding: 0 2;
-    height: 3;
-    min-width: 14;
-    margin-right: 0;
-    margin-bottom: 1;
-}
-
-.btn-secondary:hover {
-    background: $surface-alt;
-    color: $text;
-    border: solid $border-bright;
-}
-
-.btn-secondary:focus {
-    background: $surface-alt;
-    color: $text;
-    border: solid $border-bright;
-}
-
-.btn-secondary:disabled {
-    background: transparent;
-    color: $text-dim;
-    border: solid $border;
-}
-
-/* Row that holds IDENTIFY + Open Folder side by side */
-.btn-row {
-    height: 3;
-    width: 100%;
-    margin-bottom: 1;
-}
-
-.btn-row .btn-primary {
-    margin-bottom: 0;
-    margin-right: 1;
-}
-
-.btn-row .btn-secondary {
-    margin-bottom: 0;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Identify panel — result area
-═══════════════════════════════════════════════════════════════════════════ */
-
-#identify-result {
-    width: 100%;
+#cook-body {
     height: 1fr;
-    background: $surface;
-    border: solid $border;
-    margin-top: 1;
-    padding: 0;
+    color: #c8d1e0;
 }
 
-#identify-display {
+#cook-hints {
+    height: 3;   /* border 1 + status row + key row */
+    dock: bottom;
+    padding: 0 0 0 1;
+    color: #3a4557;
+    border-top: solid #1e2a38;
+}
+
+/* ── apply ───────────────────────────────────────────────────────────── */
+
+#apply-panel {
     width: 100%;
-    padding: 0 1;
+    height: 100%;
+    padding: 1 2;
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Scan panel
-═══════════════════════════════════════════════════════════════════════════ */
-
-#scan-table {
-    width: 100%;
-    height: 1fr;
-    margin-top: 0;
+#apply-title {
+    height: 2;
+    color: #5a6b85;
 }
 
-
-/* ── Scan action row (SCAN + Browse … mode toggles … ORGANISE) ───────────── */
-
-.scan-action-row {
-    height: 3;
-    width: 100%;
-    margin-bottom: 0;
-}
-
-.scan-action-row .btn-primary {
-    margin-bottom: 0;
-    margin-right: 1;
-}
-
-.scan-action-row .btn-secondary {
-    margin-bottom: 0;
-    margin-right: 0;
-}
-
-.scan-action-spacer {
-    width: 1fr;
-    height: 3;
-}
-
-.scan-action-row .mode-btn {
-    height: 3;
-    min-width: 10;
-    margin-right: 1;
-    margin-bottom: 0;
-    padding: 0 2;
-}
-
-.btn-organize {
-    background: $accent;
-    color: $bg;
-    text-style: bold;
-    border: none;
-    padding: 0 3;
-    height: 3;
-    min-width: 16;
-    margin-right: 0;
-    margin-left: 0;
-    margin-bottom: 0;
-}
-
-.btn-organize:hover {
-    background: $accent-glow;
-    color: $bg;
-}
-
-.btn-organize:focus {
-    background: $accent-glow;
-    color: $bg;
-}
-
-.btn-organize:disabled {
-    background: $border;
-    color: $text-dim;
-}
-
-.btn-organize-done {
-    background: $success;
-    color: $bg;
-}
-
-.btn-organize-done:hover {
-    background: $success;
-    color: $bg;
-}
-
-/* ── Scan status row (scan status left … organise status right) ──────────── */
-
-.scan-status-row {
+#apply-recipe, #apply-target {
     height: 1;
-    width: 100%;
-    margin-top: 1;
-    margin-bottom: 0;
+    color: #c8d1e0;
 }
 
-.scan-status-left {
-    width: 1fr;
+#apply-basis {
+    height: 2;
+    color: #3a4557;
+}
+
+#apply-body {
+    height: 1fr;
+    color: #c8d1e0;
+}
+
+#apply-hints {
+    height: 3;   /* border 1 + status row + key row */
+    dock: bottom;
+    padding: 0 0 0 1;
+    color: #3a4557;
+    border-top: solid #1e2a38;
+}
+
+/* ── batch ───────────────────────────────────────────────────────────── */
+
+#batch-panel {
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+#batch-title {
     height: 1;
-    color: $text-dim;
+    color: #5a6b85;
 }
 
-.scan-status-right {
-    width: 1fr;
+#batch-folder {
     height: 1;
-    color: $text-dim;
+    color: #c8d1e0;
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Three-column field layout (Cook, Tune)
-═══════════════════════════════════════════════════════════════════════════ */
-
-.three-col {
-    height: 7;
-    width: 100%;
-    margin-bottom: 1;
-}
-
-.field-col {
-    width: 1fr;
-    height: 7;
-    padding-right: 2;
-}
-
-.field-col-last {
-    width: 1fr;
-    height: 7;
-}
-
-.field-col Input,
-.field-col-last Input {
-    width: 100%;
-    margin-bottom: 0;
-    margin-right: 0;
-}
-
-.field-col Button,
-.field-col-last Button {
-    width: 100%;
-    height: 3;
-    min-width: 1;
-    margin-bottom: 0;
-    margin-right: 0;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Cook panel
-═══════════════════════════════════════════════════════════════════════════ */
-
-#cook-result {
-    width: 100%;
-    height: 1fr;
-    background: $surface;
-    border: solid $border;
-    margin-top: 1;
-    padding: 0;
-}
-
-#cook-display {
-    width: 100%;
-    padding: 0 1;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Tune panel
-═══════════════════════════════════════════════════════════════════════════ */
-
-#tune-result {
-    width: 100%;
-    height: 1fr;
-    background: $surface;
-    border: solid $border;
-    margin-top: 1;
-    padding: 0;
-}
-
-#tune-display {
-    width: 100%;
-    padding: 0 1;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Validate panel
-═══════════════════════════════════════════════════════════════════════════ */
-
-.mode-row {
-    height: 3;
-    width: 100%;
-    margin-bottom: 0;
-}
-
-.mode-btn {
-    background: $surface;
-    color: $text-mid;
-    border: solid $border;
-    padding: 0 3;
-    height: 3;
-    min-width: 12;
-    margin-right: 1;
-    margin-bottom: 0;
-}
-
-.mode-btn:hover {
-    background: $surface-hover;
-    color: $text;
-    border: solid $border-bright;
-}
-
-.mode-btn:focus {
-    background: $surface-hover;
-    color: $text;
-    border: solid $border-bright;
-}
-
-.mode-btn-active {
-    background: $surface-alt;
-    color: $accent;
-    border: solid $accent;
-    text-style: bold;
-}
-
-.mode-btn-active:hover {
-    background: $surface-hover;
-    color: $accent-glow;
-    border: solid $accent-glow;
-}
-
-.mode-desc {
+#batch-summary {
     height: 1;
-    color: $text-dim;
-    margin-top: 1;
-    margin-bottom: 1;
+    color: #8aa0c0;
 }
 
-#validate-result {
-    width: 100%;
+#batch-body {
     height: 1fr;
-    background: $surface;
-    border: solid $border;
-    margin-top: 1;
-    padding: 0;
 }
 
-#validate-display {
-    width: 100%;
-    padding: 0 1;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Families panel
-═══════════════════════════════════════════════════════════════════════════ */
-
-#families-table {
-    width: 100%;
+#batch-table {
     height: 1fr;
-    margin-top: 0;
+    background: #0e141b;
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   DataTable (shared)
-═══════════════════════════════════════════════════════════════════════════ */
-
-DataTable {
-    background: $surface;
-    color: $text;
-    border: solid $border;
+#batch-plan {
+    height: auto;
+    max-height: 9;
+    color: #8aa0c0;
 }
 
-DataTable > .datatable--header {
-    background: $surface-alt;
-    color: $accent;
-    text-style: bold;
+#batch-hints {
+    height: 3;   /* border 1 + up to two rows of keys */
+    dock: bottom;
+    padding: 0 0 0 1;
+    color: #3a4557;
+    border-top: solid #1e2a38;
 }
 
-DataTable > .datatable--header-hover {
-    background: $surface-hover;
-    color: $accent-glow;
-}
+/* ── help ────────────────────────────────────────────────────────────── */
 
-DataTable > .datatable--cursor {
-    background: $surface-hover;
-    color: $text;
-}
-
-DataTable > .datatable--hover {
-    background: $surface-alt;
-}
-
-DataTable > .datatable--even-row {
-    background: $surface;
-}
-
-DataTable > .datatable--odd-row {
-    background: $bg;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   About panel
-═══════════════════════════════════════════════════════════════════════════ */
-
-#about-scroll {
+#help-panel {
     width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+#help-title {
+    height: 1;
+    color: #5a6b85;
+}
+
+#help-note {
+    height: 3;
+    color: #5a6b85;
+}
+
+#help-table {
     height: 1fr;
-    background: $bg;
+    background: #0e141b;
 }
 
-#about-content {
+#help-hints {
+    height: 2;   /* border 1 + one row of text */
+    dock: bottom;
+    padding: 0 0 0 1;
+    color: #3a4557;
+    border-top: solid #1e2a38;
+}
+
+/* ── recipe detail (modal) ───────────────────────────────────────────── */
+
+RecipeDetailScreen {
+    align: center middle;
+}
+
+#recipe-panel {
+    width: 92%;
+    height: 86%;
+    padding: 1 2;
+    background: #0e141b;
+    border: round #25313f;
+}
+
+#recipe-title {
+    height: 1;
+    color: #4ad6a8;
+}
+
+#recipe-facts {
+    height: 6;
+    color: #8aa0c0;
+}
+
+#recipe-table {
+    height: 1fr;
+    background: #0b1016;
+}
+
+#recipe-hints {
+    height: 1;
+    color: #3a4557;
+}
+
+/* ── home: recent list ───────────────────────────────────────────────── */
+
+#home-recent-title {
+    height: 1;
+    color: #5a6b85;
+}
+
+#home-recent {
+    height: auto;
+    max-height: 7;
+    background: #0e141b;
+}
+
+#home-recent:focus {
+    background: #0b1016;
+}
+
+#home-recent-empty {
+    height: 1;
+    color: #4b5a70;
+}
+
+/* ── prompt (modal) ──────────────────────────────────────────────────── */
+
+PromptScreen {
+    align: center middle;
+}
+
+#prompt-panel {
+    width: 64;
+    height: auto;
+    padding: 1 2;
+    background: #0e141b;
+    border: round #25313f;
+}
+
+#prompt-question {
+    height: 1;
+    color: #c8d1e0;
+}
+
+#prompt-hint {
+    height: auto;
+    color: #5a6b85;
+}
+
+#prompt-keys {
+    height: 1;
+    color: #3a4557;
+}
+
+/* ── contribute ──────────────────────────────────────────────────────── */
+
+#contribute-panel {
     width: 100%;
-    padding: 0;
+    height: 100%;
+    padding: 1 2;
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   ScrollableContainer
-═══════════════════════════════════════════════════════════════════════════ */
-
-ScrollableContainer {
-    background: $surface;
-    scrollbar-color: $border-bright;
-    scrollbar-color-hover: $text-mid;
-    scrollbar-color-active: $accent;
-    scrollbar-corner-color: $surface;
+#contribute-title {
+    height: 2;
+    color: #5a6b85;
 }
 
-#about-scroll {
-    background: $bg;
-    scrollbar-color: $border-bright;
-    scrollbar-color-hover: $text-mid;
-    scrollbar-color-active: $accent;
-    scrollbar-corner-color: $bg;
+#contribute-dumps, #contribute-names {
+    height: auto;
+    color: #c8d1e0;
 }
 
+#contribute-body {
+    height: 1fr;
+    color: #c8d1e0;
+}
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   LoadingIndicator (if used in future)
-═══════════════════════════════════════════════════════════════════════════ */
-
-LoadingIndicator {
-    color: $accent;
-    background: $bg;
+#contribute-hints {
+    height: 2;   /* border 1 + one row of keys */
+    dock: bottom;
+    padding: 0 0 0 1;
+    color: #3a4557;
+    border-top: solid #1e2a38;
 }

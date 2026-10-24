@@ -35,7 +35,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from openremap.core.cli.main import app
+from openremap.cli.main import app
 
 # ---------------------------------------------------------------------------
 # Shared runner
@@ -485,7 +485,7 @@ class TestFormatConfidenceInlineDirect:
 
     def test_returns_string_for_high_tier(self) -> None:
         """_format_confidence_inline returns a non-empty styled string."""
-        from openremap.core.cli.commands.identify import _format_confidence_inline
+        from openremap.cli.commands.identify import _format_confidence_inline
         from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,
@@ -503,7 +503,7 @@ class TestFormatConfidenceInlineDirect:
 
     def test_returns_string_for_unknown_tier(self) -> None:
         """_format_confidence_inline handles Unknown tier without error."""
-        from openremap.core.cli.commands.identify import _format_confidence_inline
+        from openremap.cli.commands.identify import _format_confidence_inline
         from openremap.core.services.identify.confidence import ConfidenceResult
 
         cr = ConfidenceResult(score=0, tier="Unknown", signals=[], warnings=[])
@@ -512,7 +512,7 @@ class TestFormatConfidenceInlineDirect:
 
     def test_returns_string_for_suspicious_tier_with_summary(self) -> None:
         """_format_confidence_inline includes summary when signals are present."""
-        from openremap.core.cli.commands.identify import _format_confidence_inline
+        from openremap.cli.commands.identify import _format_confidence_inline
         from openremap.core.services.identify.confidence import (
             ConfidenceResult,
             ConfidenceSignal,

@@ -74,7 +74,18 @@ fn is_reference(b0: u8) -> bool {
 /// decoded instructions (walk steps).  The caller hit-tests the addresses
 /// against table spans (identity-mapped — address == file offset).
 #[pyfunction]
-pub fn mcs51_references(data: &[u8], regions: Vec<(i64, i64)>) -> (Vec<(u32, u32)>, u32) {
+pub fn mcs51_references(
+    py: Python<'_>,
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> (Vec<(u32, u32)>, u32) {
+    py.detach(move || mcs51_references_inner(data, regions))
+}
+
+fn mcs51_references_inner(
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> (Vec<(u32, u32)>, u32) {
     let mut out: Vec<(u32, u32)> = Vec::new();
     let mut insn_count: u32 = 0;
     for_each_insn(data, &regions, |off, _size| {
@@ -92,7 +103,18 @@ pub fn mcs51_references(data: &[u8], regions: Vec<(i64, i64)>) -> (Vec<(u32, u32
 /// Returns ``(insn_file_offset, length)`` for every decoded instruction —
 /// the raw walk, mirroring `c166_walk`.
 #[pyfunction]
-pub fn mcs51_walk(data: &[u8], regions: Vec<(i64, i64)>) -> Vec<(u32, u8)> {
+pub fn mcs51_walk(
+    py: Python<'_>,
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8)> {
+    py.detach(move || mcs51_walk_inner(data, regions))
+}
+
+fn mcs51_walk_inner(
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8)> {
     let mut out: Vec<(u32, u8)> = Vec::new();
     for_each_insn(data, &regions, |off, size| {
         out.push((off as u32, size as u8));
@@ -166,7 +188,7 @@ mod tests {
             0x02, 0x0D, 0x00, // LJMP 0x0D00
             0x02, 0x0C, 0x00, // LJMP 0x0C00
         ];
-        let walk = mcs51_walk(&d, vec![(0, 13)]);
+        let walk = mcs51_walk_inner(&d, vec![(0, 13)]);
         assert_eq!(
             walk,
             vec![(0, 3), (3, 3), (6, 1), (7, 3), (10, 3)]
@@ -177,7 +199,7 @@ mod tests {
     fn references_collect_mov_dptr_immediate() {
         // MOV DPTR, #0x1234 = 90 12 34 — the only 16-bit data reference.
         let d = [0x90, 0x12, 0x34, 0x00, 0x90, 0xAB, 0xCD];
-        let (refs, insn_count) = mcs51_references(&d, vec![(0, 7)]);
+        let (refs, insn_count) = mcs51_references_inner(&d, vec![(0, 7)]);
         assert_eq!(refs, vec![(0x1234, 0), (0xABCD, 4)]);
         assert_eq!(insn_count, 3);
     }
@@ -186,7 +208,7 @@ mod tests {
     fn references_ignore_other_forms() {
         // MOV A, #0x12 (74 12) is NOT a 16-bit reference; only MOV DPTR is.
         let d = [0x74, 0x12, 0x90, 0x00, 0x80];
-        let (refs, _) = mcs51_references(&d, vec![(0, 5)]);
+        let (refs, _) = mcs51_references_inner(&d, vec![(0, 5)]);
         assert_eq!(refs, vec![(0x0080, 2)]);
     }
 

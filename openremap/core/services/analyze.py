@@ -319,7 +319,7 @@ def analyze_binary(
 def _summarize_checksums(data: bytes) -> dict:
     """Compact checksum summary: swept schemes + per-detector verdicts.
 
-    Covers the detector inventory mirrored from ``health._check_checksums``:
+    Covers the detector inventory mirrored from ``health.check_checksums``:
     ME7 (verify_me7), MS43 CRC16, Denso descriptor table, IronFelix
     profiles — so the coherence check sees every family detector.  Additive
     only: the existing ``schemes``/``me7``/``denso`` keys are unchanged;

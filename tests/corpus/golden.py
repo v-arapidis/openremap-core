@@ -20,8 +20,9 @@ from pathlib import Path
 from openremap.core.serialize import to_json_safe
 from openremap.core.services.identify.identifier import identify_ecu
 from openremap.core.services.maps.map_hunter import scan_map_tables
-from openremap.core.services.recipes.cook import cook_recipe
-from openremap.core.services.recipes.tune import tune_binary
+from openremap.core.services.recipes.apply.engine import apply_strict, apply_unique
+from openremap.core.services.recipes.produce.builder import produce_recipe
+from openremap.core.services.recipes.produce.modes import COOK_STRICT
 from openremap.core.synth import generate_dump
 
 CASE_ROOT = Path(__file__).resolve().parent
@@ -66,17 +67,32 @@ def load_expected(case_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
+def _apply(target: bytes, recipe: dict) -> dict:
+    """Apply with the command the recipe is entitled to.
+
+    Synthetic dumps cannot be identified, so a recipe cooked from one carries no
+    ``match_key`` — and the identity-gated commands must refuse it (Γ2). The
+    identity-free command is the correct one there; when a match_key does exist
+    the strict command is used, which is the path a real ECU takes.
+    """
+    has_identity = bool((recipe.get("source") or {}).get("identity", {}).get("match_key"))
+    command = apply_strict if has_identity else apply_unique
+    return command(target, recipe, STOCK_NAME, RECIPE_NAME)
+
+
 def build_case(case: dict) -> dict:
     """Run *case* through the engine and return its golden document."""
     params = dict(case["params"])
     stock = generate_dump(**params)
     tuned = stock.tuned(percent=case["tune_percent"])
 
-    recipe_result = cook_recipe(
-        stock.data, tuned.data, STOCK_NAME, TUNED_NAME
+    produced = produce_recipe(
+        stock.data, tuned.data, STOCK_NAME, TUNED_NAME, mode=COOK_STRICT
     )
-    recipe = _normalise_recipe(recipe_result["recipe"])
-    applied = tune_binary(stock.data, recipe_result["recipe"], STOCK_NAME, RECIPE_NAME)
+    if produced["recipe"] is None:  # pragma: no cover - corpus cases are clean
+        raise AssertionError(f"cook refused: {produced['report'].get('refusal')}")
+    recipe = _normalise_recipe(produced["recipe"])
+    applied = _apply(stock.data, produced["recipe"])
 
     return {
         "case": case["id"],
@@ -89,14 +105,12 @@ def build_case(case: dict) -> dict:
         "scan_maps": [_table_summary(t) for t in scan_map_tables(stock.data)],
         "recipe": recipe,
         "repatch": {
-            "all_ok": applied["all_ok"],
-            "apply_error": applied["apply_error"],
-            "target_md5": applied["target_md5"],
-            "tuned_md5": applied["tuned_md5"],
-            "tuned_sha256": _payload_sha256(applied.get("tuned_b64")),
+            "applied": applied["applied"],
+            "refusal": (applied["report"].get("refusal") or {}).get("check"),
+            "tuned_sha256": applied["patched_sha256"],
         },
         "tamper": {
-            field: _tamper(stock.data, recipe_result["recipe"], field)
+            field: _tamper(stock.data, produced["recipe"], field)
             for field in ("ctx", "ob")
         },
     }
@@ -135,16 +149,13 @@ def _normalise_recipe(recipe: dict) -> dict:
     kept (as a placeholder) so a schema change is still visible in the diff.
     """
     out = json.loads(json.dumps(recipe))  # detach + JSON-round-trip
+    producer = out.get("producer")
+    if isinstance(producer, dict) and "created_at" in producer:
+        producer["created_at"] = "<normalised:wall-clock>"
     creator = out.get("creator")
     if isinstance(creator, dict) and "created_at" in creator:
         creator["created_at"] = "<normalised:wall-clock>"
     return out
-
-
-def _payload_sha256(tuned_b64: str | None) -> str | None:
-    if not tuned_b64:
-        return None
-    return hashlib.sha256(base64.b64decode(tuned_b64)).hexdigest()
 
 
 def _tamper(target: bytes, recipe: dict, field: str) -> dict:
@@ -164,11 +175,11 @@ def _tamper(target: bytes, recipe: dict, field: str) -> dict:
         return {"skipped": f"instruction has no {field}"}
     instruction[field] = ("00" if value[:2] != "00" else "ff") + value[2:]
 
-    result = tune_binary(target, bad, STOCK_NAME, RECIPE_NAME)
+    result = _apply(target, bad)
     return {
-        "all_ok": result["all_ok"],
-        "apply_error": result["apply_error"],
-        "wrote_nothing": result.get("tuned_b64") is None,
+        "applied": result["applied"],
+        "check": (result["report"].get("refusal") or {}).get("check"),
+        "wrote_nothing": result["patched_b64"] is None,
     }
 
 

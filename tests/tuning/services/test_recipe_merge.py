@@ -51,7 +51,7 @@ class TestMergeRecipes:
         )
         assert merged["metadata"]["merged_from"]
         assert merged["fingerprint"].startswith("sha256:")
-        assert merged["schema_version"] == "4.4"  # re-annotated from stock
+        assert merged["schema_version"] == "5.0"
 
     def test_identical_edit_deduplicates(self) -> None:
         stock, mod_a, mod_b = _pair({200: 0x11}, {200: 0x11, 400: 0x22})
@@ -95,7 +95,7 @@ class TestMergeRecipes:
         b["instructions"][0]["ob"] = "DEAD"
 
         merged = merge_recipes(a, b, stock_data=stock)
-        warnings = merged["ecu"]["cook_warnings"]
+        warnings = merged["producer"]["warnings"]
         assert any("skipped" in w for w in warnings)
         assert all(i["ob"] != "DEAD" for i in merged["instructions"])
 
@@ -127,7 +127,7 @@ class TestMergeRecipes:
         # Same stock → identical sha256 → merge succeeds without --stock.
         merged = merge_recipes(a, b)
         assert len(merged["instructions"]) >= 2
-        assert merged["schema_version"] == "4.3"  # no stock → no re-annotate
+        assert merged["schema_version"] == "5.0"
 
         b["ecu"]["sha256"] = "abc"
         with pytest.raises(MergeConflict, match="--stock"):
@@ -158,7 +158,7 @@ class TestMergeRecipes:
 
         merged = merge_recipes(a, b, stock_data=stock)
         assert any(
-            "non-unique" in w for w in merged["ecu"]["cook_warnings"]
+            "non-unique" in w for w in merged["producer"]["warnings"]
         )
 
     def test_volatile_section_dropped_with_warning(self) -> None:
@@ -181,7 +181,7 @@ class TestMergeRecipes:
         merged = merge_recipes(a, b, stock_data=stock)
         assert "volatile" not in merged
         assert any(
-            "volatile section dropped" in w for w in merged["ecu"]["cook_warnings"]
+            "volatile section dropped" in w for w in merged["producer"]["warnings"]
         )
         # The merged instruction set still combines both recipes' edits.
         assert len(merged["instructions"]) == 2

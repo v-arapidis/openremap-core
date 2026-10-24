@@ -343,46 +343,31 @@
   ],
   "recipe": {
     "type": "recipe",
-    "schema_version": "4.4",
-    "source": "full_cook",
-    "application": "openremap-core",
-    "creator": {
-      "name": "",
-      "handle": "",
-      "id": "",
+    "schema_version": "5.0",
+    "producer": {
+      "engine": "openremap",
+      "version": "0.9.0",
+      "command": "cook-strict",
       "created_at": "<normalised:wall-clock>",
-      "signature": null,
-      "trust_level": "UNSIGNED"
+      "warnings": []
+    },
+    "source": {
+      "filename": "stock.bin",
+      "size": 262144,
+      "sha256": "33996e7ea238b4ac85cde0ecd67e2456733f4d700fd8e6cf44ee33e5c6fae469",
+      "identity": {}
+    },
+    "tune": {
+      "filename": "tuned.bin",
+      "size": 262144,
+      "sha256": "d89500a54c8cd92ba6b9d6959a71e59ea21cca2f922ddb3664c0087ae1b1345d"
     },
     "fingerprint": "sha256:26e4cde1d7f43887dcb455836fbbb40153fbd846a5d5bf9e6c4c11be5fe3b249",
     "metadata": {
       "name": "tuned.bin",
       "description": "",
       "tags": [],
-      "instruction_count": 3,
-      "original_file": "stock.bin",
-      "modified_file": "tuned.bin",
-      "original_size": 262144,
-      "modified_size": 262144,
-      "tune_id": null,
-      "annotated_maps": true
-    },
-    "ecu": {
-      "manufacturer": null,
-      "match_key": null,
-      "ecu_family": null,
-      "ecu_variant": null,
-      "software_version": null,
-      "hardware_number": null,
-      "calibration_id": null,
-      "oem_part_number": null,
-      "platform": null,
-      "calibration_version": null,
-      "serial_number": null,
-      "dataset_number": null,
-      "file_size": 262144,
-      "sha256": "33996e7ea238b4ac85cde0ecd67e2456733f4d700fd8e6cf44ee33e5c6fae469",
-      "cook_warnings": []
+      "tune_id": null
     },
     "statistics": {
       "total_changes": 3,
@@ -573,24 +558,37 @@
           2
         ]
       }
-    ]
+    ],
+    "regions": {
+      "tagged": 3,
+      "risky": 0,
+      "by_region": {
+        "calibration": 3
+      }
+    },
+    "contract": {
+      "identity_floor": "any",
+      "anchors_unique": true,
+      "sections": [
+        "maps",
+        "regions"
+      ]
+    }
   },
   "repatch": {
-    "all_ok": true,
-    "apply_error": null,
-    "target_md5": "43ce9ea144c6cc4bc1d40f4f9d485e9b",
-    "tuned_md5": "ed126a784767ddf5a7fa55b05834d445",
+    "applied": true,
+    "refusal": null,
     "tuned_sha256": "d89500a54c8cd92ba6b9d6959a71e59ea21cca2f922ddb3664c0087ae1b1345d"
   },
   "tamper": {
     "ctx": {
-      "all_ok": false,
-      "apply_error": "Apply rejected — 1/3 instruction(s) failed to apply.\n  #  1  0x00010038  ctx+ob+ctx_after pattern not found near 0x10038 (±2048 bytes window, anchor=191 bytes [32 ctx + 127 ob + 32 ctx_after]). The target binary is likely a different SW revision than the recipe source. (ob bytes found elsewhere in binary — map likely shifted)",
+      "applied": false,
+      "check": "Γ6",
       "wrote_nothing": true
     },
     "ob": {
-      "all_ok": false,
-      "apply_error": null,
+      "applied": false,
+      "check": "Γ4",
       "wrote_nothing": true
     }
   }

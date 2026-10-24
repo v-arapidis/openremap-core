@@ -31,6 +31,7 @@ Test classes
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 from unittest.mock import patch
 
@@ -38,7 +39,7 @@ import pytest
 from typer.testing import CliRunner
 
 from tests.conftest import make_bin_with
-from openremap.core.cli.main import app as cook_app
+from openremap.cli.main import app as cook_app
 from openremap.core.services.recipes.recipe_builder import ECUDiffAnalyzer
 
 
@@ -697,7 +698,7 @@ class TestBuildRecipeGuardOrder:
 
 class TestCookCLISizeMismatch:
     """
-    The cook CLI must exit with code 1 and print an error when the two
+    The producer must exit with code 1 and print the reason when the two
     binary files have different sizes.
     """
 
@@ -705,7 +706,9 @@ class TestCookCLISizeMismatch:
         self, tmp_path: Path, name: str, size: int, patches: dict | None = None
     ) -> Path:
         p = tmp_path / name
-        data = bytearray(size)
+        # Pseudo-random fill: an all-zero image has no unique anchor anywhere,
+        # so the producer would (correctly) refuse it for a different reason.
+        data = bytearray(random.Random(size).randbytes(size))
         for off, val in (patches or {}).items():
             if isinstance(val, int):
                 data[off] = val
@@ -717,13 +720,13 @@ class TestCookCLISizeMismatch:
     def test_exit_code_1_on_size_mismatch(self, tmp_path):
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 512)
-        result = runner.invoke(cook_app, ["cook", str(orig), str(mod)])
+        result = runner.invoke(cook_app, ["cook-strict", str(orig), str(mod)])
         assert result.exit_code == 1
 
     def test_error_message_mentions_size(self, tmp_path):
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 512)
-        result = runner.invoke(cook_app, ["cook", str(orig), str(mod)])
+        result = runner.invoke(cook_app, ["cook-strict", str(orig), str(mod)])
         assert (
             "size" in result.output.lower() or "size" in (result.stderr or "").lower()
         )
@@ -732,13 +735,14 @@ class TestCookCLISizeMismatch:
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 512)
         output = tmp_path / "out.openremap"
-        runner.invoke(cook_app, ["cook", str(orig), str(mod), "--output", str(output)])
+        runner.invoke(cook_app, ["cook-strict", str(orig), str(mod), "--output", str(output)])
         assert not output.exists()
 
     def test_exit_code_0_on_same_size(self, tmp_path):
         orig = self._write_bin(tmp_path, "orig.bin", 1024)
         mod = self._write_bin(tmp_path, "mod.bin", 1024, {100: 0xAA})
-        result = runner.invoke(cook_app, ["cook", "--allow-non-unique", str(orig), str(mod)]
+        result = runner.invoke(
+            cook_app, ["cook-forced", str(orig), str(mod), "--output", str(tmp_path / "o.remap")]
         )
         assert result.exit_code == 0
 
@@ -748,87 +752,54 @@ class TestCookCLISizeMismatch:
 # ===========================================================================
 
 
-class TestCookCLIIdentityWarning:
-    """
-    When both binaries are identifiable and their match_keys differ, the
-    cook CLI must print a warning but still exit 0 (warning, not fatal)
-    and produce a recipe.
+class TestCookCLIIdentityGuard:
+    """Two different firmwares must not produce a recipe.
+
+    The old ``cook`` printed a warning and carried on — which is how a
+    4-instruction recipe was once produced from an EDC16 stock and a SIMOS tuned
+    file. The producer now refuses, because ``identity_floor: any`` only makes
+    sense for a recipe born from one firmware.
     """
 
-    def _write_bin(self, tmp_path: Path, name: str, data: bytes) -> Path:
+    def _write(self, tmp_path: Path, name: str, size: int = 1024, patches=None) -> Path:
         p = tmp_path / name
-        p.write_bytes(data)
+        data = bytearray(random.Random(size).randbytes(size))
+        for off, val in (patches or {}).items():
+            data[off] = val
+        p.write_bytes(bytes(data))
         return p
 
-    def test_identity_mismatch_warning_printed(self, tmp_path):
-        orig = self._write_bin(tmp_path, "orig.bin", _build(512))
-        mod = self._write_bin(tmp_path, "mod.bin", _build(512, {100: 0xFF}))
-
+    def test_identity_mismatch_is_refused(self, tmp_path):
+        orig = self._write(tmp_path, "orig.bin")
+        mod = self._write(tmp_path, "mod.bin", patches={100: 0xAA})
         with patch(
-            "openremap.core.services.recipes.recipe_builder.identify_ecu",
+            "openremap.core.services.recipes.produce.builder.identify_ecu",
             side_effect=[
-                {"match_key": "ME7::11111", "ecu_family": "ME7"},
-                {"match_key": "EDC17::22222", "ecu_family": "EDC17"},
-                {
-                    "match_key": "ME7::11111",
-                    "ecu_family": "ME7",
-                    "ecu_variant": None,
-                    "manufacturer": "Bosch",
-                    "software_version": None,
-                    "hardware_number": None,
-                    "calibration_id": None,
-                    "file_size": 512,
-                    "sha256": "abc",
-                },
+                {"match_key": "ME7::A"},
+                {"match_key": "EDC17::B"},
             ],
         ):
-            result = runner.invoke(cook_app, ["cook", str(orig), str(mod)])
-
-        combined = result.output + (result.stderr or "")
-        assert "warning" in combined.lower() or "mismatch" in combined.lower()
-
-    def test_identity_mismatch_still_exits_zero(self, tmp_path):
-        orig = self._write_bin(tmp_path, "orig.bin", _build(512))
-        mod = self._write_bin(tmp_path, "mod.bin", _build(512, {100: 0xFF}))
-
-        with patch(
-            "openremap.core.services.recipes.recipe_builder.identify_ecu",
-            side_effect=[
-                {"match_key": "ME7::11111", "ecu_family": "ME7"},
-                {"match_key": "EDC17::22222", "ecu_family": "EDC17"},
-                {
-                    "match_key": "ME7::11111",
-                    "ecu_family": "ME7",
-                    "ecu_variant": None,
-                    "manufacturer": "Bosch",
-                    "software_version": None,
-                    "hardware_number": None,
-                    "calibration_id": None,
-                    "file_size": 512,
-                    "sha256": "abc",
-                },
-            ],
-        ):
-            result = runner.invoke(cook_app, ["cook", "--allow-non-unique", str(orig), str(mod)]
+            result = runner.invoke(
+                cook_app,
+                ["cook-strict", str(orig), str(mod), "--output", str(tmp_path / "o.remap")],
             )
+        assert result.exit_code == 1
+        assert "EDC17::B" in result.output or "ME7::A" in result.output
+        assert not (tmp_path / "o.remap").exists()
 
-        assert result.exit_code == 0
-
-    def test_no_warning_when_both_unidentified(self, tmp_path):
-        orig = self._write_bin(tmp_path, "orig.bin", _build(512))
-        mod = self._write_bin(tmp_path, "mod.bin", _build(512, {100: 0xFF}))
-        # No patch — identify_ecu returns no match_key for unknown bins
-        result = runner.invoke(cook_app, ["cook", "--allow-non-unique", str(orig), str(mod)]
-        )
-        combined = result.output + (result.stderr or "")
-        assert "mismatch" not in combined.lower()
-        assert result.exit_code == 0
-
-
-# ===========================================================================
-# Offset-0 changes — degenerate context must be flagged consistently
-# ===========================================================================
-
+    def test_unidentified_pair_is_accepted_with_a_note(self, tmp_path):
+        orig = self._write(tmp_path, "orig.bin")
+        mod = self._write(tmp_path, "mod.bin", patches={100: 0xAA})
+        with patch(
+            "openremap.core.services.recipes.produce.builder.identify_ecu",
+            side_effect=[{"match_key": None}, {"match_key": None}],
+        ):
+            result = runner.invoke(
+                cook_app,
+                ["cook-strict", str(orig), str(mod), "--output", str(tmp_path / "o.remap")],
+            )
+        assert result.exit_code == 0, result.output
+        assert "Identity does not verify" in result.output
 
 class TestOffsetZeroGuard:
     """A change at offset 0 has no context bytes; the effective anchor is ob."""

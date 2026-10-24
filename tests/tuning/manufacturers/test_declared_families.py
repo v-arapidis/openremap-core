@@ -1,9 +1,9 @@
 """
 Guard: a declared family key must be one the engine can actually report.
 
-`supported_families` is not documentation-only. The TUI families browser lists
-every entry (`tui/app.py`), and the contribution wizard will read the list to
-decide which files a candidate signature must not collide with. It is also,
+`supported_families` is not documentation-only. The CLI `families` command lists
+every entry, and the contribution wizard reads the list to decide which files a
+candidate signature must not collide with. It is also,
 historically, **over-declared**: 15 of the 104 keys cannot be returned by any
 code path — most because a resolver deliberately normalises them onto a parent
 family (`M3.8.3` → `M3.8`, `M5.92` → `M5.9`, `M2.81` → `M2.8`), the rest because

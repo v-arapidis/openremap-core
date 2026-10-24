@@ -88,7 +88,16 @@ fn classify(data: &[u8], prefix: &[u32], i: usize) -> u8 {
 
 #[pyfunction]
 #[pyo3(signature = (data))]
-pub fn detect_denso(data: &[u8]) -> PyResult<Option<(usize, Vec<(usize, i64, i64, i64, i64, String)>)>> {
+pub fn detect_denso(
+    py: Python<'_>,
+    data: &[u8],
+) -> PyResult<Option<(usize, Vec<(usize, i64, i64, i64, i64, String)>)>> {
+    py.detach(move || detect_denso_inner(data))
+}
+
+fn detect_denso_inner(
+    data: &[u8],
+) -> PyResult<Option<(usize, Vec<(usize, i64, i64, i64, i64, String)>)>> {
     if data.len() < 0x4000 {
         return Ok(None);
     }

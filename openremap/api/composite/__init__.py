@@ -24,11 +24,24 @@ this directory — that file is the source of truth for the kind taxonomy.
 
 from openremap.api.composite import (  # noqa: F401
     analyze,
-    cook,
-    cook_volatile,
+    apply_any,
+    apply_shift,
+    apply_strict,
+    apply_unique,
+    cook_forced,
+    cook_strict,
     diff_maps,
     health,
-    tune,
 )
 
-__all__ = ["analyze", "cook", "cook_volatile", "diff_maps", "health", "tune"]
+__all__ = [
+    "analyze",
+    "apply_any",
+    "apply_shift",
+    "apply_strict",
+    "apply_unique",
+    "cook_forced",
+    "cook_strict",
+    "diff_maps",
+    "health",
+]

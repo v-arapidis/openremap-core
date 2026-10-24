@@ -25,7 +25,7 @@ from openremap.api.composite.diff_maps import (
     _json_safe,
     _pearson,
 )
-from openremap.core.cli.main import app
+from openremap.cli.main import app
 from tests.conftest import make_layout_bin
 
 runner = CliRunner()
@@ -522,7 +522,7 @@ class TestRecipeCrossReference:
     def _cook(self, tmp_path, sp, tp, name="tune.remap"):
         result = runner.invoke(
             app,
-            ["cook", str(sp), str(tp), "--output", str(tmp_path / name), "--compact"],
+            ["cook-strict", str(sp), str(tp), "--output", str(tmp_path / name)],
         )
         assert result.exit_code == 0
         return tmp_path / name
@@ -575,7 +575,7 @@ class TestRecipeCrossReference:
         assert "Recipe cross-reference" in result.stdout
         assert "Untracked:" in result.stdout
 
-    def test_annotate_writes_4_4_recipe(self, tmp_path):
+    def test_annotate_writes_5_0_recipe(self, tmp_path):
         sp, tp = self._pair(tmp_path)
         recipe_path = self._cook(tmp_path, sp, tp)
         out_path = tmp_path / "annotated.remap"

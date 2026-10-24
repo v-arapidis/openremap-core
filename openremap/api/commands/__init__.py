@@ -8,21 +8,25 @@ pipeline compositions live in ``openremap.api.workflows`` instead, and
 ``openremap.api.composite``.
 """
 
-from openremap.api.commands import (  # noqa: F401
+from openremap.api.commands import (
     audit,
     checksum,
     contribute,
     convert,
+    families,
+    hex_region,
     identify,
     layout,
+    map_grid,
+    map_image,
     merge,
     meta,
+    recipe_info,
     routine,
     scan,
     scan_maps,
     scan_vins,
     synth,
-    tune,
     validate,
 )
 
@@ -31,15 +35,19 @@ __all__ = [
     "checksum",
     "contribute",
     "convert",
+    "families",
+    "hex_region",
     "identify",
     "layout",
+    "map_grid",
+    "map_image",
     "merge",
     "meta",
+    "recipe_info",
     "routine",
     "scan",
     "scan_maps",
     "scan_vins",
     "synth",
-    "tune",
     "validate",
 ]

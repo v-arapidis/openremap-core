@@ -156,22 +156,28 @@ _LOW_ENTROPY_THRESHOLD = 2.5
 
 class LowEntropyScanner:
     """
-    Detect instructions whose context anchor is weak — low entropy, non-unique,
-    or both.
+    Flag instructions whose context anchor is **not verified unique**.
 
-    The recipe builder already computes ctx_entropy and ctx_unique for every
-    instruction via find_unique_context().  This scanner simply reads those
-    fields and attaches a human-visible flag when the anchor is below threshold.
+    The recipe builder computes ``ctx_entropy`` and ``ctx_unique`` for every
+    instruction via ``find_unique_context()``; this scanner only reads them.
 
-    Two cases:
-      1. Non-unique anchor (ctx_unique == False) — the ctx+ob pattern appears
-         more than once even in the ORIGINAL binary.  This means Force Save
-         was used to bypass Guard 3, and the resulting tune may not apply
-         reliably to other binaries.  Flagged as WEAK_ANCHOR / HIGH.
-      2. Low-entropy but unique (ctx_entropy < threshold, ctx_unique == True) —
-         the anchor is in a repetitive/padding region.  It's unique in the
-         original, but fragile — a different SW revision with different padding
-         could break it.  Flagged as LOW_ENTROPY_CTX / LOW.
+    One case, and it is the actionable one:
+
+      * **Non-unique anchor** (``ctx_unique is False``) — the ``ctx+ob`` pattern
+        occurs more than once even in the ORIGINAL binary.  The position is not
+        proven by the bytes, so the recipe can only be applied where identity is
+        verified.  Flagged ``WEAK_ANCHOR`` / 0.9.
+
+    A *unique* anchor is **not** flagged here, however low its entropy is: it
+    was expanded (up to 512 bytes) until it occurred exactly once, so the
+    position **is** proven, and the revision-fragility signal is already carried
+    by the ``CODE_AREA`` region tag (confidence 1.0).  Flagging both produced two
+    lines of noise per change — on the reference tune, 41 low-entropy flags
+    where 40 coincided with ``CODE_AREA``. A warning that fires on the normal
+    case teaches people to ignore warnings.
+
+    Low entropy with unknown uniqueness (``ctx_unique is None``) still flags:
+    nothing has been verified there.
     """
 
     def __init__(self, entropy_threshold: float = _LOW_ENTROPY_THRESHOLD) -> None:
@@ -214,18 +220,21 @@ class LowEntropyScanner:
             )
             return flags  # Don't add a second flag for the same root cause.
 
-        # Case 2: Unique but low-entropy — anchor is in padding/repetitive region.
-        #          Fragile across SW revisions but fine for same-binary use.
+        # A verified-unique anchor is proof of position — no flag, however low
+        # the entropy (CODE_AREA already reports revision fragility).
+        if is_unique is True:
+            return flags
+
+        # Uniqueness unknown and the context looks repetitive: still worth a flag.
         if entropy is not None and entropy < self.entropy_threshold:
             flags.append(
                 InstructionFlag(
                     kind="LOW_ENTROPY_CTX",
                     reason=(
                         f"Context anchor entropy is {entropy:.1f} bits/byte "
-                        f"(below {self.entropy_threshold}). "
-                        f"The anchor is unique in the original binary but "
-                        f"sits in a repetitive region — a different SW revision "
-                        f"may break the match."
+                        f"(below {self.entropy_threshold}) and its uniqueness "
+                        f"was not verified — the match may break on another "
+                        f"software revision."
                     ),
                     confidence=0.3,
                 )

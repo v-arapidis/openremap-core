@@ -35,7 +35,7 @@ class TestBuiltinWorkflow:
         names = {w["name"] for w in wfs}
         assert "identify_cook" in names
         wf = next(w for w in wfs if w["name"] == "identify_cook")
-        assert wf["steps"] == ["identify", "identify", "cook"]
+        assert wf["steps"] == ["identify", "identify", "cook_strict"]
         assert set(wf["input_schema"]) == {"original_path", "modified_path"}
 
     def test_identify_cook_runs(self, tmp_path):

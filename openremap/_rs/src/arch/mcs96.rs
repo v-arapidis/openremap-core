@@ -95,7 +95,18 @@ fn is_reference(b0: u8) -> bool {
 
 /// Collect the 16-bit data/code references of the MCS-96 code regions.
 #[pyfunction]
-pub fn mcs96_references(data: &[u8], regions: Vec<(i64, i64)>) -> (Vec<(u32, u32)>, u32) {
+pub fn mcs96_references(
+    py: Python<'_>,
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> (Vec<(u32, u32)>, u32) {
+    py.detach(move || mcs96_references_inner(data, regions))
+}
+
+fn mcs96_references_inner(
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> (Vec<(u32, u32)>, u32) {
     let mut out: Vec<(u32, u32)> = Vec::new();
     let mut insn_count: u32 = 0;
     for_each_insn(data, &regions, |off, _size| {
@@ -110,7 +121,18 @@ pub fn mcs96_references(data: &[u8], regions: Vec<(i64, i64)>) -> (Vec<(u32, u32
 
 /// Decode the instruction stream of the MCS-96 code regions.
 #[pyfunction]
-pub fn mcs96_walk(data: &[u8], regions: Vec<(i64, i64)>) -> Vec<(u32, u8)> {
+pub fn mcs96_walk(
+    py: Python<'_>,
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8)> {
+    py.detach(move || mcs96_walk_inner(data, regions))
+}
+
+fn mcs96_walk_inner(
+    data: &[u8],
+    regions: Vec<(i64, i64)>,
+) -> Vec<(u32, u8)> {
     let mut out: Vec<(u32, u8)> = Vec::new();
     for_each_insn(data, &regions, |off, size| {
         out.push((off as u32, size as u8));
@@ -172,7 +194,7 @@ mod tests {
     fn references_collect_ld_and_jumps() {
         // LD reg,#0x1234 (A1 34 12 1C), LJMP 0x5678 (E7 78 56)
         let d = [0xA1, 0x34, 0x12, 0x1C, 0xE7, 0x78, 0x56];
-        let (refs, insns) = mcs96_references(&d, vec![(0, 7)]);
+        let (refs, insns) = mcs96_references_inner(&d, vec![(0, 7)]);
         assert_eq!(refs, vec![(0x1234, 0), (0x5678, 4)]);
         assert_eq!(insns, 2);
     }

@@ -17,6 +17,14 @@ use crate::primitives::entropy;
 
 #[pyfunction]
 pub fn find_ident_blocks(
+    py: Python<'_>,
+    data: &[u8],
+    min_run: usize,
+) -> Vec<(usize, usize, u8, usize, f64)> {
+    py.detach(move || find_ident_blocks_inner(data, min_run))
+}
+
+fn find_ident_blocks_inner(
     data: &[u8],
     min_run: usize,
 ) -> Vec<(usize, usize, u8, usize, f64)> {

@@ -7,7 +7,7 @@ import random
 
 from typer.testing import CliRunner
 
-from openremap.core.cli.main import app
+from openremap.cli.main import app
 
 runner = CliRunner()
 
@@ -44,8 +44,7 @@ def _cook(tmp_path, stock_path, mod_path, name):
     result = runner.invoke(
         app,
         [
-            "cook",
-            "--no-annotate-maps",
+            "cook-strict",
             str(stock_path),
             str(mod_path),
             "--output",
@@ -77,7 +76,7 @@ class TestMergeCLI:
         )
         assert result.exit_code == 0, result.stdout
         data = json.loads((tmp_path / "merged.remap").read_text())
-        assert data["schema_version"] == "4.4"
+        assert data["schema_version"] == "5.0"
         assert data["metadata"]["merged_from"] == ["a.remap", "b.remap"]
         assert len(data["instructions"]) == 2
         assert "Merged a.remap" in result.stdout
@@ -105,7 +104,7 @@ class TestMergeCLI:
         )
         assert result.exit_code == 0, result.stdout
         data = json.loads((tmp_path / "m.remap").read_text())
-        assert data["schema_version"] == "4.3"
+        assert data["schema_version"] == "5.0"
 
     def test_strict_aborts_on_stock_mismatch(self, tmp_path):
         stock, mod_a, mod_b = _triple({200: 0x11}, {400: 0x22})
@@ -139,7 +138,7 @@ class TestMergeCLI:
         )
         assert result.exit_code == 0
         data = json.loads((tmp_path / "m2.remap").read_text())
-        assert any("skipped" in w for w in data["ecu"]["cook_warnings"])
+        assert any("skipped" in w for w in data["producer"]["warnings"])
 
     def test_malformed_recipe_exits_one(self, tmp_path):
         stock, mod_a, mod_b = _triple({200: 0x11}, {400: 0x22})

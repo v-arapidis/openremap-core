@@ -39,7 +39,7 @@ from openremap.core.services.wizard.collisions import marker_collisions
 from openremap.core.services.wizard.emit import Spec, render_extractor
 from openremap.core.services.wizard.fixtures import KnownFixture, find_recipes_dir
 from openremap.core.services.wizard.report import analyze
-from openremap.core.services.wizard.verify import verify_generated
+from openremap.core.services.wizard.verify import load_extractor, verify_generated
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CORPUS = REPO_ROOT / "_dev" / "contrib" / "corpus" / "manifest.json"
@@ -672,3 +672,267 @@ def test_marker_collisions_are_measured_against_the_shipped_pool():
     collisions = marker_collisions(b"EDC16C34")
     assert collisions and collisions[0].family == "EDC16C34"
     assert marker_collisions(b"NO_SUCH_TOKEN_ANYWHERE_XYZ") == []
+
+
+# ---------------------------------------------------------------------------
+# Measured fields reach the skeleton (and arrive as patterns, not values)
+# ---------------------------------------------------------------------------
+
+
+def test_the_skeleton_extracts_what_the_wizard_measured():
+    """A skeleton that returns all-None is a TODO list, not a contribution.
+
+    The wizard measures the identity fields anyway, so the rendered ``extract()``
+    fills them: that is the difference between "here is a shape, go and work out
+    which string is the software version" and a file whose ``match_key`` already
+    agrees with the engine's.
+    """
+    result = prepare(
+        [("a.bin", make_dump()), ("b.bin", make_dump())],
+        brand="Siemens",
+        family="SID206",
+    )
+    extractor = load_extractor(result["artifacts"]["extractor"])
+    identity = extractor.extract(make_dump())
+
+    assert identity["software_version"] == "1037359650"
+    assert identity["hardware_number"] == "0261204270"
+    assert identity["ecu_variant"] == "SID206"
+    assert identity["match_key"] == "SID206::1037359650"
+
+
+def test_the_skeleton_carries_patterns_not_the_measured_values():
+    """The trap the wizard exists to avoid, moved into extract().
+
+    Copying the measured value in as a literal would make the field match exactly
+    one calibration — the same mistake as a marker made of that calibration's
+    version string. The generated source must hold the pattern, and the value only
+    as a comment.
+    """
+    source = prepare(
+        [("a.bin", make_dump()), ("b.bin", make_dump())],
+        brand="Siemens",
+        family="SID206",
+    )["artifacts"]["extractor"]
+
+    assert r're.search(rb"1037\d{6,}[A-Z0-9]{0,4}", data)' in source
+    # ...and the measured value survives only as prose in a comment, never as a
+    # literal that extract() would assign.
+    code = [line for line in source.splitlines() if not line.lstrip().startswith("#")]
+    assert all("1037359650" not in line for line in code)
+    assert any("1037359650" in line for line in source.splitlines())
+
+
+def test_a_field_the_dumps_cannot_decide_stays_a_todo():
+    """Honest incompleteness: nothing was measured for these, so nothing is invented."""
+    source = prepare(
+        [("a.bin", make_dump()), ("b.bin", make_dump())],
+        brand="Siemens",
+        family="SID206",
+    )["artifacts"]["extractor"]
+    assert "result['calibration_id'] = None  # TODO" in source
+    assert "result['oem_part_number'] = None  # TODO" in source
+
+
+def test_the_generated_extractor_answers_every_key_on_a_marker_only_fixture():
+    """The fixture carries the marker and nothing else, so every measured field misses.
+
+    A key that is only set inside ``if match:`` is missing on that fixture — and a
+    missing key is a KeyError in every consumer (this was a real crash: the
+    verification pass runs extract() on the fixture).
+    """
+    result = prepare(
+        [("a.bin", make_dump()), ("b.bin", make_dump())],
+        brand="Siemens",
+        family="SID206",
+    )
+    recipe = result["artifacts"]["recipe"]
+    fixture = build_fixture(
+        {
+            "name": recipe["ecu_family"],
+            "file_size": recipe["file_size"],
+            "fill": recipe["fill"],
+            "plants": recipe["plants"],
+        }
+    )
+    identity = load_extractor(result["artifacts"]["extractor"]).extract(fixture)
+    for key in (
+        "software_version",
+        "hardware_number",
+        "oem_part_number",
+        "calibration_id",
+        "ecu_variant",
+        "calibration_version",
+        "match_key",
+    ):
+        assert key in identity, f"extract() dropped {key!r} on a marker-only fixture"
+
+
+def test_the_report_lists_the_fields_it_measured():
+    """The most useful measurement must reach the reviewer, not just the JSON."""
+    report = prepare(
+        [("a.bin", make_dump()), ("b.bin", make_dump())],
+        brand="Siemens",
+        family="SID206",
+    )["artifacts"]["report"]
+    assert "## Fields measured" in report
+    assert "1037359650" in report
+    assert "`software_version`" in report
+
+
+# ---------------------------------------------------------------------------
+# The field vocabulary itself
+# ---------------------------------------------------------------------------
+
+
+def test_a_bosch_software_version_keeps_its_revision_suffix():
+    """``1037\\d{6,10}`` truncated the real thing to '10375417781262'.
+
+    No binary carries that string, so the measured value was not merely coarse —
+    it was a version that does not exist, and a match_key built from it could
+    never match.
+    """
+    from openremap.core.services.wizard.fields import find_fields
+
+    buf = bytearray(b"\xff" * 0x100)
+    buf[0x10 : 0x10 + 18] = b"1037541778126241V0"
+    fields = {f.kind: f.value for f in find_fields([("a.bin", bytes(buf))])}
+    assert fields["bosch_sw"] == "1037541778126241V0"
+
+
+def test_a_stable_field_is_not_advertised_as_a_signature():
+    """'stable in your two dumps' is not 'stable across the family'.
+
+    The old advice — "constant — usable in can_handle()" — is how a marker made of
+    one calibration's version string got generated in the first place.
+    """
+    report = analyze([("a.bin", make_dump()), ("b.bin", make_dump())])
+    stable = [field for field in report["fields"] if field["stable"]]
+    assert stable
+    for field in stable:
+        assert "can_handle" not in field["suggested_use"]
+        assert "not proven" in field["suggested_use"]
+
+
+def test_a_descriptor_past_the_header_window_is_found():
+    """A 4 MB Bosch dump keeps its authoritative descriptor past 0x40000.
+
+    The suggestion scan stopped at 0x20000 and therefore reported "no descriptor"
+    for a dump that has one at 0x40E14.
+    """
+    from openremap.core.services.wizard.fields import suggest_identifiers
+
+    buf = bytearray(b"\xff" * 0x30000)
+    descriptor = b"47/1/EDC17C66/1/P1262//P_1262_66V1__CV182500///"
+    buf[0x28000 : 0x28000 + len(descriptor)] = descriptor
+    suggested = suggest_identifiers([("a.bin", bytes(buf))])
+    assert "EDC17C66" in suggested["from_descriptors"]
+
+
+def test_a_calibration_version_token_is_measured():
+    from openremap.core.services.wizard.fields import find_fields
+
+    buf = bytearray(b"\xff" * 0x100)
+    buf[0x10 : 0x10 + 8] = b"CV182500"
+    fields = {f.kind: f.value for f in find_fields([("a.bin", bytes(buf))])}
+    assert fields["calibration_version"] == "CV182500"
+
+
+# ---------------------------------------------------------------------------
+# What the dumps can prove — the measurement that decides the marker's worth
+# ---------------------------------------------------------------------------
+
+
+class TestCalibrationDiversity:
+    """Two dumps of one calibration cannot prove a marker is a family signature.
+
+    Measured on two real families (the numbers are in the docstring of
+    ``report.calibration_diversity``): EDC17 same-calibration 0/17 vs
+    different-calibrations 14/17; SH7058 22/35 vs 35/35. So the verdict is
+    reported before the marker, and it is what decides whether the contribution
+    is worth submitting.
+    """
+
+    def test_the_same_calibration_twice_is_called_out(self, monkeypatch):
+        keys = iter(["EDC17C66::1037541778126241V0", "EDC17C66::1037541778126241V0"])
+
+        def _identify(data, filename="x"):
+            return {"match_key": next(keys), "ecu_family": "EDC17"}
+
+        monkeypatch.setattr("openremap.core.services.wizard.report.identify_ecu", _identify)
+        report = analyze(
+            [("a.bin", make_dump()), ("b.bin", make_dump(sw="1037359651"))]
+        )
+        diversity = report["calibration_diversity"]
+        assert diversity["verdict"] == "same-calibration"
+        assert diversity["basis"] == "identity"
+        assert "version string" in diversity["note"]
+
+    def test_two_different_calibrations_are_recognised_as_evidence(self, monkeypatch):
+        keys = iter(["EDC17C60::08001505827522B", "EDC17C60::08001508446612B"])
+
+        def _identify(data, filename="x"):
+            return {"match_key": next(keys), "ecu_family": "EDC17"}
+
+        monkeypatch.setattr("openremap.core.services.wizard.report.identify_ecu", _identify)
+        report = analyze(
+            [("a.bin", make_dump()), ("b.bin", make_dump(sw="1037359651"))]
+        )
+        diversity = report["calibration_diversity"]
+        assert diversity["verdict"] == "different-calibrations"
+        assert "evidence of a family token" in diversity["note"]
+
+    def test_one_dump_says_nothing_was_compared(self):
+        report = analyze([("a.bin", make_dump())])
+        assert report["calibration_diversity"]["verdict"] == "unverified"
+
+    def test_an_unrecognised_family_falls_back_to_content(self):
+        """The normal case for a new family: no identity, so compare the bytes."""
+        left = make_dump()
+        right = bytearray(left)
+        right[0x900] ^= 0xFF  # one byte apart: a distinct file, one calibration
+        report = analyze([("a.bin", bytes(left)), ("b.bin", bytes(right))])
+        diversity = report["calibration_diversity"]
+        assert diversity["basis"] == "content"
+        assert diversity["verdict"] == "near-identical", diversity
+
+    def test_distinct_builds_are_reported_as_such(self):
+        import random
+
+        seed = random.Random(7)
+        left = make_dump() + seed.randbytes(0x1000)
+        right = make_dump() + random.Random(8).randbytes(0x1000)
+        diversity = analyze([("a.bin", left), ("b.bin", right)])["calibration_diversity"]
+        assert diversity["basis"] == "content"
+        assert diversity["verdict"] == "distinct-builds"
+
+
+class TestRepeatedMotif:
+    def test_a_data_pattern_is_not_a_candidate_signature(self):
+        """The measured SH7058 marker: 152 printable bytes, mostly `$3TD` repeated."""
+        from openremap.core.services.wizard.signatures import repeated_motif
+
+        marker = b"gCaCA$3:f3F$&j4j3j#WD" + b"$3TD" * 30
+        reason = repeated_motif(marker)
+        assert reason is not None and "repeated" in reason
+
+    def test_real_identifiers_are_left_alone(self):
+        from openremap.core.services.wizard.signatures import repeated_motif
+
+        for marker in (
+            b"Copyright 1999 Hitachi,Ltd.Ho7058 Operating System, Version ",
+            b"ME(D)/EDC17 SB_V18.00.02/1793",
+            b"45/1/SID206/9/5033/DAMOS161/8D0907551",
+        ):
+            assert repeated_motif(marker) is None, marker
+
+    def test_the_report_names_it_instead_of_recommending_it(self):
+        """A motif run stays listable but must never lead the ranking."""
+        from openremap.core.services.wizard.signatures import find_candidates
+
+        motif = b"AB12" * 20
+        dumps = [("a.bin", make_bare_dump(marker=motif)),
+                 ("b.bin", make_bare_dump(marker=motif))]
+        candidates = find_candidates(dumps)
+        assert candidates, "the run is kept, so the contributor can see it"
+        assert candidates[0].generic_reason is not None

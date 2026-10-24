@@ -23,15 +23,27 @@ Merge rules
 - Different, non-overlapping offsets → both kept.
 
 Without ``stock_data`` the merge falls back to strict mode: both recipes
-must declare identical ``ecu.sha256`` + ``match_key``.
+must declare identical source ``sha256`` + ``match_key``.
+
+The merged document is schema 5.0, like everything the current producer writes.
+It carries no ``tune`` block — it combines two of them — and its ``contract`` is
+derived from the merged instruction set and verified against the apply-side
+reader before it is returned.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+from openremap import __version__
 from openremap.core.services.entropy import count_unique_in_window
+from openremap.core.services.recipes import recipe_facts
 from openremap.core.services.recipes.preflight import check_file_size
+from openremap.core.services.recipes.produce.contract import (
+    build_contract,
+    verify_recipe,
+)
 from openremap.core.services.recipes.recipe_builder import (
-    build_creator_block,
     check_schema_version,
     compute_fingerprint,
 )
@@ -48,6 +60,10 @@ class MergeConflict(Exception):
 
 def _span(inst: dict) -> tuple[int, int]:
     return inst["offset"], inst["offset"] + inst["size"]
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _compute_stats(instructions: list[dict], file_size: int | None) -> dict:
@@ -114,15 +130,12 @@ def merge_recipes(
         except ValueError as exc:
             raise MergeConflict(f"{name}: {exc}") from exc
 
-    ecu_a = recipe_a.get("ecu", {})
-    ecu_b = recipe_b.get("ecu", {})
     warnings: list[str] = []
-
     # ── volatile-section handling ──────────────────────────────────────
     # A merged recipe combines two patch lists into one; the per-recipe
     # volatile exclusion evidence (schema 4.5) does not transfer — the
     # merged instruction set is a different list, and re-deriving exclusions
-    # is cook-volatile's job, not merge's.  Drop it, and say so.
+    # belongs to a cook, not to merge.  Drop it, and say so.
     volatile_sources = [
         name
         for name, r in ((name_a, recipe_a), (name_b, recipe_b))
@@ -133,13 +146,13 @@ def merge_recipes(
             "volatile section dropped — the merged recipe combines two "
             "patch lists and re-derives exclusions; the excluded-volatile "
             "evidence from " + ", ".join(volatile_sources) + " does not "
-            "transfer. Re-run cook-volatile on the merged pair for a "
-            "portable recipe."
+            "transfer. Legacy 4.5 documents keep this section only as a "
+            "record; the current engine produces no exclusions at all."
         )
 
     # ── ECU gate ──────────────────────────────────────────────────────
-    key_a = ecu_a.get("match_key")
-    key_b = ecu_b.get("match_key")
+    key_a = recipe_facts.match_key(recipe_a)
+    key_b = recipe_facts.match_key(recipe_b)
     if key_a and key_b and key_a != key_b:
         raise MergeConflict(
             f"ECU mismatch: '{name_a}' is for '{key_a}', '{name_b}' is "
@@ -147,14 +160,14 @@ def merge_recipes(
         )
 
     if stock_data is None:
-        sha_a = ecu_a.get("sha256")
-        sha_b = ecu_b.get("sha256")
+        sha_a = recipe_facts.sha256(recipe_a)
+        sha_b = recipe_facts.sha256(recipe_b)
         if not (sha_a and sha_b and sha_a == sha_b):
             raise MergeConflict(
                 "Cannot merge without --stock: the recipes were not built "
-                "from byte-identical originals (ecu.sha256 differs or is "
-                "missing). Pass --stock <original.bin> to merge against "
-                "a common original."
+                "from byte-identical originals (the recorded source sha256 "
+                "differs or is missing). Pass --stock <original.bin> to merge "
+                "against a common original."
             )
     else:
         for name, recipe in ((name_a, recipe_a), (name_b, recipe_b)):
@@ -265,13 +278,23 @@ def merge_recipes(
 
     # ── Build the merged recipe ───────────────────────────────────────
     meta_a = recipe_a.get("metadata", {})
-    file_size = ecu_a.get("file_size")
+    file_size = recipe_facts.size(recipe_a)
     merged_recipe: dict = {
         "type": "recipe",
-        "schema_version": "4.3",
-        "source": "recipe_merge",
-        "application": "openremap-core",
-        "creator": build_creator_block(),
+        "schema_version": "5.0",
+        "producer": {
+            "engine": "openremap",
+            "version": __version__,
+            "command": "merge",
+            "created_at": _now(),
+            "warnings": warnings,
+        },
+        "source": {
+            "filename": meta_a.get("original_file"),
+            "size": file_size,
+            "sha256": recipe_facts.sha256(recipe_a),
+            "identity": recipe_facts.identity(recipe_a),
+        },
         "fingerprint": compute_fingerprint(instructions),
         "metadata": {
             "name": f"merge: {name_a} + {name_b}",
@@ -279,11 +302,6 @@ def merge_recipes(
                 f"Merged from '{name_a}' and '{name_b}' — see merged_from."
             ),
             "tags": [],
-            "instruction_count": len(instructions),
-            "original_file": meta_a.get("original_file"),
-            "modified_file": None,
-            "original_size": file_size,
-            "modified_size": file_size,
             "tune_id": None,
             "merged_from": [name_a, name_b],
             "merged_fingerprints": [
@@ -291,7 +309,6 @@ def merge_recipes(
                 recipe_b.get("fingerprint"),
             ],
         },
-        "ecu": {**ecu_a, "cook_warnings": warnings},
         "statistics": _compute_stats(instructions, file_size),
         "instructions": instructions,
     }
@@ -303,8 +320,15 @@ def merge_recipes(
             from openremap.core.services.recipes.recipe_maps import attach_maps
 
             attach_maps(merged_recipe, stock_data)
-        except Exception:
-            pass  # best-effort — annotation never blocks a merge
+            merged_recipe["metadata"].pop("annotated_maps", None)
+        except Exception:  # noqa: BLE001 - annotation never blocks a merge
+            pass
+    merged_recipe["schema_version"] = "5.0"
+
+    # The contract follows from the merged instruction set, and is verified
+    # against the apply-side reader like every other produced recipe.
+    merged_recipe["contract"] = build_contract(instructions, merged_recipe)
+    verify_recipe(merged_recipe)
 
     return merged_recipe
 

@@ -164,8 +164,14 @@ def _check_identity(data: bytes, filename: str, tier: str) -> HealthCheck:
     )
 
 
-def _check_checksums(data: bytes) -> HealthCheck:
-    """Run every known family scheme; fail when any detected scheme is stale."""
+def check_checksums(data: bytes) -> HealthCheck:
+    """Run every known family scheme; fail when any detected scheme is stale.
+
+    Public because it is the honest answer to a question the apply side has to
+    ask about the file it just produced: does anything we know how to verify
+    still verify? It costs a detector pass (tens of milliseconds), not the
+    brute-force sweep, so it is affordable on a write path.
+    """
     found: list[str] = []
     stale: list[str] = []
     details: list[str] = []
@@ -371,7 +377,7 @@ def health_report(data: bytes, filename: str = "unknown.bin") -> HealthReport:
         confidence_tier=tier,
     )
     report.checks.append(_check_identity(data, filename, tier))
-    report.checks.append(_check_checksums(data))
+    report.checks.append(check_checksums(data))
     report.checks.append(_check_axis_sanity(data, family))
     report.checks.append(_check_map_count(data, family))
     report.checks.append(_check_erased_blocks(data))

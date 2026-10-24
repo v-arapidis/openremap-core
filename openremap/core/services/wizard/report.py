@@ -117,6 +117,97 @@ class CandidateView:
         return payload
 
 
+def calibration_diversity(dumps: list[tuple[str, bytes]], views: list) -> dict:
+    """How much the provided dumps can actually prove, measured — not assumed.
+
+    A marker is "stable across your dumps". That is evidence of a family signature
+    **only if the dumps are different calibrations**: two dumps of one calibration
+    cannot distinguish a family token from that calibration's version string, and
+    no algorithm can recover the difference from them.
+
+    Measured, on two real families:
+
+    * Bosch EDC17, two dumps of the same calibration → the generated extractor
+      claimed **0 of the 17** real EDC17 dumps in the corpus;
+    * Bosch EDC17, two dumps from different calibrations → **14 of 17**, exactly
+      the set the hand-written ``ME(D)/EDC17`` marker covers;
+    * Denso SH7058, two dumps of one model year → **22 of 35**, with a marker made
+      of repeated data (``'$3TD$3TD…'``);
+    * Denso SH7058, two dumps six years apart → **35 of 35**, with the ECU's own
+      OS banner as the marker.
+
+    So the number is reported, and it is reported *before* the marker, because it
+    decides what the marker is worth. When the identity is unavailable (the normal
+    case for a family nobody handles yet) the dumps are compared directly: how
+    much of the file do they share?
+    """
+    keys = []
+    for view in views:
+        key = (view.identity or {}).get("match_key")
+        if key:
+            keys.append(str(key))
+    distinct = len(set(keys))
+
+    if len(dumps) < 2:
+        return {
+            "distinct_calibrations": distinct,
+            "basis": "none",
+            "verdict": "unverified",
+            "note": "Only one dump was provided, so nothing was compared.",
+        }
+    if keys:
+        if distinct > 1:
+            return {
+                "distinct_calibrations": distinct,
+                "basis": "identity",
+                "verdict": "different-calibrations",
+                "note": (
+                    f"{distinct} different calibrations ({', '.join(sorted(set(keys)))}): "
+                    "a run stable across them is evidence of a family token."
+                ),
+            }
+        return {
+            "distinct_calibrations": 1,
+            "basis": "identity",
+            "verdict": "same-calibration",
+            "note": (
+                f"Every dump identifies as the same calibration ({keys[0]}). What is "
+                "stable across them may be that calibration's version string rather "
+                "than the family's signature — bring a dump from a different "
+                "year/model to prove it."
+            ),
+        }
+
+    # No identity to compare: fall back to how much of the file the dumps share.
+    from openremap._rust import find_changed_blocks  # type: ignore[import-untyped]
+
+    reference = dumps[0][1]
+    differing = 0
+    for _name, data in dumps[1:]:
+        length = min(len(reference), len(data))
+        if len(reference) != len(data):
+            differing += abs(len(reference) - len(data))
+        differing += sum(size for _offset, size, _ob, _mb in
+                         find_changed_blocks(reference[:length], data[:length], 0))
+    share = differing / max(1, len(reference))
+    if share < 0.005:
+        verdict, tail = "near-identical", (
+            "the dumps differ in well under 1% of their bytes, so they are very "
+            "likely one calibration (or a stock/tuned pair)"
+        )
+    else:
+        verdict, tail = "distinct-builds", (
+            f"the dumps differ in {share * 100:.1f}% of their bytes, so they are "
+            "independent builds"
+        )
+    return {
+        "distinct_calibrations": 0,
+        "basis": "content",
+        "verdict": verdict,
+        "note": f"No extractor recognises these dumps, so they were compared directly: {tail}.",
+    }
+
+
 def _trim_identity(result: dict) -> dict:
     """The identity fields worth printing — no hashes, no raw string dumps."""
     keys = (
@@ -226,6 +317,7 @@ def analyze(
         )
     )
 
+    diversity = calibration_diversity(dumps, views)
     fields = [f.as_dict() for f in find_fields(dumps)]
     recommended = None
     if (
@@ -242,6 +334,7 @@ def analyze(
         "claimed_by": (
             views[0].claimed_by.as_dict() if views and views[0].claimed_by else None
         ),
+        "calibration_diversity": diversity,
         "candidates": [v.as_dict() for v in candidates],
         "recommended": recommended,
         "candidate_stats": marker_stats,

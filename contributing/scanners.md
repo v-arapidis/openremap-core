@@ -3,9 +3,15 @@
 > Paths in this guide are relative to the repository root.
 
 When a recipe is cooked, every changed instruction can be inspected and
-**flagged** — "this rewrite touches a VIN", "this one sits in low-entropy
-context and may not be portable". Flags are advisory: they never change the
-patch, they tell a human where to look. A scanner is one such inspection rule.
+**flagged** — "this rewrite touches a VIN", "this anchor is not unique". Flags
+are advisory: they never change the patch, they tell a human where to look. A
+scanner is one such inspection rule.
+
+The bar for a flag: **it must point at something the reader can act on.** A
+verified-unique anchor is proof of position, so it is not flagged however low its
+entropy looks — the revision-fragility signal is already carried once, by the
+`CODE_AREA` region tag. A warning that fires on the normal case teaches people to
+ignore warnings.
 
 Read [../CONTRIBUTING.md](../CONTRIBUTING.md) first.
 
@@ -44,6 +50,8 @@ Guidance that keeps a scanner useful:
 
 - **`prepare()` for anything expensive.** It runs once; `scan()` runs per
   instruction, on binaries that can be megabytes.
+- **Do not duplicate another signal.** If `CODE_AREA` or `WEAK_ANCHOR` already
+  says it, a second flag only adds noise.
 - **One reason per flag, in plain words.** The reason string is what a tuner
   reads in the report; "low entropy context (12 distinct bytes / 32)" beats
   "suspicious".
@@ -51,8 +59,8 @@ Guidance that keeps a scanner useful:
   near-certain (a VIN in the rewritten bytes), others are hints. Do not flatten
   them to the same value.
 - **Advisory only.** A scanner never aborts a cook, never modifies bytes and
-  never decides portability on its own — `cook-volatile` does that, with its own
-  evidence trail.
+  never decides what to keep. The current producer keeps **everything** and
+  reports; a flag is information for a human, never a filter.
 - **Keep the flag kind stable.** Downstream consumers key on `kind`; renaming it
   is a breaking change and needs a changelog entry.
 
