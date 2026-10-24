@@ -15,7 +15,12 @@ from pathlib import Path
 import pytest
 
 from openremap.tui.app import OpenRemapTUI
-from openremap.tui.screens.picker import FilePicker, _typed_path, available_drives
+from openremap.tui.screens.picker import (
+    FilePicker,
+    _typed_path,
+    available_drives,
+    normalize_typed,
+)
 
 
 def run(body, *, size=(100, 30)):
@@ -29,26 +34,50 @@ def run(body, *, size=(100, 30)):
     return asyncio.run(scenario())
 
 
-class TestTypedPath:
+class TestTheTypedPathRule:
+    """Asserted on the *rule* (pure text), never on a rendered path.
+
+    Both earlier versions compared ``str(_typed_path(...))``, which on Windows runs
+    through ``WindowsPath`` — and pathlib appends a root separator to a UNC drive,
+    while on POSIX the same text is just a filename. The test measured the
+    runner's flavour instead of the rule: green here, red on windows-latest, twice.
+    """
+
     def test_a_bare_drive_becomes_the_drive_root_on_windows(self):
-        """`D:` is drive-relative on Windows — typed alone it means D:\\."""
-        assert str(_typed_path("D:", windows=True)) == "D:\\"
-        assert str(_typed_path("d:", windows=True)) == "d:\\"
+        """A bare drive letter is drive-relative on Windows, and typing it means the root."""
+        assert normalize_typed("D:", windows=True) == "D:\\"
+        assert normalize_typed("d:", windows=True) == "d:\\"
 
     def test_a_drive_with_a_root_is_left_alone(self):
-        assert str(_typed_path("D:\\", windows=True)) == "D:\\"
-        assert str(_typed_path("D:\\dumps\\a.bin", windows=True)) == "D:\\dumps\\a.bin"
+        assert normalize_typed("D:\\", windows=True) == "D:\\"
+        assert normalize_typed("D:\\dumps\\a.bin", windows=True) == "D:\\dumps\\a.bin"
 
     def test_a_unc_share_is_left_alone(self):
-        assert str(_typed_path("\\\\server\\share", windows=True)) == "\\\\server\\share"
+        assert normalize_typed("\\\\server\\share", windows=True) == "\\\\server\\share"
+
+    def test_only_a_bare_drive_spec_matches(self):
+        """A drive-relative path with a name is not bare, so it is left alone."""
+        assert normalize_typed("D:stuff", windows=True) == "D:stuff"
+        assert normalize_typed("file.bin", windows=True) == "file.bin"
 
     def test_posix_text_is_never_rewritten(self):
         """On POSIX the same text is a filename, so the Windows rule must not run."""
-        assert str(_typed_path("D:", windows=False)) == "D:"
+        assert normalize_typed("D:", windows=False) == "D:"
+
+    def test_whitespace_is_trimmed(self):
+        assert normalize_typed("  D:  ", windows=True) == "D:\\"
+
+
+class TestThePathWrapper:
+    """What the wrapper adds on top of the rule: a real ``Path``, ``~`` expanded."""
 
     def test_home_expands(self):
-        assert _typed_path("~/dumps").parts[0] == Path.home().parts[0]
-        assert "~" not in str(_typed_path("~/dumps"))
+        expanded = _typed_path("~/dumps")
+        assert "~" not in str(expanded)
+        assert expanded.parts[-1] == "dumps"
+
+    def test_a_bare_drive_still_becomes_a_path(self):
+        assert isinstance(_typed_path("D:", windows=True), Path)
 
 
 class TestPathField:

@@ -59,15 +59,28 @@ def _typed_path(raw: str, *, windows: bool | None = None) -> Path:
     On POSIX the same text is just a filename that starts with a letter, so the
     rule is applied only where it means something.
     """
+    return Path(normalize_typed(raw, windows=windows)).expanduser()
+
+
+def normalize_typed(raw: str, *, windows: bool | None = None) -> str:
+    """The typed text, with Windows' drive trap removed — **pure string work**.
+
+    Split out from :func:`_typed_path` on purpose. Anything that goes through
+    ``Path`` cannot be asserted off Windows: ``str(PureWindowsPath(r"\\\\server\\share"))``
+    is ``'\\\\server\\share\\'`` because pathlib appends the root separator to a UNC
+    drive, while on POSIX the identical text is just a filename. A test that
+    compares the resulting *path string* therefore tests the runner's flavour, not
+    the rule — twice in one file, before this split.
+
+    The rule itself: only a *bare* drive spec (``D:``, ``d:``) is rewritten.
+    ``D:`` is drive-relative on Windows ("the current directory on D:"), which is
+    not what anyone typing it means.
+    """
     windows = (os.name == "nt") if windows is None else windows
     text = raw.strip()
-    # Only a *bare* drive spec is rewritten: "D:" and "d:". Everything else is
-    # left exactly as typed — a UNC path (\\server\share) parses with a drive
-    # and no root on Windows too, and rewriting it appended a separator that was
-    # never typed (caught by the portability job, on windows-latest).
     if windows and len(text) == 2 and text[1] == ":" and text[0].isalpha():
-        text = f"{text[0]}:\\"
-    return Path(text).expanduser()
+        return f"{text[0]}:\\"
+    return text
 
 
 def available_drives(
