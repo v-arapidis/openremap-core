@@ -232,6 +232,7 @@ class TestDiscoverability:
         assert "identify a dump" in text or "cook a recipe" in text
 
 
+@pytest.mark.skipif(not M33.exists(), reason="test corpus absent")
 class TestClearing:
     @pytest.mark.parametrize("key", ["d", "delete"])
     def test_one_plain_key_clears_it_and_never_touches_the_files(self, workspace, key):

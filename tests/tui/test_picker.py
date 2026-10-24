@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from openremap.tui.app import OpenRemapTUI
 from openremap.tui.screens.picker import FilePicker, _typed_path, available_drives
 
@@ -98,7 +100,20 @@ class TestDrives:
         drives = available_drives(windows=True, exists=lambda p: p[0] in "CD")
         assert drives == ["C:\\", "D:\\"]
 
-    def test_the_row_is_hidden_when_there_is_nothing_to_show(self, tmp_path):
+    @pytest.mark.parametrize("drives,expected_shown", [([], False), (["C:\\", "D:\\"], True)])
+    def test_the_row_follows_what_the_platform_reports(
+        self, tmp_path, monkeypatch, drives, expected_shown
+    ):
+        """Both directions, forced — not "whatever this machine has".
+
+        The first version asserted the row was hidden, which is true on POSIX and
+        false on windows-latest: it tested the runner, not the behaviour (caught by
+        the portability job).
+        """
+        monkeypatch.setattr(
+            "openremap.tui.screens.picker.available_drives", lambda **kwargs: drives
+        )
+
         async def body(pilot, app):
             picker = FilePicker(tmp_path)
             app.push_screen(picker)
@@ -106,6 +121,9 @@ class TestDrives:
             row = picker.query_one("#picker-drives")
             return row.display, str(row.render())
 
-        # On the machine running these tests (POSIX) the row is hidden.
         shown, text = run(body)
-        assert shown is False and text == ""
+        assert shown is expected_shown
+        if expected_shown:
+            assert "C:\\" in text and "type one to go there" in text
+        else:
+            assert text == ""

@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import string
 from collections.abc import Callable
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import ClassVar
 
 from rich.text import Text
@@ -61,10 +61,12 @@ def _typed_path(raw: str, *, windows: bool | None = None) -> Path:
     """
     windows = (os.name == "nt") if windows is None else windows
     text = raw.strip()
-    if windows:
-        pure = PureWindowsPath(text)
-        if pure.drive and not pure.root:
-            text = f"{pure.drive}\\"
+    # Only a *bare* drive spec is rewritten: "D:" and "d:". Everything else is
+    # left exactly as typed — a UNC path (\\server\share) parses with a drive
+    # and no root on Windows too, and rewriting it appended a separator that was
+    # never typed (caught by the portability job, on windows-latest).
+    if windows and len(text) == 2 and text[1] == ":" and text[0].isalpha():
+        text = f"{text[0]}:\\"
     return Path(text).expanduser()
 
 
